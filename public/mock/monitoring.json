@@ -1,0 +1,47 @@
+[
+  {
+    "eventId": "ev_rock_msk",
+    "nowPoint": "ti20",
+    "collected": 240000,
+    "deficit": 360000,
+    "surplus": 0,
+    "deadlineNext": "2025-12-20T21:00:00Z",
+    "applicants": [
+      {
+        "code": "A1B2C3",
+        "seats": 2,
+        "paidAmount": 10000
+      },
+      {
+        "code": "X7Y8Z9",
+        "seats": 1,
+        "paidAmount": 5000
+      },
+      {
+        "code": "H6K3M1",
+        "seats": 3,
+        "paidAmount": 15000
+      }
+    ]
+  },
+  {
+    "eventId": "ev_art_spb",
+    "nowPoint": "ti10",
+    "collected": 80000,
+    "deficit": 240000,
+    "surplus": 0,
+    "deadlineNext": "2025-12-05T16:00:00Z",
+    "applicants": [
+      {
+        "code": "Q9W8E7",
+        "seats": 1,
+        "paidAmount": 4000
+      },
+      {
+        "code": "Z1X2C3",
+        "seats": 2,
+        "paidAmount": 8000
+      }
+    ]
+  }
+]

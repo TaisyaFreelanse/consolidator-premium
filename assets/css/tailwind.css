@@ -1,0 +1,18 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  html, body, #__nuxt { height: 100%; }
+  body { @apply bg-slate-50 text-slate-900; }
+}
+@layer components {
+  .card { @apply bg-white/80 backdrop-blur border border-white/60 shadow-elev rounded-2xl; }
+  .btn { @apply inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-medium transition hover:-translate-y-0.5 active:translate-y-0; }
+  .btn-primary { @apply btn border-brand-500 bg-brand-600 text-white hover:bg-brand-500; }
+  .btn-ghost { @apply btn border-transparent bg-white/60 hover:bg-white; }
+  .pill { @apply inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600; }
+  .headline { @apply text-2xl font-semibold tracking-tight; }
+  .subtle { @apply text-sm text-slate-500; }
+  .kbd { @apply px-1.5 py-0.5 rounded border bg-slate-50 text-slate-700 text-[11px]; }
+}
