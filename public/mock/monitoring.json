@@ -1,5 +1,185 @@
 [
   {
+    "eventId": "ev_test_early",
+    "nowPoint": "ti10",
+    "collected": 100000,
+    "deficit": 400000,
+    "surplus": 0,
+    "deadlineNext": "2025-12-10T23:59:59Z",
+    "applicants": [
+      {
+        "code": "BEAR01",
+        "seats": 1,
+        "paidAmount": 100000
+      }
+    ]
+  },
+  {
+    "eventId": "ev_test_middle",
+    "nowPoint": "ti30",
+    "collected": 490000,
+    "deficit": 350000,
+    "surplus": 0,
+    "deadlineNext": "2025-12-15T23:59:59Z",
+    "applicants": [
+      {
+        "code": "PHOTO1",
+        "seats": 1,
+        "paidAmount": 70000
+      },
+      {
+        "code": "PHOTO2",
+        "seats": 1,
+        "paidAmount": 70000
+      },
+      {
+        "code": "PHOTO3",
+        "seats": 1,
+        "paidAmount": 70000
+      },
+      {
+        "code": "PHOTO4",
+        "seats": 1,
+        "paidAmount": 70000
+      },
+      {
+        "code": "PHOTO5",
+        "seats": 1,
+        "paidAmount": 70000
+      },
+      {
+        "code": "PHOTO6",
+        "seats": 1,
+        "paidAmount": 70000
+      },
+      {
+        "code": "PHOTO7",
+        "seats": 1,
+        "paidAmount": 70000
+      }
+    ]
+  },
+  {
+    "eventId": "ev_test_critical",
+    "nowPoint": "ti40",
+    "collected": 900000,
+    "deficit": 300000,
+    "surplus": 0,
+    "deadlineNext": "2025-11-20T23:59:59Z",
+    "applicants": [
+      {
+        "code": "CHEF01",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF02",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF03",
+        "seats": 1,
+        "paidAmount": 62000
+      },
+      {
+        "code": "CHEF04",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF05",
+        "seats": 1,
+        "paidAmount": 65000
+      },
+      {
+        "code": "CHEF06",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF07",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF08",
+        "seats": 1,
+        "paidAmount": 61000
+      },
+      {
+        "code": "CHEF09",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF10",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF11",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF12",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF13",
+        "seats": 1,
+        "paidAmount": 63000
+      },
+      {
+        "code": "CHEF14",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF15",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF16",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF17",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF18",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF19",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF20",
+        "seats": 1,
+        "paidAmount": 60000
+      },
+      {
+        "code": "CHEF21",
+        "seats": 1,
+        "paidAmount": 58000
+      },
+      {
+        "code": "CHEF22",
+        "seats": 1,
+        "paidAmount": 57000
+      }
+    ]
+  },
+  {
     "eventId": "ev_rock_msk",
     "nowPoint": "ti20",
     "collected": 240000,
@@ -9,8 +189,8 @@
     "applicants": [
       {
         "code": "A1B2C3",
-        "seats": 2,
-        "paidAmount": 10000
+        "seats": 1,
+        "paidAmount": 5000
       },
       {
         "code": "X7Y8Z9",
@@ -19,8 +199,8 @@
       },
       {
         "code": "H6K3M1",
-        "seats": 3,
-        "paidAmount": 15000
+        "seats": 1,
+        "paidAmount": 5000
       }
     ]
   },
@@ -39,9 +219,45 @@
       },
       {
         "code": "Z1X2C3",
-        "seats": 2,
-        "paidAmount": 8000
+        "seats": 1,
+        "paidAmount": 4000
       }
     ]
+  },
+  {
+    "eventId": "ev_diving_sochi",
+    "nowPoint": "t0",
+    "collected": 0,
+    "deficit": 250000,
+    "surplus": 0,
+    "deadlineNext": "2026-03-15T23:59:59Z",
+    "applicants": []
+  },
+  {
+    "eventId": "ev_gastro_msk",
+    "nowPoint": "t0",
+    "collected": 0,
+    "deficit": 500000,
+    "surplus": 0,
+    "deadlineNext": "2026-04-01T23:59:59Z",
+    "applicants": []
+  },
+  {
+    "eventId": "ev_pilates_cruise",
+    "nowPoint": "t0",
+    "collected": 0,
+    "deficit": 900000,
+    "surplus": 0,
+    "deadlineNext": "2026-05-10T23:59:59Z",
+    "applicants": []
+  },
+  {
+    "eventId": "ev_ice_climbing",
+    "nowPoint": "t0",
+    "collected": 0,
+    "deficit": 750000,
+    "surplus": 0,
+    "deadlineNext": "2026-05-25T23:59:59Z",
+    "applicants": []
   }
 ]

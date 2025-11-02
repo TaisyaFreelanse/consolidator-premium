@@ -160,12 +160,7 @@ const submitForm = () => {
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F3E] to-[#0A0F1E] text-white py-12">
     <div class="container mx-auto px-4 max-w-4xl">
       <!-- Header -->
-      <div 
-        v-motion
-        :initial="{ opacity: 0, y: -20 }"
-        :enter="{ opacity: 1, y: 0, transition: { duration: 600 } }"
-        class="mb-8"
-      >
+      <div class="mb-8">
         <NuxtLink 
           to="/catalog" 
           class="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-4"
@@ -182,12 +177,7 @@ const submitForm = () => {
       </div>
 
       <!-- Form -->
-      <div 
-        v-motion
-        :initial="{ opacity: 0, y: 20 }"
-        :enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 200 } }"
-        class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl"
-      >
+      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
         <form @submit.prevent="submitForm" class="space-y-6">
           <!-- Image Upload -->
           <div>

@@ -116,12 +116,7 @@ const viewMode = ref<'default' | 'compact' | 'detailed'>('default')
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F3E] to-[#0A0F1E] text-white py-12">
     <div class="container mx-auto px-4 max-w-7xl">
       <!-- Header -->
-      <div 
-        v-motion
-        :initial="{ opacity: 0, y: -20 }"
-        :enter="{ opacity: 1, y: 0, transition: { duration: 600 } }"
-        class="mb-8"
-      >
+      <div class="mb-8">
         <h1 class="text-4xl font-bold bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent mb-2">
           Авторы мероприятий
         </h1>
@@ -129,12 +124,7 @@ const viewMode = ref<'default' | 'compact' | 'detailed'>('default')
       </div>
 
       <!-- View mode selector -->
-      <div 
-        v-motion
-        :initial="{ opacity: 0, y: 20 }"
-        :enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 100 } }"
-        class="flex flex-wrap gap-3 justify-center mb-8"
-      >
+      <div class="flex flex-wrap gap-3 justify-center mb-8">
         <button
           @click="viewMode = 'default'"
           :class="[
@@ -172,9 +162,6 @@ const viewMode = ref<'default' | 'compact' | 'detailed'>('default')
 
       <!-- Authors Grid -->
       <div 
-        v-motion
-        :initial="{ opacity: 0 }"
-        :enter="{ opacity: 1, transition: { duration: 600, delay: 200 } }"
         :class="[
           'grid gap-6',
           viewMode === 'compact' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
@@ -201,12 +188,7 @@ const viewMode = ref<'default' | 'compact' | 'detailed'>('default')
       </div>
 
       <!-- Stats Section -->
-      <div 
-        v-motion
-        :initial="{ opacity: 0, y: 20 }"
-        :enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 300 } }"
-        class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6"
-      >
+      <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 text-center">
           <div class="text-4xl font-bold text-white mb-2">{{ authors.length }}</div>
           <div class="text-white/60">Авторов на платформе</div>

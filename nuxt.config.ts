@@ -1,7 +1,7 @@
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@pinia/nuxt', '@nuxtjs/tailwindcss', '@vueuse/motion/nuxt'],
+  modules: ['@pinia/nuxt', '@nuxtjs/tailwindcss'],
   app: {
     head: {
       title: 'Консолидатор — MVP',
