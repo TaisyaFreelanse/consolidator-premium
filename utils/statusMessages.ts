@@ -3,13 +3,24 @@ import type { ControlPointCode } from '~/types'
 /**
  * Таблица статусов и извещений для мероприятий
  * Основана на требованиях заказчика
+ * 
+ * Контрольные точки:
+ * 0 – момент записи мероприятия в каталог (появление на сайте)
+ * ti10 – начало приема заявок (startApplicationsAt)
+ * ti20 – окончание приема заявок (endApplicationsAt)
+ * ti30 – начало оформления договоров на участие
+ * ti40 – начало проведения мероприятия (startAt)
+ * ti50 – окончание проведения мероприятия (endAt)
+ * 999 – момент удаления мероприятия из каталога
  */
 
 export interface StatusMessage {
   period: string // Период времени (например, "0 - ti10")
   извещение1: string // Основное извещение о текущем этапе
+  извещение1ПриОтмене?: string // Извещение-1 при отмене мероприятия
   извещение2: string // Дополнительное извещение (если есть)
-  status: 'starting' | 'active' | 'critical' | 'final' | 'completed' | 'cancelled'
+  извещение2ПриОтмене?: string // Извещение-2 при отмене мероприятия
+  status: 'starting' | 'active' | 'processing' | 'ongoing' | 'completed' | 'cancelled'
 }
 
 /**
@@ -18,106 +29,150 @@ export interface StatusMessage {
 export const statusMessagesTable: Record<string, StatusMessage> = {
   't0-ti10': {
     period: '0 - ti10',
-    извещение1: 'Опубликовали объявление о мероприятии – цену, сроки и другие необходимые сведения',
-    извещение2: 'Прием заявок открыт. Можно регистрироваться',
+    извещение1: 'Опубликовали объявление о мероприятии – цену, сроки и другие необходимые сведения.',
+    извещение2: 'Начало приема заявок на участие',
     status: 'starting'
   },
   'ti10-ti20': {
     period: 'ti10 - ti20',
-    извещение1: 'Первые заявители зарегистрировались',
-    извещение2: 'Сбор набирает обороты',
+    извещение1: 'Принимаем заявки на участие в мероприятии и обеспечительные платежи',
+    извещение2: 'Окончание приема заявок на участие, начало калькуляции складочных цен',
     status: 'active'
   },
   'ti20-ti30': {
     period: 'ti20 - ti30',
-    извещение1: 'Сбор продолжается',
-    извещение2: 'Оцените свои шансы попасть в число участников',
-    status: 'active'
+    извещение1: 'Подводим итоги сбора средств, готовим документы для расчетов с заявителями.',
+    извещение2: 'Объявление результатов калькуляции складочных цен',
+    status: 'processing'
   },
   'ti30-ti40': {
     period: 'ti30 - ti40',
-    извещение1: 'Критическая точка сбора',
-    извещение2: 'Если недобор средств – возможна отмена. Если перебор участников – нужно повышать ставки',
-    status: 'critical'
+    извещение1: 'Собрано достаточно средств, мероприятие состоится, проводим расчеты с заявителями',
+    извещение1ПриОтмене: 'Собрано недостаточно средств, проводим расчеты с заявителями',
+    извещение2: 'Начало мероприятия',
+    извещение2ПриОтмене: 'Мероприятие не состоится',
+    status: 'processing'
   },
   'ti40-ti50': {
     period: 'ti40 - ti50',
-    извещение1: 'Финальный этап сбора',
-    извещение2: 'Осталось мало времени для регистрации',
-    status: 'final'
+    извещение1: 'Проводится мероприятие',
+    извещение1ПриОтмене: 'Собрано недостаточно средств, проводим расчеты с заявителями',
+    извещение2: 'Окончание мероприятия',
+    извещение2ПриОтмене: 'Мероприятие не состоится',
+    status: 'ongoing'
   },
   'ti50-t999': {
-    period: 'ti50 - завершение',
-    извещение1: 'Сбор завершается',
-    извещение2: 'Проводим окончательные расчеты с участниками',
-    status: 'final'
+    period: 'ti50 - 999',
+    извещение1: 'Мероприятие завершилось',
+    извещение1ПриОтмене: 'Истек срок проведения мероприятия',
+    извещение2: '',
+    извещение2ПриОтмене: '',
+    status: 'completed'
   },
   't999': {
-    period: 'Завершено',
-    извещение1: 'Сбор средств завершен',
-    извещение2: 'Ожидайте подтверждения участия',
+    period: '999',
+    извещение1: 'Мероприятие удалено из каталога',
+    извещение2: '',
     status: 'completed'
   }
 }
 
 /**
- * Определяет текущий временной интервал на основе дат начала и конца сбора
+ * Определяет текущий временной интервал на основе контрольных точек мероприятия
+ * 
+ * @param event - объект мероприятия с датами контрольных точек
+ * @param createdAt - дата создания/публикации мероприятия (t0)
+ * @returns текущий интервал, контрольную точку и прогресс
  */
 export function getCurrentTimeInterval(
-  startApplicationsAt: string,
-  endApplicationsAt: string,
-  controlPlan: ControlPointCode[]
+  event: {
+    startApplicationsAt?: string // ti10
+    endApplicationsAt?: string // ti20
+    startContractsAt?: string // ti30
+    startAt: string // ti40
+    endAt?: string // ti50
+  },
+  createdAt?: string
 ): { currentInterval: string; currentPoint: ControlPointCode; progress: number } {
   const now = Date.now()
-  const start = new Date(startApplicationsAt).getTime()
-  const end = new Date(endApplicationsAt).getTime()
   
-  // Если сбор еще не начался
-  if (now < start) {
-    return {
-      currentInterval: 'not-started',
-      currentPoint: 't0',
-      progress: 0
-    }
-  }
+  // Определяем временные точки
+  const t0 = createdAt ? new Date(createdAt).getTime() : 0
+  const ti10 = event.startApplicationsAt ? new Date(event.startApplicationsAt).getTime() : null
+  const ti20 = event.endApplicationsAt ? new Date(event.endApplicationsAt).getTime() : null
+  const ti30 = event.startContractsAt ? new Date(event.startContractsAt).getTime() : null
+  const ti40 = new Date(event.startAt).getTime()
+  const ti50 = event.endAt ? new Date(event.endAt).getTime() : null
   
-  // Если сбор завершен
-  if (now > end) {
-    return {
-      currentInterval: 't999',
-      currentPoint: 't999',
-      progress: 100
-    }
-  }
-  
-  // Вычисляем прогресс по времени (0-100%)
-  const totalDuration = end - start
-  const elapsed = now - start
-  const progress = (elapsed / totalDuration) * 100
-  
-  // Фильтруем только ti точки из плана
-  const timePoints = controlPlan.filter(p => p.startsWith('ti') || p === 't0' || p === 't999')
-  
-  // Определяем текущий интервал на основе прогресса
-  if (progress < 10) {
-    return { currentInterval: 't0-ti10', currentPoint: 't0', progress }
-  } else if (progress < 20) {
-    return { currentInterval: 'ti10-ti20', currentPoint: 'ti10', progress }
-  } else if (progress < 30) {
-    return { currentInterval: 'ti20-ti30', currentPoint: 'ti20', progress }
-  } else if (progress < 40) {
-    return { currentInterval: 'ti30-ti40', currentPoint: 'ti30', progress }
-  } else if (progress < 50) {
-    return { currentInterval: 'ti40-ti50', currentPoint: 'ti40', progress }
-  } else {
+  // Определяем текущий интервал
+  if (ti50 && now >= ti50) {
+    // После окончания мероприятия
+    const progress = 100
     return { currentInterval: 'ti50-t999', currentPoint: 'ti50', progress }
+  } else if (now >= ti40) {
+    // Мероприятие идёт (ti40 - ti50)
+    if (ti50) {
+      const totalDuration = ti50 - ti40
+      const elapsed = now - ti40
+      const progress = Math.min(100, (elapsed / totalDuration) * 100)
+      return { currentInterval: 'ti40-ti50', currentPoint: 'ti40', progress }
+    } else {
+      return { currentInterval: 'ti40-ti50', currentPoint: 'ti40', progress: 50 }
+    }
+  } else if (ti30 && now >= ti30) {
+    // Оформление договоров (ti30 - ti40)
+    const totalDuration = ti40 - ti30
+    const elapsed = now - ti30
+    const progress = Math.min(100, (elapsed / totalDuration) * 100)
+    return { currentInterval: 'ti30-ti40', currentPoint: 'ti30', progress }
+  } else if (ti20 && now >= ti20) {
+    // Подведение итогов (ti20 - ti30)
+    if (ti30) {
+      const totalDuration = ti30 - ti20
+      const elapsed = now - ti20
+      const progress = Math.min(100, (elapsed / totalDuration) * 100)
+      return { currentInterval: 'ti20-ti30', currentPoint: 'ti20', progress }
+    } else if (ti40) {
+      // Если нет ti30, то прогресс до ti40
+      const totalDuration = ti40 - ti20
+      const elapsed = now - ti20
+      const progress = Math.min(100, (elapsed / totalDuration) * 100)
+      return { currentInterval: 'ti20-ti30', currentPoint: 'ti20', progress }
+    } else {
+      return { currentInterval: 'ti20-ti30', currentPoint: 'ti20', progress: 50 }
+    }
+  } else if (ti10 && now >= ti10) {
+    // Прием заявок (ti10 - ti20)
+    if (ti20) {
+      const totalDuration = ti20 - ti10
+      const elapsed = now - ti10
+      const progress = Math.min(100, (elapsed / totalDuration) * 100)
+      return { currentInterval: 'ti10-ti20', currentPoint: 'ti10', progress }
+    } else {
+      return { currentInterval: 'ti10-ti20', currentPoint: 'ti10', progress: 50 }
+    }
+  } else if (ti10 && now < ti10) {
+    // До начала приема заявок (t0 - ti10)
+    if (t0 > 0) {
+      const totalDuration = ti10 - t0
+      const elapsed = now - t0
+      const progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100))
+      return { currentInterval: 't0-ti10', currentPoint: 't0', progress }
+    } else {
+      return { currentInterval: 't0-ti10', currentPoint: 't0', progress: 0 }
+    }
+  } else {
+    // Мероприятие еще не опубликовано или нет данных о ti10
+    return { currentInterval: 't0-ti10', currentPoint: 't0', progress: 0 }
   }
 }
 
 /**
  * Получает сообщение о статусе для текущего интервала
+ * @param interval - текущий временной интервал
+ * @param isCancelled - признак отмены мероприятия
  */
-export function getStatusMessage(interval: string): StatusMessage | null {
+export function getStatusMessage(interval: string, isCancelled: boolean = false): StatusMessage | null {
   if (interval === 'not-started') {
     return {
       period: 'Ожидание',
@@ -127,7 +182,20 @@ export function getStatusMessage(interval: string): StatusMessage | null {
     }
   }
   
-  return statusMessagesTable[interval] || null
+  const message = statusMessagesTable[interval]
+  if (!message) return null
+  
+  // Если мероприятие отменено и есть альтернативные тексты
+  if (isCancelled && (message.извещение1ПриОтмене || message.извещение2ПриОтмене)) {
+    return {
+      ...message,
+      извещение1: message.извещение1ПриОтмене || message.извещение1,
+      извещение2: message.извещение2ПриОтмене || message.извещение2,
+      status: 'cancelled'
+    }
+  }
+  
+  return message
 }
 
 /**

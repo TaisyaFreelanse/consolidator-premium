@@ -7,7 +7,8 @@ export interface EventItem {
   title: string
   author: string
   location: string
-  startAt: string
+  startAt: string // ti40 - начало проведения мероприятия
+  endAt?: string // ti50 - окончание проведения мероприятия
   seatLimit?: number
   priceTotal: number
   pricePerSeat?: number
@@ -16,8 +17,9 @@ export interface EventItem {
   category?: EventCategory
   description?: string
   activities?: string[]
-  startApplicationsAt?: string
-  endApplicationsAt?: string
+  startApplicationsAt?: string // ti10 - начало приема заявок
+  endApplicationsAt?: string // ti20 - окончание приема заявок
+  startContractsAt?: string // ti30 - начало оформления договоров
   authorInfo?: {
     name: string
     title: string

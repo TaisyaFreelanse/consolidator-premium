@@ -2,33 +2,20 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventsStore } from '~/stores/events'
-import { useMonitoringStore } from '~/stores/monitoring'
 import { useFavoritesStore } from '~/stores/favorites'
-import EventStatus from '~/components/EventStatus.vue'
 import Toast from '~/components/Toast.vue'
 
 const router = useRouter()
 const events = useEventsStore()
-const monitoring = useMonitoringStore()
 const favorites = useFavoritesStore()
 const isLoading = ref(true)
 const searchQuery = ref('')
-const selectedCategory = ref<string | null>(null)
 
 // Toast для уведомлений
 const toastMessage = ref('')
 const showToast = ref(false)
 
-const categoryLabels: Record<string, string> = {
-  'master-class': 'Мастер-классы',
-  'training': 'Тренинги',
-  'excursion': 'Экскурсии',
-  'gastro-show': 'Гастро-шоу',
-  'lecture': 'Лектории',
-  'cruise': 'Круизы'
-}
-
-// Фильтрация событий
+// Фильтрация событий (только по текстовому поиску)
 const filteredEvents = computed(() => {
   let result = events.list
   
@@ -41,17 +28,7 @@ const filteredEvents = computed(() => {
     )
   }
   
-  if (selectedCategory.value) {
-    result = result.filter(e => e.category === selectedCategory.value)
-  }
-  
   return result
-})
-
-// Уникальные категории из событий
-const availableCategories = computed(() => {
-  const categories = new Set(events.list.map(e => e.category).filter(Boolean))
-  return Array.from(categories)
 })
 
 // Проверка, находится ли событие в избранном
@@ -71,14 +48,24 @@ const goToMonitoring = (eventId: string) => {
   router.push(`/monitoring?event=${eventId}`)
 }
 
-// Получить снимок мониторинга для события
-const getSnapshot = (eventId: string) => {
-  return monitoring.byEvent(eventId)
+// Форматирование даты
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleString('ru-RU', { 
+    day: '2-digit', 
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+}
+
+// Форматирование суммы
+const formatMoney = (amount: number) => {
+  return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
 }
 
 onMounted(async () => {
   await events.fetch()
-  await monitoring.fetch()
   
   setTimeout(() => {
     isLoading.value = false
@@ -94,8 +81,8 @@ onMounted(async () => {
         <p class="page-subtitle">Консолидатор: честная информация о ходе сбора</p>
       </div>
 
-      <!-- Фильтры и поиск -->
-      <div class="filters-bar">
+      <!-- Поиск -->
+      <div class="search-bar">
         <div class="search-box">
           <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -106,24 +93,6 @@ onMounted(async () => {
             placeholder="Поиск по названию, автору, месту..." 
             class="search-input"
           />
-        </div>
-
-        <!-- Фильтр по категориям -->
-        <div v-if="availableCategories.length > 0" class="category-filter">
-          <button 
-            @click="selectedCategory = null" 
-            :class="['category-btn', { active: selectedCategory === null }]"
-          >
-            Все
-          </button>
-          <button 
-            v-for="cat in availableCategories" 
-            :key="cat" 
-            @click="selectedCategory = cat === selectedCategory ? null : cat"
-            :class="['category-btn', { active: selectedCategory === cat }]"
-          >
-            {{ categoryLabels[cat] || cat }}
-          </button>
         </div>
       </div>
 
@@ -153,18 +122,56 @@ onMounted(async () => {
             </svg>
           </button>
           
-          <!-- КОМПАКТНЫЙ СТАТУС (без извещений) -->
-          <div class="event-status-compact">
-            <EventStatus :event="event" :snapshot="getSnapshot(event.id)" :compact="true" />
+          <!-- ИНФОРМАЦИЯ "ОТ АВТОРА" (базовая, без статистики сбора) -->
+          <div class="event-info">
+            <h3 class="event-title">{{ event.title }}</h3>
+            
+            <div class="event-meta">
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span class="meta-label">Начало:</span>
+                <span class="meta-value">{{ formatDate(event.startAt) }}</span>
+              </div>
+              
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="meta-label">Место:</span>
+                <span class="meta-value">{{ event.location }}</span>
+              </div>
+              
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="meta-label">Автор:</span>
+                <span class="meta-value">{{ event.author }}</span>
+              </div>
+
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="meta-label">Цена:</span>
+                <span class="meta-value">{{ formatMoney(event.pricePerSeat || event.priceTotal) }} ₽</span>
+              </div>
+            </div>
+
+            <div v-if="event.description" class="event-description">
+              {{ event.description }}
+            </div>
           </div>
 
           <!-- Подсказка о клике -->
           <div class="click-hint">
             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span>Нажмите для просмотра мониторинга</span>
+            <span>Нажмите для мониторинга хода сбора</span>
           </div>
         </div>
       </div>
@@ -175,8 +182,8 @@ onMounted(async () => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
         <p>Мероприятия не найдены</p>
-        <button @click="() => { searchQuery = ''; selectedCategory = null; }" class="reset-btn">
-          Сбросить фильтры
+        <button @click="searchQuery = ''" class="reset-btn">
+          Очистить поиск
         </button>
       </div>
     </div>
@@ -221,8 +228,8 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Фильтры */
-.filters-bar {
+/* Поиск */
+.search-bar {
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
@@ -232,7 +239,6 @@ onMounted(async () => {
 
 .search-box {
   position: relative;
-  margin-bottom: 16px;
 }
 
 .search-icon {
@@ -260,35 +266,6 @@ onMounted(async () => {
   outline: none;
   border-color: #007AFF;
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-}
-
-.category-filter {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.category-btn {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  border: 2px solid #e0e0e0;
-  border-radius: 20px;
-  background: #fff;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.category-btn:hover {
-  border-color: #007AFF;
-  color: #007AFF;
-}
-
-.category-btn.active {
-  background: #007AFF;
-  border-color: #007AFF;
-  color: #fff;
 }
 
 /* Загрузка */
@@ -327,6 +304,8 @@ onMounted(async () => {
   overflow: hidden;
   transition: all 0.3s;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .event-card:hover {
@@ -335,14 +314,72 @@ onMounted(async () => {
   transform: translateY(-6px);
 }
 
-.event-status-compact {
-  /* EventStatus компонент сам содержит стили */
+/* Информация о мероприятии "от автора" */
+.event-info {
+  padding: 24px;
+  padding-bottom: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 20px 0;
+  line-height: 1.3;
+}
+
+.event-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.meta-row .icon {
+  width: 18px;
+  height: 18px;
+  color: #007AFF;
+  flex-shrink: 0;
+}
+
+.meta-label {
+  color: #666;
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.meta-value {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.event-description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #666;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: auto;
 }
 
 /* Кнопка избранного в углу */
 .favorite-corner-btn {
   position: absolute;
-  bottom: 72px;
+  top: 16px;
   right: 16px;
   z-index: 10;
   display: flex;
@@ -474,10 +511,18 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
+  .event-title {
+    font-size: 20px;
+  }
+
+  .event-info {
+    padding: 20px;
+  }
+
   .favorite-corner-btn {
     width: 44px;
     height: 44px;
-    bottom: 66px;
+    top: 12px;
     right: 12px;
   }
 

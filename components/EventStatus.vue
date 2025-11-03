@@ -19,25 +19,48 @@ const props = defineProps<Props>()
 
 // Текущий временной интервал
 const timeInterval = computed(() => {
-  if (!props.event.startApplicationsAt || !props.event.endApplicationsAt) {
-    return null
-  }
-  return getCurrentTimeInterval(
-    props.event.startApplicationsAt,
-    props.event.endApplicationsAt,
-    props.event.controlPlan
-  )
+  return getCurrentTimeInterval(props.event)
+})
+
+// Определяем, отменено ли мероприятие (если собрано недостаточно средств)
+const isCancelled = computed(() => {
+  if (!props.snapshot) return false
+  const collected = props.snapshot.collected || 0
+  // Мероприятие отменяется, если собрано менее 100% от требуемой суммы
+  // и мы находимся на этапе после ti20 (окончание приема заявок)
+  const interval = timeInterval.value?.currentInterval || ''
+  const isAfterCollection = ['ti20-ti30', 'ti30-ti40', 'ti40-ti50', 'ti50-t999'].includes(interval)
+  return isAfterCollection && collected < props.event.priceTotal
 })
 
 // Сообщение о статусе
 const statusMessage = computed(() => {
   if (!timeInterval.value) return null
-  return getStatusMessage(timeInterval.value.currentInterval)
+  return getStatusMessage(timeInterval.value.currentInterval, isCancelled.value)
 })
 
 // Статус денег (дефицит/профицит)
 const moneyStatus = computed(() => {
-  const collected = props.snapshot?.collected || 0
+  if (!props.snapshot) {
+    return getMoneyStatus(0, props.event.priceTotal)
+  }
+  
+  const applicantsCount = props.snapshot.applicants.length
+  const seatLimit = props.event.seatLimit || 20
+  
+  // Если участников >= лимита, считаем сумму топ-N участников
+  if (applicantsCount >= seatLimit) {
+    // Сортируем участников по убыванию взноса
+    const sortedApplicants = [...props.snapshot.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
+    // Берем топ-N
+    const topN = sortedApplicants.slice(0, seatLimit)
+    // Считаем сумму топ-N
+    const topNTotal = topN.reduce((sum, app) => sum + app.paidAmount, 0)
+    return getMoneyStatus(topNTotal, props.event.priceTotal)
+  }
+  
+  // Если участников < лимита, берем общую собранную сумму
+  const collected = props.snapshot.collected || 0
   return getMoneyStatus(collected, props.event.priceTotal)
 })
 
@@ -115,78 +138,108 @@ const formatDate = (dateStr: string) => {
       </div>
     </div>
 
-    <!-- Прогресс сбора средств -->
-    <div class="money-section">
+    <!-- СТАТУС УЧАСТНИКОВ И ДЕНЕГ -->
+    <!-- Логика: если участников < лимита → показываем дефицит денег -->
+    <!-- Если участников ≥ лимита → денег достаточно (priceTotal = seatLimit × pricePerSeat), показываем конкуренцию -->
+    <div class="status-section">
       <div class="section-header">
-        <span class="section-title">Ход сбора средств</span>
-        <span class="progress-percent">{{ collectedPercent }}%</span>
+        <span class="section-title">Участники и средства</span>
       </div>
       
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: collectedPercent + '%' }"></div>
-      </div>
-
-      <div class="money-details">
-        <div class="money-row">
-          <span class="label">Собрано:</span>
-          <span class="value">{{ formatMoney(snapshot?.collected || 0) }} ₽</span>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Зарегистрировано:</div>
+          <div class="stat-value">{{ snapshot?.applicants.length || 0 }} чел.</div>
         </div>
-        <div class="money-row">
-          <span class="label">Требуется:</span>
-          <span class="value">{{ formatMoney(event.priceTotal) }} ₽</span>
+        <div class="stat-card">
+          <div class="stat-label">Лимит мест:</div>
+          <div class="stat-value">{{ event.seatLimit || 20 }}</div>
         </div>
-      </div>
-
-      <!-- Дефицит или Профицит (показываем ОДИН из них) -->
-      <div class="status-badge" :class="moneyStatus.color">
-        <svg v-if="moneyStatus.type === 'deficit'" class="icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-        </svg>
-        <svg v-else-if="moneyStatus.type === 'surplus'" class="icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-        </svg>
-        <div class="badge-content">
-          <span class="badge-label">{{ moneyStatus.label }}</span>
-          <span class="badge-amount">{{ formatMoney(moneyStatus.amount) }} ₽</span>
+        <div class="stat-card">
+          <div class="stat-label">Собрано:</div>
+          <div class="stat-value">{{ formatMoney(snapshot?.collected || 0) }} ₽</div>
         </div>
-      </div>
-    </div>
-
-    <!-- Статус мест -->
-    <div class="seats-section">
-      <div class="section-header">
-        <span class="section-title">Участники</span>
-      </div>
-      
-      <div class="seats-details">
-        <div class="seats-row">
-          <span class="label">Зарегистрировано:</span>
-          <span class="value">{{ snapshot?.applicants.length || 0 }}</span>
-        </div>
-        <div class="seats-row">
-          <span class="label">Лимит мест:</span>
-          <span class="value">{{ event.seatLimit || 20 }}</span>
+        <div class="stat-card">
+          <div class="stat-label">Требуется:</div>
+          <div class="stat-value">{{ formatMoney(event.priceTotal) }} ₽</div>
         </div>
       </div>
 
-      <!-- Статус мест: свободны / перебор -->
-      <div class="status-badge" :class="seatsStatus.color">
-        <svg v-if="seatsStatus.type === 'available'" class="icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-        </svg>
-        <svg v-else class="icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-        </svg>
-        <div class="badge-content">
-          <span class="badge-label">{{ seatsStatus.label }}</span>
-          <span v-if="seatsStatus.type === 'available'" class="badge-amount">{{ seatsStatus.freeSeats }} мест доступно</span>
-          <span v-else-if="seatsStatus.type === 'overflow'" class="badge-amount">Перебор: {{ seatsStatus.overflowCount }} чел.</span>
+      <!-- СЛУЧАЙ 1: Участников < лимита → показываем статус мест и денег -->
+      <div v-if="seatsStatus.type === 'available'">
+        <!-- Прогресс сбора средств -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <span class="progress-label">Прогресс сбора:</span>
+            <span class="progress-percent">{{ collectedPercent }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: collectedPercent + '%' }"></div>
+          </div>
+        </div>
+
+        <!-- Дефицит денег (если есть) -->
+        <div v-if="moneyStatus.type === 'deficit'" class="status-badge red">
+          <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <div class="badge-content">
+            <span class="badge-label">НЕДОБОР СРЕДСТВ</span>
+            <span class="badge-amount">Не хватает: {{ formatMoney(moneyStatus.amount) }} ₽</span>
+          </div>
+        </div>
+
+        <!-- Достаточно средств -->
+        <div v-else class="status-badge green">
+          <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          <div class="badge-content">
+            <span class="badge-label">СРЕДСТВ ДОСТАТОЧНО</span>
+            <span class="badge-amount">Есть свободные места: {{ seatsStatus.freeSeats }}</span>
+          </div>
         </div>
       </div>
-      
-      <!-- Подсказка о конкуренции за места -->
-      <div v-if="seatsStatus.type === 'overflow'" class="hint overflow-hint">
-        ⚠️ Конкуренция за места! Повышайте ставку, чтобы попасть в число участников
+
+      <!-- СЛУЧАЙ 2: Участников ≥ лимита → показываем только конкуренцию (денег точно достаточно после отбора топ-N) -->
+      <div v-else>
+        <!-- Средств достаточно (после отбора топ-N) -->
+        <div class="status-badge green">
+          <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          <div class="badge-content">
+            <span class="badge-label">СРЕДСТВ ДОСТАТОЧНО</span>
+            <span class="badge-amount">Топ-{{ event.seatLimit || 20 }} участников внесли достаточно</span>
+          </div>
+        </div>
+
+        <!-- Перебор участников -->
+        <div v-if="seatsStatus.type === 'overflow'" class="status-badge red">
+          <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <div class="badge-content">
+            <span class="badge-label">ПЕРЕБОР УЧАСТНИКОВ</span>
+            <span class="badge-amount">Претендентов: {{ snapshot?.applicants.length || 0 }} / Мест: {{ event.seatLimit || 20 }}</span>
+          </div>
+        </div>
+
+        <!-- Мест ровно хватает -->
+        <div v-else class="status-badge yellow">
+          <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/>
+          </svg>
+          <div class="badge-content">
+            <span class="badge-label">МЕСТ РОВНО ХВАТАЕТ</span>
+            <span class="badge-amount">Заняты все {{ event.seatLimit || 20 }} мест</span>
+          </div>
+        </div>
+
+        <!-- Подсказка о конкуренции -->
+        <div v-if="seatsStatus.type === 'overflow'" class="hint overflow-hint">
+          ⚠️ <strong>Конкуренция за места!</strong> Будут отобраны топ-{{ event.seatLimit || 20 }} участников с наибольшими взносами. Повышайте ставку для гарантии участия.
+        </div>
       </div>
     </div>
 
@@ -208,14 +261,13 @@ const formatDate = (dateStr: string) => {
       </div>
     </div>
 
-    <!-- Риски (клиент оценивает сам на основе данных выше) -->
-    <div v-if="!compact" class="risk-assessment">
-      <div class="section-title">Оценка рисков</div>
+    <!-- Информация о правилах -->
+    <div v-if="!compact" class="rules-info">
+      <div class="section-title">Правила отбора участников</div>
       <p class="hint">
-        Оцените риски отмены мероприятия самостоятельно на основе:
-        <br>• Сколько собрано денег (дефицит/профицит)
-        <br>• Сколько осталось времени до конца сбора
-        <br>• Сколько свободных мест (перебор/свободно)
+        • Если участников больше лимита — побеждают те, кто внес больше средств<br>
+        • Мероприятие состоится только при достижении требуемой суммы<br>
+        • После подведения итогов излишне собранные деньги возвращаются участникам
       </p>
     </div>
   </div>
@@ -338,11 +390,64 @@ const formatDate = (dateStr: string) => {
   color: #007AFF;
 }
 
-/* Money Section */
-.money-section {
+/* Status Section (Участники и средства) */
+.status-section {
   margin-bottom: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid #e0e0e0;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 18px;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+/* Progress Section */
+.progress-section {
+  margin-bottom: 16px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.progress-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+.progress-percent {
+  font-size: 16px;
+  font-weight: 700;
+  color: #007AFF;
 }
 
 .progress-bar {
@@ -357,32 +462,6 @@ const formatDate = (dateStr: string) => {
   height: 100%;
   background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%);
   transition: width 0.5s ease;
-}
-
-.money-details,
-.seats-details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.money-row,
-.seats-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
-.label {
-  color: #666;
-  font-weight: 500;
-}
-
-.value {
-  color: #1a1a1a;
-  font-weight: 700;
 }
 
 /* Status Badges */
@@ -438,12 +517,6 @@ const formatDate = (dateStr: string) => {
   font-weight: 700;
 }
 
-/* Seats Section */
-.seats-section {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e0e0e0;
-}
 
 /* Messages Section */
 .messages-section {
@@ -490,11 +563,12 @@ const formatDate = (dateStr: string) => {
   color: #1a1a1a;
 }
 
-/* Risk Assessment */
-.risk-assessment {
+/* Rules Info */
+.rules-info {
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
+  border: 1px solid #e0e0e0;
 }
 
 .hint {
@@ -535,6 +609,15 @@ const formatDate = (dateStr: string) => {
   .event-meta {
     flex-direction: column;
     gap: 8px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .stat-value {
+    font-size: 16px;
   }
 }
 </style>

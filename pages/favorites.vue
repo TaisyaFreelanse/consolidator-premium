@@ -2,79 +2,56 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventsStore } from '~/stores/events'
-import { useMonitoringStore } from '~/stores/monitoring'
 import { useFavoritesStore } from '~/stores/favorites'
-import EventStatus from '~/components/EventStatus.vue'
 import Toast from '~/components/Toast.vue'
 
 const router = useRouter()
 const events = useEventsStore()
-const monitoring = useMonitoringStore()
-const fav = useFavoritesStore()
+const favorites = useFavoritesStore()
 const isLoading = ref(true)
-const currentIndex = ref(0)
 
 // Toast для уведомлений
 const toastMessage = ref('')
 const showToast = ref(false)
 
 // Получаем избранные события
-const favList = computed(() => events.list.filter(e => fav.ids.has(e.id)))
+const favoriteEvents = computed(() => events.list.filter(e => favorites.ids.has(e.id)))
 
-// Текущее выбранное мероприятие
-const currentEvent = computed(() => favList.value[currentIndex.value])
-
-// Снимок мониторинга для текущего события
-const currentSnapshot = computed(() => {
-  if (!currentEvent.value) return null
-  return monitoring.byEvent(currentEvent.value.id)
-})
-
-// Навигация между избранными
-const goToPrevious = () => {
-  if (currentIndex.value > 0) {
-    currentIndex.value--
-  } else {
-    currentIndex.value = favList.value.length - 1
-  }
+// Проверка избранного
+const isFavorite = (eventId: string) => {
+  return favorites.ids.has(eventId)
 }
 
-const goToNext = () => {
-  if (currentIndex.value < favList.value.length - 1) {
-    currentIndex.value++
-  } else {
-    currentIndex.value = 0
-  }
+// Переключение избранного
+const toggleFavorite = (eventId: string) => {
+  favorites.toggle(eventId)
+  toastMessage.value = 'Удалено из избранного'
+  showToast.value = true
 }
 
-// Удалить из избранного
-const removeFromFavorites = () => {
-  if (currentEvent.value) {
-    fav.toggle(currentEvent.value.id)
-    toastMessage.value = 'Удалено из избранного'
-    showToast.value = true
-    
-    if (favList.value.length === 0) {
-      // Если больше нет избранных, перейти в каталог
-      setTimeout(() => {
-        navigateTo('/catalog')
-      }, 500)
-    } else if (currentIndex.value >= favList.value.length) {
-      currentIndex.value = favList.value.length - 1
-    }
-  }
+// Переход к мониторингу
+const goToMonitoring = (eventId: string) => {
+  router.push(`/monitoring?event=${eventId}`)
 }
 
-// Переход на страницу мониторинга
-const goToMonitoring = () => {
-  if (currentEvent.value) {
-    router.push(`/monitoring?event=${currentEvent.value.id}`)
-  }
+// Форматирование даты
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleString('ru-RU', { 
+    day: '2-digit', 
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+}
+
+// Форматирование суммы
+const formatMoney = (amount: number) => {
+  return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
 }
 
 onMounted(async () => {
   await events.fetch()
-  await monitoring.fetch()
   
   setTimeout(() => {
     isLoading.value = false
@@ -87,7 +64,7 @@ onMounted(async () => {
     <div class="container">
       <div class="page-header">
         <h1 class="page-title">Избранные мероприятия</h1>
-        <p class="page-subtitle">Ваша персональная подборка</p>
+        <p class="page-subtitle">Ваш персональный каталог — {{ favoriteEvents.length }} {{ favoriteEvents.length === 1 ? 'мероприятие' : favoriteEvents.length < 5 ? 'мероприятия' : 'мероприятий' }}</p>
       </div>
 
       <!-- Загрузка -->
@@ -97,59 +74,86 @@ onMounted(async () => {
       </div>
 
       <!-- Пустое избранное -->
-      <div v-else-if="favList.length === 0" class="empty-state">
+      <div v-else-if="favoriteEvents.length === 0" class="empty-state">
         <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
         </svg>
-        <p>У вас пока нет избранных мероприятий</p>
+        <h3 class="empty-title">У вас пока нет избранных мероприятий</h3>
+        <p class="empty-text">Добавляйте интересные мероприятия в избранное, нажимая на звездочку ⭐ в каталоге</p>
         <button @click="navigateTo('/catalog')" class="goto-catalog-btn">
           Перейти в каталог
         </button>
       </div>
 
-      <!-- Список избранных -->
-      <div v-else class="favorites-content">
-        
-        <!-- Навигация между мероприятиями -->
-        <div v-if="favList.length > 1" class="navigation-bar">
-          <button @click="goToPrevious" class="nav-btn">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      <!-- Сетка избранных мероприятий (как в каталоге) -->
+      <div v-else class="events-grid">
+        <div 
+          v-for="event in favoriteEvents" 
+          :key="event.id" 
+          class="event-card"
+          @click="goToMonitoring(event.id)"
+        >
+          <!-- Кнопка удаления из избранного -->
+          <button 
+            @click.stop="toggleFavorite(event.id)" 
+            class="favorite-corner-btn active"
+            title="Убрать из избранного"
+          >
+            <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
-            Предыдущее
           </button>
-          <span class="counter">{{ currentIndex + 1 }} / {{ favList.length }}</span>
-          <button @click="goToNext" class="nav-btn">
-            Следующее
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Текущее мероприятие -->
-        <div v-if="currentEvent" class="current-event">
           
-          <!-- Виджет статуса -->
-          <div class="event-status-full">
-            <EventStatus :event="currentEvent" :snapshot="currentSnapshot" />
+          <!-- ИНФОРМАЦИЯ "ОТ АВТОРА" -->
+          <div class="event-info">
+            <h3 class="event-title">{{ event.title }}</h3>
+            
+            <div class="event-meta">
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span class="meta-label">Начало:</span>
+                <span class="meta-value">{{ formatDate(event.startAt) }}</span>
+              </div>
+              
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="meta-label">Место:</span>
+                <span class="meta-value">{{ event.location }}</span>
+              </div>
+              
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="meta-label">Автор:</span>
+                <span class="meta-value">{{ event.author }}</span>
+              </div>
+
+              <div class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="meta-label">Цена:</span>
+                <span class="meta-value">{{ formatMoney(event.pricePerSeat || event.priceTotal) }} ₽</span>
+              </div>
+            </div>
+
+            <div v-if="event.description" class="event-description">
+              {{ event.description }}
+            </div>
           </div>
 
-          <!-- Действия -->
-          <div class="event-actions">
-            <button @click="removeFromFavorites" class="action-btn remove-btn">
-              <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-              Убрать из избранного
-            </button>
-
-            <button @click="goToMonitoring" class="action-btn primary-btn">
-              <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-              Открыть мониторинг
-            </button>
+          <!-- Подсказка о клике -->
+          <div class="click-hint">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Нажмите для мониторинга хода сбора</span>
           </div>
         </div>
       </div>
@@ -169,7 +173,7 @@ onMounted(async () => {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 20px;
 }
@@ -224,14 +228,24 @@ onMounted(async () => {
 .empty-state .icon {
   width: 80px;
   height: 80px;
-  color: #ccc;
+  color: #ffc107;
   margin-bottom: 20px;
 }
 
-.empty-state p {
-  font-size: 18px;
+.empty-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.empty-text {
+  font-size: 16px;
   color: #666;
   margin: 0 0 24px 0;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .goto-catalog-btn {
@@ -251,116 +265,158 @@ onMounted(async () => {
   border-color: #005fcb;
 }
 
-/* Контент избранного */
-.favorites-content {
-  display: flex;
-  flex-direction: column;
+/* Сетка мероприятий */
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 24px;
 }
 
-/* Навигация */
-.navigation-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Карточка мероприятия */
+.event-card {
+  position: relative;
   background: #fff;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #e0e0e0;
   border-radius: 12px;
-  padding: 16px 20px;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
-.nav-btn {
+.event-card:hover {
+  border-color: #007AFF;
+  box-shadow: 0 12px 32px rgba(0, 122, 255, 0.15);
+  transform: translateY(-6px);
+}
+
+/* Информация о мероприятии */
+.event-info {
+  padding: 24px;
+  padding-bottom: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 20px 0;
+  line-height: 1.3;
+}
+
+.event-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.meta-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  font-size: 15px;
-  font-weight: 600;
-  border: 2px solid #007AFF;
-  border-radius: 8px;
-  background: #fff;
+  font-size: 14px;
+}
+
+.meta-row .icon {
+  width: 18px;
+  height: 18px;
   color: #007AFF;
-  cursor: pointer;
-  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.nav-btn:hover {
-  background: #007AFF;
-  color: #fff;
+.meta-label {
+  color: #666;
+  font-weight: 500;
+  min-width: 70px;
 }
 
-.nav-btn .icon {
-  width: 16px;
-  height: 16px;
-}
-
-.counter {
-  font-size: 16px;
-  font-weight: 700;
+.meta-value {
   color: #1a1a1a;
+  font-weight: 600;
 }
 
-/* Текущее мероприятие */
-.current-event {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.event-description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #666;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: auto;
 }
 
-.event-status-full {
-  /* EventStatus компонент сам содержит стили */
-}
-
-/* Действия */
-.event-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.action-btn {
+/* Кнопка избранного */
+.favorite-corner-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  border: 2px solid;
-  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  border: 2px solid #ffc107;
+  border-radius: 50%;
+  background: #ffc107;
+  backdrop-filter: blur(8px);
+  color: #fff;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+}
+
+.favorite-corner-btn:hover {
+  background: #ff3b30;
+  border-color: #ff3b30;
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(255, 59, 48, 0.4);
+}
+
+.favorite-corner-btn .icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Подсказка о клике */
+.click-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
   transition: all 0.2s;
 }
 
-.action-btn .icon {
+.event-card:hover .click-hint {
+  background: linear-gradient(135deg, #005fcb 0%, #4745b5 100%);
+}
+
+.click-hint .icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
 }
 
-.remove-btn {
-  border-color: #ff3b30;
-  background: #fff;
-  color: #ff3b30;
-}
-
-.remove-btn:hover {
-  background: #ff3b30;
-  color: #fff;
-}
-
-.primary-btn {
-  border-color: #007AFF;
-  background: #007AFF;
-  color: #fff;
-}
-
-.primary-btn:hover {
-  background: #005fcb;
-  border-color: #005fcb;
-}
-
 /* Responsive */
+@media (max-width: 1200px) {
+  .events-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .favorites-page {
     padding: 70px 0 100px;
@@ -374,22 +430,38 @@ onMounted(async () => {
     font-size: 14px;
   }
 
-  .navigation-bar {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .nav-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .counter {
-    order: -1;
-  }
-
-  .event-actions {
+  .events-grid {
     grid-template-columns: 1fr;
+  }
+
+  .event-title {
+    font-size: 20px;
+  }
+
+  .event-info {
+    padding: 20px;
+  }
+
+  .favorite-corner-btn {
+    width: 44px;
+    height: 44px;
+    top: 12px;
+    right: 12px;
+  }
+
+  .favorite-corner-btn .icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .click-hint {
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+
+  .click-hint .icon {
+    width: 18px;
+    height: 18px;
   }
 }
 </style>
