@@ -86,17 +86,17 @@ export const useAuthStore = defineStore('auth', {
 
       return { 
         success: true, 
-        message: `Регистрация успешна! Ваш код: ${code}`,
+        message: `Регистрация успешна!\n\n🔑 Ваш анонимный код для участия: ${code}\n\n(Запомните или запишите его. Этот код будет виден в списке участников вместо вашего логина)`,
         code 
       }
     },
 
-    // Вход по коду и паролю
-    login(code: string, password: string): { success: boolean; message: string } {
-      const user = this.users.find(u => u.code === code)
+    // Вход по логину (имени) и паролю
+    login(nameOrEmail: string, password: string): { success: boolean; message: string } {
+      const user = this.users.find(u => u.name.toLowerCase() === nameOrEmail.toLowerCase())
 
       if (!user) {
-        return { success: false, message: 'Пользователь с таким кодом не найден' }
+        return { success: false, message: 'Пользователь не найден' }
       }
 
       if (user.password !== password) {
@@ -106,7 +106,7 @@ export const useAuthStore = defineStore('auth', {
       this.currentUser = user
 
       if (process.client) {
-        localStorage.setItem('currentUserCode', code)
+        localStorage.setItem('currentUserCode', user.code)
       }
 
       return { success: true, message: 'Вход выполнен успешно' }

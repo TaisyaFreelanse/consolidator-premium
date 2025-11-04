@@ -17,7 +17,7 @@ const mode = ref<'login' | 'register'>('login')
 
 // Форма входа
 const loginForm = ref({
-  code: '',
+  login: '',
   password: ''
 })
 
@@ -35,12 +35,12 @@ const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const handleLogin = () => {
   message.value = null
   
-  if (!loginForm.value.code || !loginForm.value.password) {
+  if (!loginForm.value.login || !loginForm.value.password) {
     message.value = { type: 'error', text: 'Заполните все поля' }
     return
   }
 
-  const result = auth.login(loginForm.value.code, loginForm.value.password)
+  const result = auth.login(loginForm.value.login, loginForm.value.password)
   
   if (result.success) {
     message.value = { type: 'success', text: result.message }
@@ -74,7 +74,7 @@ const handleRegister = () => {
     setTimeout(() => {
       emit('close')
       resetForms()
-    }, 3000) // Больше времени, чтобы запомнить код
+    }, 5000) // 5 секунд, чтобы запомнить/записать код
   } else {
     message.value = { type: 'error', text: result.message }
   }
@@ -82,7 +82,7 @@ const handleRegister = () => {
 
 // Сброс форм
 const resetForms = () => {
-  loginForm.value = { code: '', password: '' }
+  loginForm.value = { login: '', password: '' }
   registerForm.value = { name: '', password: '', passwordConfirm: '' }
   message.value = null
 }
@@ -156,7 +156,7 @@ const closeModal = () => {
                 {{ mode === 'login' ? 'Вход' : 'Регистрация' }}
               </h2>
               <p class="text-white/60 text-sm">
-                {{ mode === 'login' ? 'Введите ваш код и пароль' : 'Создайте новый аккаунт' }}
+                {{ mode === 'login' ? 'Введите логин и пароль' : 'Создайте новый аккаунт' }}
               </p>
             </div>
 
@@ -183,7 +183,7 @@ const closeModal = () => {
                     <path v-if="message.type === 'success'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <p class="text-sm">{{ message.text }}</p>
+                  <p class="text-sm whitespace-pre-line">{{ message.text }}</p>
                 </div>
               </div>
             </Transition>
@@ -191,13 +191,12 @@ const closeModal = () => {
             <!-- Форма входа -->
             <form v-if="mode === 'login'" @submit.prevent="handleLogin" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">Код пользователя</label>
+                <label class="block text-sm font-medium text-white/80 mb-2">Логин</label>
                 <input 
-                  v-model="loginForm.code"
+                  v-model="loginForm.login"
                   type="text"
-                  placeholder="Например: A1B2C3"
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all uppercase"
-                  maxlength="8"
+                  placeholder="Введите ваш логин"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
                 >
               </div>
 
@@ -222,11 +221,11 @@ const closeModal = () => {
             <!-- Форма регистрации -->
             <form v-else @submit.prevent="handleRegister" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">Имя</label>
+                <label class="block text-sm font-medium text-white/80 mb-2">Логин / Email</label>
                 <input 
                   v-model="registerForm.name"
                   type="text"
-                  placeholder="Введите ваше имя"
+                  placeholder="Придумайте логин или введите email"
                   class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
                 >
               </div>
@@ -256,7 +255,7 @@ const closeModal = () => {
                   <svg class="w-5 h-5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  После регистрации вам будет присвоен уникальный код из 6-8 символов
+                  После регистрации вам будет присвоен уникальный анонимный код для участия в мероприятиях
                 </p>
               </div>
 

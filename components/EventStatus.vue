@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { EventItem, MonitoringSnapshot } from '~/types'
 import { 
   getCurrentTimeInterval, 
   getStatusMessage, 
   getMoneyStatus, 
   getSeatsStatus,
-  getTimeRemaining 
+  getTimeRemaining,
+  getCountdownTimer 
 } from '~/utils/statusMessages'
 
 interface Props {
@@ -88,11 +89,12 @@ const formatMoney = (amount: number) => {
   return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
 }
 
-// Форматирование даты начала и конца сбора
+// Форматирование даты начала и конца сбора (с годом для юридической значимости)
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleString('ru-RU', { 
     day: '2-digit', 
-    month: 'short', 
+    month: 'short',
+    year: 'numeric',
     hour: '2-digit', 
     minute: '2-digit' 
   })
@@ -151,6 +153,32 @@ const getNextMilestone = computed(() => {
   
   return null
 })
+
+// Таймер обратного отсчета (реактивный)
+const countdownTick = ref(0) // Для принудительного обновления каждую секунду
+const countdown = computed(() => {
+  countdownTick.value // Зависимость для реактивности
+  return getCountdownTimer(
+    props.snapshot?.deadlineNext,
+    timeInterval.value?.currentInterval
+  )
+})
+
+// Обновление таймера каждую секунду
+let countdownInterval: NodeJS.Timeout | null = null
+onMounted(() => {
+  if (process.client) {
+    countdownInterval = setInterval(() => {
+      countdownTick.value++
+    }, 1000)
+  }
+})
+
+onUnmounted(() => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+  }
+})
 </script>
 
 <template>
@@ -174,17 +202,58 @@ const getNextMilestone = computed(() => {
       </div>
     </div>
 
-    <!-- Сроки сбора заявок (КРИТИЧНО ВАЖНО) -->
-    <div class="dates-block">
-      <div class="date-row">
-        <span class="date-label">Начало приема заявок:</span>
+    <!-- ТАЙМЕР ОБРАТНОГО ОТСЧЕТА до следующей контрольной точки -->
+    <div v-if="!compact && countdown && getNextMilestone" 
+         class="countdown-timer" 
+         :class="{ urgent: countdown.urgent, zero: countdown.isZero }">
+      <div class="countdown-header">
+        <svg class="timer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="countdown-label">Обратный отсчет до следующей контрольной точки:</span>
+      </div>
+      
+      <div class="countdown-display">
+        <div class="countdown-unit">
+          <div class="countdown-number">{{ countdown.days.toString().padStart(2, '0') }}</div>
+          <div class="countdown-unit-label">дней</div>
+        </div>
+        <div class="countdown-separator">:</div>
+        <div class="countdown-unit">
+          <div class="countdown-number">{{ countdown.hours.toString().padStart(2, '0') }}</div>
+          <div class="countdown-unit-label">часов</div>
+        </div>
+        <div class="countdown-separator">:</div>
+        <div class="countdown-unit">
+          <div class="countdown-number">{{ countdown.minutes.toString().padStart(2, '0') }}</div>
+          <div class="countdown-unit-label">минут</div>
+        </div>
+        <div class="countdown-separator">:</div>
+        <div class="countdown-unit">
+          <div class="countdown-number">{{ countdown.seconds.toString().padStart(2, '0') }}</div>
+          <div class="countdown-unit-label">секунд</div>
+        </div>
+      </div>
+      
+      <div class="countdown-milestone">
+        <span class="milestone-icon">📅</span>
+        <span class="milestone-text">{{ getNextMilestone.description }}</span>
+      </div>
+    </div>
+
+    <!-- Сроки сбора заявок (КРИТИЧНО ВАЖНО) - 2 строки -->
+    <div class="dates-block-simple">
+      <div class="date-line">
+        <span class="date-label-main">Прием заявок начало —</span>
         <span class="date-value">{{ event.startApplicationsAt ? formatDate(event.startApplicationsAt) : 'Не указано' }}</span>
       </div>
-      <div class="date-row">
-        <span class="date-label">Окончание приема заявок:</span>
+      
+      <div class="date-line">
+        <span class="date-label-secondary">окончание —</span>
         <span class="date-value">{{ event.endApplicationsAt ? formatDate(event.endApplicationsAt) : 'Не указано' }}</span>
       </div>
-      <div v-if="timeRemaining" class="time-remaining" :class="{ urgent: timeRemaining.urgent, ended: timeRemaining.ended }">
+      
+      <div v-if="timeRemaining" class="time-remaining-inline" :class="{ urgent: timeRemaining.urgent, ended: timeRemaining.ended }">
         <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
@@ -344,17 +413,17 @@ const getNextMilestone = computed(() => {
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
 }
 
 .compact {
-  padding: 16px;
+  padding: 12px;
 }
 
 /* Header */
 .status-header {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -379,35 +448,195 @@ const getNextMilestone = computed(() => {
   color: #666;
 }
 
-/* Dates Block - КРИТИЧНО ВАЖНО */
-.dates-block {
-  background: #f8f9fa;
+/* ТАЙМЕР ОБРАТНОГО ОТСЧЕТА */
+.countdown-timer {
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  border: 3px solid #007AFF;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.countdown-timer.urgent {
+  background: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+  border-color: #ff3b30;
+  box-shadow: 0 8px 24px rgba(255, 59, 48, 0.4);
+  animation: pulse-urgent 2s infinite;
+}
+
+.countdown-timer.zero {
+  background: linear-gradient(135deg, #8e8e93 0%, #aeaeb2 100%);
+  border-color: #8e8e93;
+  box-shadow: 0 4px 12px rgba(142, 142, 147, 0.2);
+}
+
+@keyframes pulse-urgent {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(255, 59, 48, 0.4);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 12px 32px rgba(255, 59, 48, 0.6);
+  }
+}
+
+.countdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.timer-icon {
+  width: 24px;
+  height: 24px;
+  color: #fff;
+}
+
+.countdown-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.countdown-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 80px;
+}
+
+.countdown-number {
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.countdown-unit-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.countdown-separator {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.countdown-milestone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+.milestone-icon {
+  font-size: 20px;
+}
+
+.milestone-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Dates Block - Простой вид (2 строки) */
+.dates-block-simple {
+  background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
   border: 2px solid #007AFF;
   border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
 }
 
-.date-row {
+.date-line {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-.date-row:last-child {
+.date-line:last-of-type {
   margin-bottom: 0;
 }
 
-.date-label {
+.date-label-main {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+
+.date-label-secondary {
+  font-size: 14px;
   font-weight: 600;
-  color: #444;
+  color: #666;
+  white-space: nowrap;
+  padding-left: 115px; /* Выравнивание под "Прием заявок" */
 }
 
 .date-value {
   font-weight: 700;
   color: #007AFF;
+  flex: 1;
+}
+
+.time-remaining-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #007AFF;
+  font-weight: 700;
+  font-size: 15px;
+  color: #007AFF;
+}
+
+.time-remaining-inline.urgent {
+  color: #ff3b30;
+  border-top-color: #ff3b30;
+}
+
+.time-remaining-inline.ended {
+  color: #999;
+  border-top-color: #ddd;
+}
+
+.time-remaining-inline .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .time-remaining {
@@ -458,8 +687,8 @@ const getNextMilestone = computed(() => {
 
 /* Status Section (Участники и средства) */
 .status-section {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -467,8 +696,8 @@ const getNextMilestone = computed(() => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
@@ -586,7 +815,7 @@ const getNextMilestone = computed(() => {
 
 /* Messages Section */
 .messages-section {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .status-badge-small {
@@ -631,9 +860,9 @@ const getNextMilestone = computed(() => {
 .message-card {
   display: flex;
   gap: 12px;
-  padding: 14px;
+  padding: 12px;
   border-radius: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .message-card.primary {
@@ -687,7 +916,7 @@ const getNextMilestone = computed(() => {
 
 /* Rules Info */
 .rules-info {
-  padding: 16px;
+  padding: 12px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
@@ -740,6 +969,52 @@ const getNextMilestone = computed(() => {
   
   .stat-value {
     font-size: 16px;
+  }
+  
+  /* Таймер на мобильных */
+  .countdown-timer {
+    padding: 16px;
+  }
+  
+  .countdown-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .countdown-label {
+    font-size: 13px;
+  }
+  
+  .countdown-display {
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  
+  .countdown-unit {
+    padding: 8px 10px;
+    min-width: 60px;
+  }
+  
+  .countdown-number {
+    font-size: 24px;
+  }
+  
+  .countdown-unit-label {
+    font-size: 9px;
+  }
+  
+  .countdown-separator {
+    font-size: 24px;
+  }
+  
+  .countdown-milestone {
+    padding: 8px 12px;
+  }
+  
+  .milestone-text {
+    font-size: 13px;
   }
 }
 </style>

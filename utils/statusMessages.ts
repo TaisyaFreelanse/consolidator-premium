@@ -316,3 +316,77 @@ export function getTimeRemaining(endApplicationsAt: string): {
   return { formatted, urgent, ended: false }
 }
 
+/**
+ * Универсальный таймер обратного отсчета до следующей контрольной точки
+ * Используется на странице Мониторинг
+ */
+export function getCountdownTimer(deadlineNext?: string, currentInterval?: string): {
+  days: number
+  hours: number
+  minutes: number
+  seconds: number
+  isZero: boolean
+  formatted: string
+  urgent: boolean
+} {
+  // После ti50 показываем нули
+  if (!deadlineNext || currentInterval === 'ti50-t999') {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isZero: true,
+      formatted: '0 дн 0 ч 0 мин',
+      urgent: false
+    }
+  }
+  
+  const now = Date.now()
+  const deadline = new Date(deadlineNext).getTime()
+  const diff = deadline - now
+  
+  // Если дедлайн прошел
+  if (diff <= 0) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isZero: true,
+      formatted: '0 дн 0 ч 0 мин',
+      urgent: false
+    }
+  }
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+  
+  // Форматирование
+  let formatted = ''
+  if (days > 0) {
+    formatted = `${days} дн ${hours} ч ${minutes} мин`
+  } else if (hours > 0) {
+    formatted = `${hours} ч ${minutes} мин`
+  } else if (minutes > 0) {
+    formatted = `${minutes} мин ${seconds} сек`
+  } else {
+    formatted = `${seconds} сек`
+  }
+  
+  // Срочно, если осталось меньше 24 часов
+  const urgent = diff < (24 * 60 * 60 * 1000)
+  
+  return {
+    days,
+    hours,
+    minutes,
+    seconds,
+    isZero: false,
+    formatted,
+    urgent
+  }
+}
+

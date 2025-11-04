@@ -64,6 +64,17 @@ const formatMoney = (amount: number) => {
   return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
 }
 
+// Форматирование даты приема заявок (с годом и временем для юридической значимости)
+const formatShortDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleString('ru-RU', { 
+    day: 'numeric', 
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 onMounted(async () => {
   await events.fetch()
   
@@ -167,6 +178,30 @@ onMounted(async () => {
 
             <!-- ЦЕЛЕВЫЕ ПОКАЗАТЕЛИ (от автора) -->
             <div class="target-stats">
+              <!-- Прием заявок - 2 строки -->
+              <template v-if="event.startApplicationsAt && event.endApplicationsAt">
+                <div class="target-row applications-start">
+                  <svg class="target-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  <span class="target-label">Прием заявок начало —</span>
+                  <span class="target-value">{{ formatShortDate(event.startApplicationsAt) }}</span>
+                </div>
+                
+                <div class="target-row applications-end">
+                  <span class="target-label-indent">окончание —</span>
+                  <span class="target-value">{{ formatShortDate(event.endApplicationsAt) }}</span>
+                </div>
+              </template>
+              
+              <div v-else class="target-row applications">
+                <svg class="target-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span class="target-label">Прием заявок:</span>
+                <span class="target-value">Уточняется</span>
+              </div>
+
               <div class="target-row">
                 <svg class="target-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -418,6 +453,38 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   font-size: 14px;
+}
+
+.target-row.applications,
+.target-row.applications-start {
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.target-row.applications-start {
+  margin-bottom: 4px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.target-row.applications-end {
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 0;
+}
+
+.target-row.applications .target-label,
+.target-row.applications-start .target-label {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.target-label-indent {
+  color: #666;
+  font-weight: 500;
+  padding-left: 26px; /* Отступ для выравнивания под "Прием заявок" */
 }
 
 .target-row.total {

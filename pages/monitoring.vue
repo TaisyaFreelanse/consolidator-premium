@@ -370,7 +370,7 @@ const increaseBid = () => {
 .monitoring-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
 }
 
 /* Секция статуса */
@@ -381,7 +381,7 @@ const increaseBid = () => {
 /* Секция подачи заявки */
 .application-section {
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
   background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
   box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
@@ -394,14 +394,14 @@ const increaseBid = () => {
 
 /* Требуется авторизация */
 .auth-required {
-  padding: 20px 0;
+  padding: 12px 0;
 }
 
 .icon-lock {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   color: rgba(255, 255, 255, 0.9);
-  margin: 0 auto 16px;
+  margin: 0 auto 12px;
 }
 
 .auth-title {
@@ -444,15 +444,15 @@ const increaseBid = () => {
 
 /* Статус участника */
 .user-status-block {
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .status-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .icon-check {
@@ -470,14 +470,14 @@ const increaseBid = () => {
 .user-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   text-align: center;
 }
 
