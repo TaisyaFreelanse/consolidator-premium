@@ -97,6 +97,60 @@ const formatDate = (dateStr: string) => {
     minute: '2-digit' 
   })
 }
+
+// Форматирование полной даты для извещений
+const formatFullDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleString('ru-RU', { 
+    day: 'numeric', 
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+}
+
+// Получить дату следующего ключевого момента и его описание
+const getNextMilestone = computed(() => {
+  const interval = timeInterval.value?.currentInterval || ''
+  
+  // В зависимости от текущего интервала определяем, какое событие следующее
+  if (interval === 't0-ti10' && props.event.startApplicationsAt) {
+    return {
+      description: 'Начало приема заявок',
+      date: formatFullDate(props.event.startApplicationsAt)
+    }
+  }
+  
+  if (interval === 'ti10-ti20' && props.event.endApplicationsAt) {
+    return {
+      description: 'Окончание приема заявок',
+      date: formatFullDate(props.event.endApplicationsAt)
+    }
+  }
+  
+  if (interval === 'ti20-ti30' && props.event.startContractsAt) {
+    return {
+      description: 'Начало оформления договоров',
+      date: formatFullDate(props.event.startContractsAt)
+    }
+  }
+  
+  if (interval === 'ti30-ti40') {
+    return {
+      description: isCancelled.value ? 'Мероприятие не состоится' : 'Начало мероприятия',
+      date: formatFullDate(props.event.startAt)
+    }
+  }
+  
+  if (interval === 'ti40-ti50' && props.event.endAt) {
+    return {
+      description: isCancelled.value ? 'Мероприятие не состоится' : 'Окончание мероприятия',
+      date: formatFullDate(props.event.endAt)
+    }
+  }
+  
+  return null
+})
 </script>
 
 <template>
@@ -247,7 +301,14 @@ const formatDate = (dateStr: string) => {
     <div v-if="statusMessage && !compact" class="messages-section">
       <div class="section-header">
         <span class="section-title">Текущий статус</span>
-        <span class="period-badge">{{ statusMessage.period }}</span>
+        <span v-if="statusMessage.status" class="status-badge-small" :class="statusMessage.status">
+          {{ statusMessage.status === 'starting' ? 'Подготовка' : 
+             statusMessage.status === 'active' ? 'Прием заявок' : 
+             statusMessage.status === 'processing' ? 'Обработка' : 
+             statusMessage.status === 'ongoing' ? 'Проводится' : 
+             statusMessage.status === 'completed' ? 'Завершено' : 
+             statusMessage.status === 'cancelled' ? 'Отменено' : '' }}
+        </span>
       </div>
       
       <div class="message-card primary">
@@ -255,9 +316,14 @@ const formatDate = (dateStr: string) => {
         <p class="message-text">{{ statusMessage.извещение1 }}</p>
       </div>
       
-      <div v-if="statusMessage.извещение2" class="message-card secondary">
-        <div class="message-icon">💡</div>
-        <p class="message-text">{{ statusMessage.извещение2 }}</p>
+      <!-- Извещение-2 с конкретной датой следующего этапа -->
+      <div v-if="getNextMilestone" class="message-card secondary">
+        <div class="message-icon">📅</div>
+        <div class="message-content">
+          <p class="message-label">Следующий этап:</p>
+          <p class="message-title">{{ getNextMilestone.description }}</p>
+          <p class="message-date">{{ getNextMilestone.date }}</p>
+        </div>
       </div>
     </div>
 
@@ -523,14 +589,43 @@ const formatDate = (dateStr: string) => {
   margin-bottom: 20px;
 }
 
-.period-badge {
+.status-badge-small {
   display: inline-block;
   padding: 4px 12px;
-  background: #007AFF;
-  color: white;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge-small.starting {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.status-badge-small.active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge-small.processing {
+  background: #fff9c4;
+  color: #f57f17;
+}
+
+.status-badge-small.ongoing {
+  background: #e1bee7;
+  color: #6a1b9a;
+}
+
+.status-badge-small.completed {
+  background: #c8e6c9;
+  color: #1b5e20;
+}
+
+.status-badge-small.cancelled {
+  background: #ffcdd2;
+  color: #b71c1c;
 }
 
 .message-card {
@@ -548,7 +643,7 @@ const formatDate = (dateStr: string) => {
 
 .message-card.secondary {
   background: #fff9c4;
-  border: 1px solid #fff59d;
+  border: 2px solid #ffd54f;
 }
 
 .message-icon {
@@ -561,6 +656,33 @@ const formatDate = (dateStr: string) => {
   font-size: 14px;
   line-height: 1.5;
   color: #1a1a1a;
+}
+
+.message-content {
+  flex: 1;
+}
+
+.message-label {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.message-title {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.message-date {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f57f17;
 }
 
 /* Rules Info */
