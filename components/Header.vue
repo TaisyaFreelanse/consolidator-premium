@@ -76,13 +76,13 @@ const isActive = (href: string) => {
         </button>
 
         <div class="hidden md:flex items-center gap-3">
-          <!-- ЗАКОММЕНТИРОВАНО: Кнопка создания мероприятия (будет для админа в следующих этапах) -->
-          <!-- <NuxtLink to="/create-event" class="flex items-center gap-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-[#007AFF]/30 transition-all duration-300 hover:scale-105">
+          <!-- Кнопка создания мероприятия -->
+          <NuxtLink to="/create-event" class="flex items-center gap-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-[#007AFF]/30 transition-all duration-300 hover:scale-105">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
             Создать мероприятие
-          </NuxtLink> -->
+          </NuxtLink>
 
           <!-- Иконка пользователя / Анонима -->
           <button 
@@ -197,13 +197,13 @@ const isActive = (href: string) => {
               {{ item.name }}
             </NuxtLink>
             
-            <!-- ЗАКОММЕНТИРОВАНО: Создание мероприятия (для админа в следующих этапах) -->
-            <!-- <NuxtLink to="/create-event" @click="mobileMenuOpen = false" class="flex items-center justify-center gap-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white px-4 py-3 rounded-xl font-semibold text-sm mt-2">
+            <!-- Создание мероприятия -->
+            <NuxtLink to="/create-event" @click="closeMenu" class="flex items-center justify-center gap-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white px-4 py-3 rounded-xl font-semibold text-sm mt-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
               </svg>
               Создать мероприятие
-            </NuxtLink> -->
+            </NuxtLink>
 
             <!-- Пользователь (мобильная версия) -->
             <button 
