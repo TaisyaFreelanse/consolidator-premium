@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
 import ProducerAuthModal from '~/components/ProducerAuthModal.vue'
+import { useEventsStore } from '~/stores/events'
 
 const router = useRouter()
 const route = useRoute()
+const eventsStore = useEventsStore()
 
 // Edit mode
 const editMode = ref(false)
@@ -208,15 +210,15 @@ const loadEvent = () => {
 }
 
 // Обработка авторизации продюсера
-const handleProducerAuthorized = (producerName: string) => {
+const handleProducerAuthorized = async (producerName: string) => {
   authorizedProducer.value = producerName
   showProducerAuth.value = false
   // После авторизации сохраняем как черновик
-  saveEvent('draft')
+  await saveEvent('draft')
 }
 
 // Сохранение события
-const saveEvent = (status: EventStatus) => {
+const saveEvent = async (status: EventStatus) => {
   if (!isFormValid.value) {
     alert('Пожалуйста, заполните все обязательные поля')
     return
@@ -284,6 +286,9 @@ const saveEvent = (status: EventStatus) => {
   
   localStorage.setItem('customEvents', JSON.stringify(existingEvents))
 
+  // Обновляем store для синхронизации
+  await eventsStore.reload()
+
   // Show success message
   const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
   alert(editMode.value ? `Мероприятие успешно обновлено (${statusText})!` : `Мероприятие успешно создано (${statusText})!`)
@@ -293,14 +298,14 @@ const saveEvent = (status: EventStatus) => {
 }
 
 // Submit form - проверка доступа продюсера
-const submitForm = (status: EventStatus = 'draft') => {
+const submitForm = async (status: EventStatus = 'draft') => {
   // Если создаем новое событие, нужна авторизация продюсера
   if (!editMode.value && !authorizedProducer.value) {
     showProducerAuth.value = true
     return
   }
   
-  saveEvent(status)
+  await saveEvent(status)
 }
 
 // Load event on mount if editing

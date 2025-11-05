@@ -86,7 +86,9 @@ const formatShortDate = (dateStr: string) => {
 }
 
 onMounted(async () => {
-  await events.fetch()
+  // Всегда перезагружаем события при входе на страницу каталога
+  // Это гарантирует, что новые/отредактированные события будут видны
+  await events.reload()
   
   setTimeout(() => {
     isLoading.value = false

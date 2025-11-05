@@ -5,8 +5,9 @@ import type { EventItem } from '~/types'
 export const useEventsStore = defineStore('events', {
   state: () => ({ list: [] as EventItem[], loaded: false }),
   actions: {
-    async fetch() {
-      if (this.loaded) return
+    async fetch(forceReload = false) {
+      // Если уже загружено и не требуется принудительная перезагрузка
+      if (this.loaded && !forceReload) return
       
       // Load events from mock data
       const res = await fetch('/mock/events.json')
@@ -19,15 +20,24 @@ export const useEventsStore = defineStore('events', {
           const stored = localStorage.getItem('customEvents')
           if (stored) {
             customEvents = JSON.parse(stored)
+            console.log('✅ Loaded custom events from localStorage:', customEvents.length)
           }
         } catch (e) {
-          console.error('Failed to load custom events:', e)
+          console.error('❌ Failed to load custom events:', e)
         }
       }
       
-      // Combine mock and custom events
+      // Combine mock and custom events (custom first)
       this.list = [...customEvents, ...mockEvents]
       this.loaded = true
+      
+      console.log('📦 Total events loaded:', this.list.length, '(custom:', customEvents.length, ', mock:', mockEvents.length, ')')
+    },
+    
+    // Reload events from localStorage (for refresh after creating/editing)
+    reload() {
+      this.loaded = false
+      return this.fetch(true)
     },
     
     // Add new event
@@ -40,8 +50,9 @@ export const useEventsStore = defineStore('events', {
           const customEvents = JSON.parse(localStorage.getItem('customEvents') || '[]')
           customEvents.unshift(event)
           localStorage.setItem('customEvents', JSON.stringify(customEvents))
+          console.log('✅ Event saved to localStorage')
         } catch (e) {
-          console.error('Failed to save event:', e)
+          console.error('❌ Failed to save event:', e)
         }
       }
     }
