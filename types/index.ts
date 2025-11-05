@@ -1,6 +1,8 @@
 
 export type ControlPointCode = 't0'|'ti10'|'ti20'|'ti30'|'ti40'|'ti50'|'t999'
 export type EventCategory = 'master-class' | 'training' | 'excursion' | 'gastro-show' | 'lecture' | 'cruise'
+export type EventStatus = 'draft' | 'published'
+export type UserRole = 'applicant' | 'producer'
 
 export interface EventItem {
   id: string
@@ -25,6 +27,10 @@ export interface EventItem {
     title: string
     achievements?: string[]
   }
+  status?: EventStatus // draft (черновик) | published (опубликовано)
+  producerName?: string // Имя продюсера, создавшего мероприятие
+  createdAt?: string // Дата создания мероприятия
+  updatedAt?: string // Дата последнего обновления
 }
 export interface FavoriteItem { eventId: string; pinnedAt: string }
 export interface Applicant { code: string; seats: number; paidAmount: number }

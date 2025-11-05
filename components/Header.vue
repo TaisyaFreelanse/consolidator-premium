@@ -84,7 +84,7 @@ const isActive = (href: string) => {
             Создать мероприятие
           </NuxtLink>
 
-          <!-- Иконка пользователя / Анонима -->
+          <!-- Иконка пользователя / Гостя -->
           <button 
             v-if="!auth.isAuthenticated"
             @click="$emit('openAuth')"
@@ -96,9 +96,9 @@ const isActive = (href: string) => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-500 rounded-full border-2 border-[#0A0F1E]" title="Анонимный пользователь"></div>
+              <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-500 rounded-full border-2 border-[#0A0F1E]" title="Гость"></div>
             </div>
-            <span class="text-sm text-white/70 group-hover:text-white transition-colors">Войти</span>
+            <span class="text-sm text-white/70 group-hover:text-white transition-colors">Гость</span>
           </button>
 
           <!-- Залогиненный пользователь -->
@@ -108,12 +108,12 @@ const isActive = (href: string) => {
           >
             <div class="relative">
               <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#007AFF] to-[#5E5CE6] flex items-center justify-center border border-white/20">
-                <span class="text-white text-xs font-bold">{{ auth.currentUser?.code?.slice(0, 2) }}</span>
+                <span class="text-white text-xs font-bold">{{ auth.currentUser?.name?.slice(0, 2).toUpperCase() || 'US' }}</span>
               </div>
               <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0A0F1E]" title="Авторизован"></div>
             </div>
             <div class="flex flex-col">
-              <span class="text-xs text-white/90 font-semibold">{{ auth.currentUser?.code }}</span>
+              <span class="text-xs text-white/90 font-semibold">{{ auth.currentUser?.name }} · {{ auth.currentUser?.code }}</span>
               <button 
                 @click="auth.logout()"
                 class="text-xs text-white/50 hover:text-red-400 transition-colors text-left"
@@ -220,7 +220,7 @@ const isActive = (href: string) => {
                 <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-500 rounded-full border-2 border-[#0A0F1E]"></div>
               </div>
               <div class="text-left">
-                <div class="text-white font-medium">Анонимный</div>
+                <div class="text-white font-medium">Гость</div>
                 <div class="text-white/50 text-xs">Войти в кабинет</div>
               </div>
             </button>
@@ -233,7 +233,7 @@ const isActive = (href: string) => {
               <div class="flex items-center gap-3">
                 <div class="relative">
                   <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#007AFF] to-[#5E5CE6] flex items-center justify-center border border-white/20">
-                    <span class="text-white text-sm font-bold">{{ auth.currentUser?.code?.slice(0, 2) }}</span>
+                    <span class="text-white text-sm font-bold">{{ auth.currentUser?.name?.slice(0, 2).toUpperCase() || 'US' }}</span>
                   </div>
                   <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0A0F1E]"></div>
                 </div>

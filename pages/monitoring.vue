@@ -85,11 +85,37 @@ const submitApplication = () => {
   showPaymentModal.value = true
 }
 
+// Проверка: можно ли еще подавать заявки (до ti20)
+const canSubmitApplications = computed(() => {
+  if (!ev.value) return true
+  const ti20 = ev.value.endApplicationsAt
+  if (!ti20) return true
+  return new Date() < new Date(ti20)
+})
+
 // Увеличить ставку (доплатить)
 const increaseBid = () => {
+  // Проверка 1: Завершился ли прием заявок?
+  if (!canSubmitApplications.value) {
+    alert('❌ Прием заявок завершен\n\nДополнительная оплата больше недоступна.')
+    return
+  }
+  
+  // Проверка 2: Авторизован ли пользователь и подал ли он заявку?
+  if (!auth.isAuthenticated) {
+    alert('❌ Доплатить может только лицо, ранее подавшее заявку на мероприятие.\n\nДля подачи заявки:\n1. Авторизуйтесь\n2. Нажмите кнопку "Подать заявку"')
+    return
+  }
+  
+  if (!userApplication.value) {
+    alert('❌ Доплатить может только лицо, ранее подавшее заявку на мероприятие.\n\nДля подачи заявки нажмите кнопку "Подать заявку"')
+    return
+  }
+  
+  // Проверка 3: Есть ли данные о рейтинге?
   if (!userRanking.value) return
   
-  // Открыть модальное окно оплаты (25% от текущей ставки, округленно)
+  // Всё ок - открываем модальное окно оплаты (25% от текущей ставки, округленно)
   const additionalAmount = Math.round((userRanking.value.currentBid / 100) * 0.25)
   paymentAmount.value = additionalAmount
   paymentMode.value = 'additional'
@@ -201,17 +227,18 @@ const handlePayment = (amountInKopeks: number) => {
               <span class="participants-count">{{ snap.applicants.length }} чел.</span>
             </div>
             
-            <!-- КНОПКА ДОПОЛНИТЕЛЬНОЙ ОПЛАТЫ (только для авторизованных участников) -->
+            <!-- КНОПКА ДОПОЛНИТЕЛЬНОЙ ОПЛАТЫ (видна всегда) -->
             <button 
-              v-if="userApplication" 
               class="additional-payment-btn"
+              :class="{ 'disabled': !canSubmitApplications }"
+              :disabled="!canSubmitApplications"
               @click="increaseBid"
-              title="Увеличить ставку"
+              :title="canSubmitApplications ? 'Увеличить ставку' : 'Прием заявок завершен'"
             >
               <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
               </svg>
-              <span>Дополнительная оплата</span>
+              <span>{{ canSubmitApplications ? 'Дополнительная оплата' : 'Прием завершен' }}</span>
             </button>
           </div>
 
@@ -561,9 +588,17 @@ const handlePayment = (amountInKopeks: number) => {
   box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
 }
 
-.additional-payment-btn:hover {
+.additional-payment-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(255, 149, 0, 0.4);
+}
+
+.additional-payment-btn:disabled,
+.additional-payment-btn.disabled {
+  background: linear-gradient(135deg, #999 0%, #777 100%);
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
 }
 
 .additional-payment-btn .icon {

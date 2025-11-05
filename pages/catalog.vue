@@ -128,14 +128,19 @@ onMounted(async () => {
         <div 
           v-for="event in filteredEvents" 
           :key="event.id" 
-          class="event-card"
-          @click="goToMonitoring(event.id)"
+          :class="['event-card', { 'draft-card': event.status === 'draft' }]"
+          @click="event.status === 'draft' ? $event.stopPropagation() : goToMonitoring(event.id)"
         >
+          <!-- Пометка черновика -->
+          <div v-if="event.status === 'draft'" class="draft-badge">
+            📝 Черновик
+          </div>
+          
           <!-- Кнопки в углах -->
           <div class="corner-buttons">
-            <!-- Кнопка редактирования (только для кастомных ивентов) -->
+            <!-- Кнопка редактирования (только для кастомных и НЕ опубликованных) -->
             <button 
-              v-if="isCustomEvent(event.id)"
+              v-if="isCustomEvent(event.id) && event.status !== 'published'"
               @click.stop="goToEdit(event.id)" 
               class="edit-corner-btn"
               title="Редактировать мероприятие"
@@ -186,6 +191,22 @@ onMounted(async () => {
                 </svg>
                 <span class="meta-label">Автор:</span>
                 <span class="meta-value">{{ event.author }}</span>
+              </div>
+              
+              <div v-if="event.producerName" class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <span class="meta-label">Продюсер:</span>
+                <span class="meta-value">{{ event.producerName }}</span>
+              </div>
+              
+              <div v-if="event.createdAt" class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="meta-label">Создано:</span>
+                <span class="meta-value">{{ formatDate(event.createdAt) }}</span>
               </div>
 
               <div class="meta-row">
@@ -399,6 +420,32 @@ onMounted(async () => {
   border-color: #007AFF;
   box-shadow: 0 12px 32px rgba(0, 122, 255, 0.15);
   transform: translateY(-6px);
+}
+
+/* Черновик - блокированная карточка */
+.draft-card {
+  opacity: 0.7;
+  border-color: #ffa500 !important;
+  cursor: not-allowed;
+}
+
+.draft-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.draft-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
 }
 
 /* Информация о мероприятии "от автора" */

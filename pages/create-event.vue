@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { EventCategory, ControlPointCode } from '~/types'
+import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
+import ProducerAuthModal from '~/components/ProducerAuthModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -8,6 +9,15 @@ const route = useRoute()
 // Edit mode
 const editMode = ref(false)
 const eventId = ref<string>('')
+
+// Producer auth
+const showProducerAuth = ref(false)
+const authorizedProducer = ref<string>('')
+
+// Event status
+const eventStatus = ref<EventStatus>('draft')
+const eventProducerName = ref<string>('')
+const isPublished = ref(false)
 
 // Form data
 const formData = ref({
@@ -22,7 +32,7 @@ const formData = ref({
   description: '',
   activities: [''],
   image: '',
-  controlPlan: [] as ControlPointCode[],
+  // controlPlan удалён - все точки обязательны для каждого события
   startApplicationsAt: '', // ti10
   endApplicationsAt: '', // ti20
   startContractsAt: '', // ti30
@@ -45,17 +55,6 @@ const categories: { value: EventCategory; label: string }[] = [
   { value: 'gastro-show', label: 'Гастро-шоу' },
   { value: 'lecture', label: 'Лекция' },
   { value: 'cruise', label: 'Круиз' }
-]
-
-// Control points
-const availableControlPoints: { code: ControlPointCode; label: string }[] = [
-  { code: 't0', label: 't0 - Запись мероприятия в каталог (публикация)' },
-  { code: 'ti10', label: 'ti10 - Начало приема заявок' },
-  { code: 'ti20', label: 'ti20 - Окончание приема заявок' },
-  { code: 'ti30', label: 'ti30 - Начало оформления договоров' },
-  { code: 'ti40', label: 'ti40 - Начало проведения мероприятия' },
-  { code: 'ti50', label: 'ti50 - Окончание проведения мероприятия' },
-  { code: 't999', label: 't999 - Удаление мероприятия из каталога' }
 ]
 
 // Image preview
@@ -97,15 +96,8 @@ const handleImageUpload = (event: Event) => {
   }
 }
 
-// Toggle control point
-const toggleControlPoint = (code: ControlPointCode) => {
-  const index = formData.value.controlPlan.indexOf(code)
-  if (index > -1) {
-    formData.value.controlPlan.splice(index, 1)
-  } else {
-    formData.value.controlPlan.push(code)
-  }
-}
+// Полный набор контрольных точек - обязателен для ВСЕХ событий
+const FULL_CONTROL_PLAN: ControlPointCode[] = ['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']
 
 // Validation messages
 const validationErrors = ref<string[]>([])
@@ -191,7 +183,7 @@ const loadEvent = () => {
       description: event.description || '',
       activities: event.activities?.length > 0 ? event.activities : [''],
       image: event.image || '',
-      controlPlan: event.controlPlan || [],
+      // controlPlan удалён - все точки обязательны
       startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
       endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
       startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : '',
@@ -204,11 +196,27 @@ const loadEvent = () => {
     
     imagePreview.value = event.image || ''
     createdAt.value = event.createdAt || ''
+    eventStatus.value = event.status || 'draft'
+    eventProducerName.value = event.producerName || ''
+    isPublished.value = event.status === 'published'
+    
+    // Если событие опубликовано, показываем предупреждение
+    if (isPublished.value) {
+      alert('⚠️ Внимание!\n\nЭто мероприятие уже опубликовано.\nРедактирование опубликованных мероприятий запрещено (защита от манипуляций).\n\nВы можете просмотреть информацию, но не можете сохранить изменения.')
+    }
   }
 }
 
-// Submit form
-const submitForm = () => {
+// Обработка авторизации продюсера
+const handleProducerAuthorized = (producerName: string) => {
+  authorizedProducer.value = producerName
+  showProducerAuth.value = false
+  // После авторизации сохраняем как черновик
+  saveEvent('draft')
+}
+
+// Сохранение события
+const saveEvent = (status: EventStatus) => {
   if (!isFormValid.value) {
     alert('Пожалуйста, заполните все обязательные поля')
     return
@@ -216,6 +224,12 @@ const submitForm = () => {
   
   // Validate dates
   if (!validateDates()) {
+    return
+  }
+  
+  // Проверка: если редактируем опубликованное событие
+  if (editMode.value && isPublished.value) {
+    alert('❌ Редактирование опубликованных мероприятий запрещено!\n\nЗащита от манипуляций.')
     return
   }
 
@@ -239,7 +253,7 @@ const submitForm = () => {
     category: formData.value.category,
     description: formData.value.description || undefined,
     activities: formData.value.activities.filter(a => a.trim() !== ''),
-    controlPlan: formData.value.controlPlan.length > 0 ? formData.value.controlPlan : ['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999'],
+    controlPlan: FULL_CONTROL_PLAN, // Все точки обязательны для каждого события
     startApplicationsAt: formData.value.startApplicationsAt ? new Date(formData.value.startApplicationsAt).toISOString() : undefined,
     endApplicationsAt: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).toISOString() : undefined,
     startContractsAt: formData.value.startContractsAt ? new Date(formData.value.startContractsAt).toISOString() : undefined,
@@ -248,6 +262,8 @@ const submitForm = () => {
       title: formData.value.authorInfo.title || 'Организатор',
       achievements: formData.value.authorInfo.achievements.filter(a => a.trim() !== '')
     },
+    status,
+    producerName: editMode.value ? eventProducerName.value : authorizedProducer.value,
     createdAt: editMode.value ? createdAt.value : now,
     updatedAt: now
   }
@@ -269,10 +285,22 @@ const submitForm = () => {
   localStorage.setItem('customEvents', JSON.stringify(existingEvents))
 
   // Show success message
-  alert(editMode.value ? 'Мероприятие успешно обновлено!' : 'Мероприятие успешно создано!')
+  const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
+  alert(editMode.value ? `Мероприятие успешно обновлено (${statusText})!` : `Мероприятие успешно создано (${statusText})!`)
 
   // Redirect to catalog
   router.push('/catalog')
+}
+
+// Submit form - проверка доступа продюсера
+const submitForm = (status: EventStatus = 'draft') => {
+  // Если создаем новое событие, нужна авторизация продюсера
+  if (!editMode.value && !authorizedProducer.value) {
+    showProducerAuth.value = true
+    return
+  }
+  
+  saveEvent(status)
 }
 
 // Load event on mount if editing
@@ -542,28 +570,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Control Points -->
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-3">
-              Контрольные точки
-            </label>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label 
-                v-for="point in availableControlPoints" 
-                :key="point.code"
-                class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 cursor-pointer hover:border-[#007AFF]/50 transition-all"
-              >
-                <input 
-                  type="checkbox"
-                  :checked="formData.controlPlan.includes(point.code)"
-                  @change="toggleControlPoint(point.code)"
-                  class="w-5 h-5 rounded border-white/20 bg-white/5 text-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20"
-                >
-                <span class="text-white/80">{{ point.label }}</span>
-              </label>
-            </div>
-          </div>
-
           <!-- Author Information -->
           <div class="border-t border-white/10 pt-6">
             <h3 class="text-xl font-semibold mb-4">Информация об авторе</h3>
@@ -627,8 +633,28 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Timestamps Info (for edit mode) -->
-          <div v-if="editMode && createdAt" class="border-t border-white/10 pt-6">
+          <!-- Event Info (for edit mode) -->
+          <div v-if="editMode && createdAt" class="border-t border-white/10 pt-6 space-y-4">
+            <!-- Статус и продюсер -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-white/5 rounded-xl p-4">
+                <div class="text-white/60 mb-1">Статус:</div>
+                <div class="flex items-center gap-2">
+                  <span v-if="eventStatus === 'draft'" class="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg font-semibold">
+                    📝 Черновик
+                  </span>
+                  <span v-else class="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg font-semibold">
+                    ✅ Опубликовано
+                  </span>
+                </div>
+              </div>
+              <div class="bg-white/5 rounded-xl p-4">
+                <div class="text-white/60 mb-1">Продюсер:</div>
+                <div class="text-white font-semibold">{{ eventProducerName || '—' }}</div>
+              </div>
+            </div>
+            
+            <!-- Даты -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div class="bg-white/5 rounded-xl p-4">
                 <div class="text-white/60 mb-1">Создано:</div>
@@ -641,25 +667,59 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Предупреждение для опубликованных -->
+          <div v-if="editMode && isPublished" class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
+            <svg class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <div class="text-red-400 font-semibold mb-1">Редактирование запрещено</div>
+              <div class="text-red-300 text-sm">Это мероприятие опубликовано. Редактирование запрещено для защиты от манипуляций.</div>
+            </div>
+          </div>
+
           <!-- Submit Buttons -->
-          <div class="flex gap-4 pt-6">
+          <div class="flex flex-col sm:flex-row gap-4 pt-6">
+            <!-- Кнопка "Сохранить как черновик" -->
             <button 
-              type="submit"
+              v-if="!isPublished"
+              type="button"
+              @click="submitForm('draft')"
               :disabled="!isFormValid"
-              class="flex-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#007AFF]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              class="flex-1 bg-white/5 border border-white/10 text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:bg-white/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ editMode ? 'Сохранить изменения' : 'Создать мероприятие' }}
+              📝 {{ editMode ? 'Сохранить черновик' : 'Создать черновик' }}
             </button>
+            
+            <!-- Кнопка "Опубликовать" -->
+            <button 
+              v-if="!isPublished"
+              type="button"
+              @click="submitForm('published')"
+              :disabled="!isFormValid"
+              class="flex-1 bg-gradient-to-r from-[#34c759] to-[#30d158] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#34c759]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              ✅ Опубликовать
+            </button>
+            
+            <!-- Кнопка отмены -->
             <NuxtLink 
               to="/catalog"
-              class="px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-medium hover:bg-white/10 transition-all"
+              class="px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-medium hover:bg-white/10 transition-all text-center"
             >
-              Отмена
+              {{ isPublished ? 'Закрыть' : 'Отмена' }}
             </NuxtLink>
           </div>
         </form>
       </div>
     </div>
+    
+    <!-- Producer Auth Modal -->
+    <ProducerAuthModal 
+      :is-open="showProducerAuth" 
+      @close="showProducerAuth = false"
+      @authorized="handleProducerAuthorized"
+    />
   </div>
 </template>
 

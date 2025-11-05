@@ -1,11 +1,31 @@
 import { defineStore } from 'pinia'
+import type { UserRole } from '~/types'
 
 export interface User {
   code: string
   name: string
   password: string
+  role: UserRole // 'applicant' | 'producer'
   createdAt: string
 }
+
+// Предустановленные продюсеры
+const PRESET_PRODUCERS: User[] = [
+  {
+    code: 'PROD001',
+    name: 'producer1',
+    password: 'prod1pass',
+    role: 'producer',
+    createdAt: new Date('2025-01-01').toISOString()
+  },
+  {
+    code: 'PROD002',
+    name: 'producer2',
+    password: 'prod2pass',
+    role: 'producer',
+    createdAt: new Date('2025-01-01').toISOString()
+  }
+]
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -15,7 +35,8 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.currentUser,
-    userCode: (state) => state.currentUser?.code || null
+    userCode: (state) => state.currentUser?.code || null,
+    isProducer: (state) => state.currentUser?.role === 'producer'
   },
 
   actions: {
@@ -27,6 +48,16 @@ export const useAuthStore = defineStore('auth', {
           if (stored) {
             this.users = JSON.parse(stored)
           }
+          
+          // Добавляем предустановленных продюсеров, если их еще нет
+          PRESET_PRODUCERS.forEach(producer => {
+            if (!this.users.some(u => u.code === producer.code)) {
+              this.users.push(producer)
+            }
+          })
+          
+          // Сохраняем обновленный список
+          localStorage.setItem('users', JSON.stringify(this.users))
 
           const currentUserCode = localStorage.getItem('currentUserCode')
           if (currentUserCode) {
@@ -73,6 +104,7 @@ export const useAuthStore = defineStore('auth', {
         code,
         name,
         password,
+        role: 'applicant', // Обычные пользователи - заявители
         createdAt: new Date().toISOString()
       }
 
