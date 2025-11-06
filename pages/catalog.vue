@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useEventsStore } from '~/stores/events'
 import { useFavoritesStore } from '~/stores/favorites'
 import Toast from '~/components/Toast.vue'
+import { getAuthorById, getAuthorShortName } from '~/data/authors'
 
 const router = useRouter()
 const events = useEventsStore()
@@ -64,9 +65,18 @@ const formatDate = (dateStr: string) => {
     day: '2-digit', 
     month: 'long',
     year: 'numeric',
-    hour: '2-digit', 
-    minute: '2-digit' 
+    hour: '2-digit',
+    minute: '2-digit'
   })
+}
+
+// Получить отображаемое имя автора
+const getDisplayAuthorName = (authorId: string) => {
+  const author = getAuthorById(authorId)
+  if (author) {
+    return getAuthorShortName(author)
+  }
+  return authorId // Fallback для старых событий
 }
 
 // Форматирование суммы
@@ -192,7 +202,7 @@ onMounted(async () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                 </svg>
                 <span class="meta-label">Автор:</span>
-                <span class="meta-value">{{ event.author }}</span>
+                <span class="meta-value">{{ getDisplayAuthorName(event.author) }}</span>
               </div>
               
               <div v-if="event.producerName" class="meta-row">

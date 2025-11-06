@@ -2,7 +2,7 @@
   {
     "id": "ev_test_early",
     "title": "Охота на медведя с рогатиной",
-    "author": "Иванов С.П.",
+    "author": "author-003",
     "location": "Сибирь, Красноярский край",
     "startAt": "2025-12-15T08:00:00Z",
     "endAt": "2025-12-17T18:00:00Z",
@@ -21,17 +21,12 @@
     "startApplicationsAt": "2025-11-01T10:00:00Z",
     "endApplicationsAt": "2025-12-10T23:59:59Z",
     "startContractsAt": "2025-12-11T10:00:00Z",
-    "authorInfo": {
-      "name": "Иванов С.П.",
-      "title": "Охотник-промысловик, 30 лет опыта",
-      "achievements": ["Заслуженный охотник России", "Инструктор экстремальных видов охоты"]
-    },
     "controlPlan": ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
   },
   {
     "id": "ev_test_middle",
     "title": "Подводная фотосессия в Красном море",
-    "author": "Морозова Е.А.",
+    "author": "author-002",
     "location": "Египет, Хургада",
     "startAt": "2025-12-20T10:00:00Z",
     "endAt": "2025-12-23T16:00:00Z",
@@ -51,17 +46,12 @@
     "startApplicationsAt": "2025-11-05T10:00:00Z",
     "endApplicationsAt": "2025-12-15T23:59:59Z",
     "startContractsAt": "2025-12-16T10:00:00Z",
-    "authorInfo": {
-      "name": "Морозова Е.А.",
-      "title": "Фотограф-подводник, олимпийская чемпионка по плаванию",
-      "achievements": ["Золотая медаль Олимпиады", "Лауреат World Press Photo"]
-    },
     "controlPlan": ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
   },
   {
     "id": "ev_test_critical",
     "title": "Гастро-шоу: Разделка крокодила",
-    "author": "Chef Boris",
+    "author": "author-001",
     "location": "Москва, ресторан Savva",
     "startAt": "2025-11-25T19:00:00Z",
     "endAt": "2025-11-25T23:00:00Z",
@@ -81,17 +71,12 @@
     "startApplicationsAt": "2025-10-20T10:00:00Z",
     "endApplicationsAt": "2025-11-20T23:59:59Z",
     "startContractsAt": "2025-11-21T10:00:00Z",
-    "authorInfo": {
-      "name": "Chef Boris",
-      "title": "Шеф-повар, Мишленовская звезда",
-      "achievements": ["Мишленовская звезда", "Победитель Top Chef International"]
-    },
     "controlPlan": ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
   },
   {
     "id": "ev_rock_msk",
     "title": "Rock Night",
-    "author": "Щербаков А.С",
+    "author": "author-003",
     "location": "Москва, Байкал",
     "startAt": "2026-01-15T18:00:00Z",
     "endAt": "2026-01-15T23:00:00Z",
@@ -111,17 +96,12 @@
     "startApplicationsAt": "2025-11-01T10:00:00Z",
     "endApplicationsAt": "2026-01-10T23:59:59Z",
     "startContractsAt": "2026-01-11T10:00:00Z",
-    "authorInfo": {
-      "name": "Щербаков А.С",
-      "title": "Олимпийский чемпион",
-      "achievements": ["Золотая медаль Олимпиады 2020", "Мастер спорта международного класса"]
-    },
     "controlPlan": ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
   },
   {
     "id": "ev_art_spb",
     "title": "Art Expo SPB",
-    "author": "Петрова Р.Н.",
+    "author": "author-004",
     "location": "Санкт-Петербург",
     "startAt": "2026-02-10T12:00:00Z",
     "endAt": "2026-02-10T18:00:00Z",
@@ -139,11 +119,6 @@
     "startApplicationsAt": "2025-11-15T10:00:00Z",
     "endApplicationsAt": "2026-02-05T23:59:59Z",
     "startContractsAt": "2026-02-06T10:00:00Z",
-    "authorInfo": {
-      "name": "Петрова Р.Н.",
-      "title": "Академик РАН",
-      "achievements": ["Лауреат премии РАН", "Доктор архитектурных наук"]
-    },
     "controlPlan": ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
   }
 ]

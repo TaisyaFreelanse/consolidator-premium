@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
 import ProducerAuthModal from '~/components/ProducerAuthModal.vue'
 import { useEventsStore } from '~/stores/events'
+import { AUTHORS, getAuthorById, getAuthorFullName } from '~/data/authors'
 
 const router = useRouter()
 const route = useRoute()
@@ -24,7 +25,7 @@ const isPublished = ref(false)
 // Form data
 const formData = ref({
   title: '',
-  author: '',
+  author: '', // ID автора из справочника
   location: '',
   startAt: '',
   endAt: '', // ti50
@@ -37,12 +38,7 @@ const formData = ref({
   // controlPlan удалён - все точки обязательны для каждого события
   startApplicationsAt: '', // ti10
   endApplicationsAt: '', // ti20
-  startContractsAt: '', // ti30
-  authorInfo: {
-    name: '',
-    title: '',
-    achievements: ['']
-  }
+  startContractsAt: '' // ti30
 })
 
 // Timestamps
@@ -71,16 +67,6 @@ const addActivity = () => {
 // Remove activity
 const removeActivity = (index: number) => {
   formData.value.activities.splice(index, 1)
-}
-
-// Add achievement
-const addAchievement = () => {
-  formData.value.authorInfo.achievements.push('')
-}
-
-// Remove achievement
-const removeAchievement = (index: number) => {
-  formData.value.authorInfo.achievements.splice(index, 1)
 }
 
 // Handle image upload
@@ -175,7 +161,7 @@ const loadEvent = () => {
   if (event) {
     formData.value = {
       title: event.title || '',
-      author: event.author || '',
+      author: event.author || '', // ID автора из справочника
       location: event.location || '',
       startAt: event.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : '',
       endAt: event.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : '',
@@ -188,12 +174,7 @@ const loadEvent = () => {
       // controlPlan удалён - все точки обязательны
       startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
       endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
-      startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : '',
-      authorInfo: {
-        name: event.authorInfo?.name || '',
-        title: event.authorInfo?.title || '',
-        achievements: event.authorInfo?.achievements?.length > 0 ? event.authorInfo.achievements : ['']
-      }
+      startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : ''
     }
     
     imagePreview.value = event.image || ''
@@ -210,11 +191,11 @@ const loadEvent = () => {
 }
 
 // Обработка авторизации продюсера
-const handleProducerAuthorized = async (producerName: string) => {
+const handleProducerAuthorized = (producerName: string) => {
   authorizedProducer.value = producerName
   showProducerAuth.value = false
-  // После авторизации сохраняем как черновик
-  await saveEvent('draft')
+  console.log('✅ Producer authorized:', producerName)
+  // НЕ сохраняем автоматически - пользователь должен нажать кнопку сохранения
 }
 
 // Сохранение события
@@ -259,11 +240,6 @@ const saveEvent = async (status: EventStatus) => {
     startApplicationsAt: formData.value.startApplicationsAt ? new Date(formData.value.startApplicationsAt).toISOString() : undefined,
     endApplicationsAt: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).toISOString() : undefined,
     startContractsAt: formData.value.startContractsAt ? new Date(formData.value.startContractsAt).toISOString() : undefined,
-    authorInfo: {
-      name: formData.value.authorInfo.name || formData.value.author,
-      title: formData.value.authorInfo.title || 'Организатор',
-      achievements: formData.value.authorInfo.achievements.filter(a => a.trim() !== '')
-    },
     status,
     producerName: editMode.value ? eventProducerName.value : authorizedProducer.value,
     createdAt: editMode.value ? createdAt.value : now,
@@ -273,21 +249,33 @@ const saveEvent = async (status: EventStatus) => {
   // Save to localStorage
   const existingEvents = JSON.parse(localStorage.getItem('customEvents') || '[]')
   
+  console.log('💾 Saving event:', {
+    id: eventData.id,
+    title: eventData.title,
+    status: eventData.status,
+    producerName: eventData.producerName,
+    createdAt: eventData.createdAt
+  })
+  
   if (editMode.value) {
     // Update existing event
     const index = existingEvents.findIndex((e: any) => e.id === eventId.value)
     if (index > -1) {
       existingEvents[index] = eventData
+      console.log('✏️ Updated existing event at index', index)
     }
   } else {
     // Add new event
     existingEvents.push(eventData)
+    console.log('➕ Added new event, total:', existingEvents.length)
   }
   
   localStorage.setItem('customEvents', JSON.stringify(existingEvents))
+  console.log('✅ Saved to localStorage, total events:', existingEvents.length)
 
   // Обновляем store для синхронизации
   await eventsStore.reload()
+  console.log('🔄 Store reloaded')
 
   // Show success message
   const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
@@ -577,63 +565,31 @@ onMounted(() => {
 
           <!-- Author Information -->
           <div class="border-t border-white/10 pt-6">
-            <h3 class="text-xl font-semibold mb-4">Информация об авторе</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Имя автора
-                </label>
-                <input 
-                  v-model="formData.authorInfo.name"
-                  type="text" 
-                  placeholder="Будет использовано имя организатора"
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                >
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Должность/Титул
-                </label>
-                <input 
-                  v-model="formData.authorInfo.title"
-                  type="text" 
-                  placeholder="Например: Шеф-повар, Тренер"
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                >
-              </div>
-            </div>
-
-            <!-- Achievements -->
+            <h3 class="text-xl font-semibold mb-4">Автор мероприятия</h3>
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
-                Достижения автора
+                Выберите автора из списка <span class="text-red-400">*</span>
               </label>
-              <div class="space-y-2">
-                <div v-for="(achievement, index) in formData.authorInfo.achievements" :key="index" class="flex gap-2">
-                  <input 
-                    v-model="formData.authorInfo.achievements[index]"
-                    type="text" 
-                    placeholder="Описание достижения"
-                    class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  >
-                  <button 
-                    v-if="formData.authorInfo.achievements.length > 1"
-                    type="button"
-                    @click="removeAchievement(index)"
-                    class="px-4 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-colors"
-                  >
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <button 
-                  type="button"
-                  @click="addAchievement"
-                  class="w-full bg-white/5 border border-white/10 border-dashed rounded-xl px-4 py-3 text-white/60 hover:text-white hover:border-[#007AFF]/50 transition-all"
+              <select 
+                v-model="formData.author"
+                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+              >
+                <option value="" disabled class="bg-[#1a1f2e] text-white/50">Выберите автора...</option>
+                <option 
+                  v-for="author in AUTHORS" 
+                  :key="author.id" 
+                  :value="author.id"
+                  class="bg-[#1a1f2e] text-white"
                 >
-                  + Добавить достижение
-                </button>
+                  {{ getAuthorFullName(author) }} — {{ author.title }}
+                </option>
+              </select>
+              
+              <!-- Preview selected author -->
+              <div v-if="formData.author" class="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl">
+                <div class="text-sm text-white/60 mb-1">Выбранный автор:</div>
+                <div class="text-white font-semibold">{{ getAuthorFullName(getAuthorById(formData.author)!) }}</div>
+                <div class="text-white/70 text-sm mt-1">{{ getAuthorById(formData.author)?.title }}</div>
               </div>
             </div>
           </div>

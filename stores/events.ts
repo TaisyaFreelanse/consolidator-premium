@@ -7,7 +7,12 @@ export const useEventsStore = defineStore('events', {
   actions: {
     async fetch(forceReload = false) {
       // Если уже загружено и не требуется принудительная перезагрузка
-      if (this.loaded && !forceReload) return
+      if (this.loaded && !forceReload) {
+        console.log('📦 Events already loaded, skipping fetch')
+        return
+      }
+      
+      console.log('🔄 Fetching events...')
       
       // Load events from mock data
       const res = await fetch('/mock/events.json')
@@ -21,6 +26,18 @@ export const useEventsStore = defineStore('events', {
           if (stored) {
             customEvents = JSON.parse(stored)
             console.log('✅ Loaded custom events from localStorage:', customEvents.length)
+            
+            // Логируем каждое событие
+            customEvents.forEach((event, index) => {
+              console.log(`  Event ${index}:`, {
+                id: event.id,
+                title: event.title,
+                status: event.status,
+                producer: event.producerName
+              })
+            })
+          } else {
+            console.log('ℹ️ No custom events in localStorage')
           }
         } catch (e) {
           console.error('❌ Failed to load custom events:', e)

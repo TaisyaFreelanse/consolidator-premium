@@ -8,6 +8,7 @@ import EventStatus from '~/components/EventStatus.vue'
 import MonitoringTable from '~/components/MonitoringTable.vue'
 import AuthModal from '~/components/AuthModal.vue'
 import PaymentModal from '~/components/PaymentModal.vue'
+import { getAuthorById, getAuthorShortName } from '~/data/authors'
 
 const route = useRoute()
 const events = useEventsStore()
@@ -41,6 +42,15 @@ const switchEvent = (id: string) => {
 // Форматирование суммы
 const formatMoney = (amount: number) => {
   return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
+}
+
+// Получить отображаемое имя автора
+const getDisplayAuthorName = (authorId: string) => {
+  const author = getAuthorById(authorId)
+  if (author) {
+    return getAuthorShortName(author)
+  }
+  return authorId // Fallback для старых событий
 }
 
 // Проверка участия пользователя
@@ -156,7 +166,7 @@ const handlePayment = (amountInKopeks: number) => {
         <label class="selector-label">Выберите мероприятие:</label>
         <select :value="eventId" @change="(e) => switchEvent((e.target as HTMLSelectElement).value)" class="selector-dropdown">
           <option v-for="event in events.list" :key="event.id" :value="event.id">
-            {{ event.title }} - {{ event.author }}
+            {{ event.title }} - {{ getDisplayAuthorName(event.author) }}
           </option>
         </select>
       </div>

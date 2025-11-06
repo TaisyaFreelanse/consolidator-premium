@@ -14,10 +14,29 @@ export const debugLocalStorage = () => {
       console.table(parsed.map((e: any) => ({
         id: e.id,
         title: e.title,
-        status: e.status || 'no status',
-        producer: e.producerName || 'no producer',
-        created: e.createdAt ? new Date(e.createdAt).toLocaleString('ru-RU') : 'no date'
+        status: e.status || '❌ no status',
+        producer: e.producerName || '❌ no producer',
+        created: e.createdAt ? new Date(e.createdAt).toLocaleString('ru-RU') : '❌ no date'
       })))
+      
+      // Показываем черновики отдельно
+      const drafts = parsed.filter((e: any) => e.status === 'draft')
+      if (drafts.length > 0) {
+        console.log('📝 Drafts found:', drafts.length)
+        console.table(drafts.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          producer: e.producerName
+        })))
+      } else {
+        console.log('ℹ️ No drafts found')
+      }
+      
+      // Показываем опубликованные отдельно
+      const published = parsed.filter((e: any) => e.status === 'published')
+      if (published.length > 0) {
+        console.log('✅ Published events:', published.length)
+      }
     } else {
       console.log('❌ No custom events found in localStorage')
     }

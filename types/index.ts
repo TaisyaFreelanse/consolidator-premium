@@ -4,10 +4,19 @@ export type EventCategory = 'master-class' | 'training' | 'excursion' | 'gastro-
 export type EventStatus = 'draft' | 'published'
 export type UserRole = 'applicant' | 'producer'
 
+// Автор мероприятия
+export interface Author {
+  id: string
+  lastName: string   // Фамилия
+  firstName: string  // Имя
+  middleName?: string // Отчество (опционально)
+  title: string      // Титул (например: "Шеф-повар", "Мастер спорта")
+}
+
 export interface EventItem {
   id: string
   title: string
-  author: string
+  author: string // ID автора из справочника авторов
   location: string
   startAt: string // ti40 - начало проведения мероприятия
   endAt?: string // ti50 - окончание проведения мероприятия
@@ -22,11 +31,6 @@ export interface EventItem {
   startApplicationsAt?: string // ti10 - начало приема заявок
   endApplicationsAt?: string // ti20 - окончание приема заявок
   startContractsAt?: string // ti30 - начало оформления договоров
-  authorInfo?: {
-    name: string
-    title: string
-    achievements?: string[]
-  }
   status?: EventStatus // draft (черновик) | published (опубликовано)
   producerName?: string // Имя продюсера, создавшего мероприятие
   createdAt?: string // Дата создания мероприятия
