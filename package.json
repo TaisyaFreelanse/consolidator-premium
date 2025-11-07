@@ -10,8 +10,10 @@
     "generate": "nuxt generate",
     "postinstall": "prisma generate && nuxt prepare",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
+    "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
+    "prisma:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema=./prisma/schema.prisma",
+    "prisma:studio": "prisma studio --schema=./prisma/schema.prisma",
     "prisma:seed": "tsx prisma/seed.ts",
     "test": "vitest",
     "test:ui": "vitest --ui"
@@ -36,5 +38,8 @@
     "tsx": "^4.20.6",
     "typescript": "^5.6.3",
     "vitest": "^1.6.0"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
   }
 }
