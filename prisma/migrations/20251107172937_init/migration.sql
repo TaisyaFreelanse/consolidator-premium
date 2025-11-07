@@ -7,8 +7,8 @@ CREATE TABLE "events" (
     "startAt" DATETIME NOT NULL,
     "endAt" DATETIME,
     "seatLimit" INTEGER,
-    "priceTotal" INTEGER NOT NULL,
-    "pricePerSeat" INTEGER,
+    "priceTotal" BIGINT NOT NULL,
+    "pricePerSeat" BIGINT,
     "image" TEXT,
     "category" TEXT,
     "description" TEXT,
@@ -40,7 +40,7 @@ CREATE TABLE "payments" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "eventId" TEXT NOT NULL,
     "userId" TEXT,
-    "amount" INTEGER NOT NULL,
+    "amount" BIGINT NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'RUB',
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "providerTxnId" TEXT,
@@ -57,4 +57,3 @@ CREATE INDEX "payments_eventId_idx" ON "payments"("eventId");
 
 -- CreateIndex
 CREATE INDEX "payments_userId_idx" ON "payments"("userId");
-
