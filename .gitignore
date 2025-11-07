@@ -26,3 +26,5 @@ logs/
 Thumbs.db
 ehthumbs.db
 desktop.ini
+
+# Prisma database files
