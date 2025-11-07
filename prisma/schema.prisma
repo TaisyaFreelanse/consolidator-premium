@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id                   String   @id @default(uuid())
+  title                String
+  author               String
+  location             String
+  startAt              DateTime
+  endAt                DateTime?
+  seatLimit            Int?
+  priceTotal           Int      // в копейках
+  pricePerSeat         Int?     // в копейках
+  image                String?
+  category             String?
+  description          String?
+  activities           String?  // JSON array
+  startApplicationsAt  DateTime? // ti10
+  endApplicationsAt    DateTime? // ti20
+  startContractsAt     DateTime? // ti30
+  status               String   @default("draft") // draft | published
+  producerName         String?
+  
+  // Новые поля для контрольных точек
+  controlPlan          String   // JSON array: ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
+  currentControlPoint  String?  // текущая контрольная точка (t0 | ti10 | ti20 | ti30 | ti40 | ti50 | t999)
+  isCancelled          Boolean  @default(false)
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Связи
+  statusHistory        EventStatusHistory[]
+  payments             Payment[]
+  
+  @@map("events")
+}
+
+model EventStatusHistory {
+  id         String   @id @default(uuid())
+  eventId    String
+  statusCode String   // t0 | ti10 | ti20 | ti30 | ti40 | ti50 | t999
+  note       String?  // дополнительная информация
+  createdAt  DateTime @default(now())
+  
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@map("event_status_history")
+  @@index([eventId])
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  eventId        String
+  userId         String?  // может быть null для неавторизованных
+  amount         Int      // в копейках
+  currency       String   @default("RUB")
+  status         String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  providerTxnId  String?  // TEST-UUID для тестовых платежей
+  isTest         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@map("payments")
+  @@index([eventId])
+  @@index([userId])
+}
+

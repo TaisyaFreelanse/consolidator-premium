@@ -168,6 +168,31 @@ export function getCurrentTimeInterval(
 }
 
 /**
+ * Преобразует контрольную точку в временной интервал
+ * @param controlPoint - код контрольной точки (t0, ti10, ti20, и т.д.)
+ * @returns интервал для этой контрольной точки
+ */
+export function controlPointToInterval(controlPoint: ControlPointCode): string {
+  switch (controlPoint) {
+    case 't0':
+      return 't0-ti10'
+    case 'ti10':
+      return 'ti10-ti20'
+    case 'ti20':
+      return 'ti20-ti30'
+    case 'ti30':
+      return 'ti30-ti40'
+    case 'ti40':
+      return 'ti40-ti50'
+    case 'ti50':
+    case 't999':
+      return 'ti50-t999'
+    default:
+      return 't0-ti10'
+  }
+}
+
+/**
  * Получает сообщение о статусе для текущего интервала
  * @param interval - текущий временной интервал
  * @param isCancelled - признак отмены мероприятия

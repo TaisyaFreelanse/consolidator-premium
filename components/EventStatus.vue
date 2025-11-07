@@ -3,7 +3,8 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { EventItem, MonitoringSnapshot } from '~/types'
 import { 
   getCurrentTimeInterval, 
-  getStatusMessage, 
+  getStatusMessage,
+  controlPointToInterval,
   getMoneyStatus, 
   getSeatsStatus,
   getTimeRemaining,
@@ -18,13 +19,28 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Текущий временной интервал
+// Текущий временной интервал - используем контрольную точку из API, если есть snapshot
 const timeInterval = computed(() => {
-  return getCurrentTimeInterval(props.event)
+  // Если есть snapshot с nowPoint, используем его (приоритет API)
+  if (props.snapshot?.nowPoint) {
+    const interval = controlPointToInterval(props.snapshot.nowPoint)
+    return {
+      currentInterval: interval,
+      currentPoint: props.snapshot.nowPoint,
+      progress: 50 // Примерное значение, можно улучшить
+    }
+  }
+  // Иначе вычисляем на основе дат (fallback для локальных событий)
+  return getCurrentTimeInterval(props.event, props.event.createdAt)
 })
 
-// Определяем, отменено ли мероприятие (если собрано недостаточно средств)
+// Определяем, отменено ли мероприятие
 const isCancelled = computed(() => {
+  // Используем значение из API, если есть
+  if (props.snapshot?.isCancelled !== undefined) {
+    return props.snapshot.isCancelled
+  }
+  // Иначе вычисляем на основе собранных средств
   if (!props.snapshot) return false
   const collected = props.snapshot.collected || 0
   // Мероприятие отменяется, если собрано менее 100% от требуемой суммы

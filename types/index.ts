@@ -41,9 +41,10 @@ export interface Applicant { code: string; seats: number; paidAmount: number }
 export interface MonitoringSnapshot {
   eventId: string
   nowPoint: ControlPointCode
-  collected: number
-  deficit: number
-  surplus: number
+  collected?: number
+  deficit?: number
+  surplus?: number
+  isCancelled?: boolean
   applicants: Applicant[]
   deadlineNext?: string
 }

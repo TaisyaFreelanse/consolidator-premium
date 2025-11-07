@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useEventsStore } from '~/stores/events'
-import { useFavoritesStore } from '~/stores/favorites'
 import '~/utils/debugLocalStorage'
 import '~/utils/migrateLocalStorage'
 
@@ -29,16 +28,12 @@ onMounted(async () => {
   
   const auth = useAuthStore()
   const events = useEventsStore()
-  const favorites = useFavoritesStore()
   
   // Загружаем пользователей (включая продюсеров)
   auth.loadUsers()
   
   // Загружаем события (включая кастомные из localStorage)
   events.fetch()
-  
-  // Загружаем избранное
-  favorites.load()
 })
 </script>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEventsStore } from '~/stores/events'
 import { useMonitoringStore } from '~/stores/monitoring'
@@ -19,20 +19,39 @@ const showAuthModal = ref(false)
 const showPaymentModal = ref(false)
 const paymentMode = ref<'application' | 'additional'>('application')
 const paymentAmount = ref(0) // в рублях
+const snap = ref<any>(null) // Данные мониторинга
 
 onMounted(async () => { 
   auth.loadUsers()
   await events.fetch()
   await mon.fetch()
   
+  // Загружаем данные мониторинга для текущего события
+  await loadMonitoringData()
+  
   setTimeout(() => {
     isLoading.value = false
   }, 300)
 })
 
+// Загрузка данных мониторинга
+const loadMonitoringData = async () => {
+  if (eventId.value) {
+    snap.value = await mon.fetchByEvent(eventId.value)
+  }
+}
+
 const eventId = computed(() => (route.query.event as string) || (events.list[0]?.id ?? ''))
 const ev = computed(() => events.list.find(e => e.id === eventId.value))
-const snap = computed(() => mon.byEvent(eventId.value))
+
+// Следим за изменением eventId и перезагружаем данные
+watch(eventId, async (newId) => {
+  if (newId) {
+    isLoading.value = true
+    snap.value = await mon.fetchByEvent(newId, true) // Принудительная перезагрузка
+    isLoading.value = false
+  }
+})
 
 // Селектор мероприятий
 const switchEvent = (id: string) => {
@@ -44,6 +63,13 @@ const formatMoney = (amount: number) => {
   return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
 }
 
+// Маскировка номера карты для логов
+const maskCardNumber = (cardNumber: string) => {
+  const cleaned = cardNumber.replace(/\D/g, '')
+  if (cleaned.length < 4) return '****'
+  return '**** **** **** ' + cleaned.slice(-4)
+}
+
 // Получить отображаемое имя автора
 const getDisplayAuthorName = (authorId: string) => {
   const author = getAuthorById(authorId)
@@ -53,17 +79,40 @@ const getDisplayAuthorName = (authorId: string) => {
   return authorId // Fallback для старых событий
 }
 
+// Нормализация activities (всегда массив)
+const normalizedActivities = computed(() => {
+  if (!ev.value?.activities) return []
+  
+  // Если это массив - возвращаем как есть
+  if (Array.isArray(ev.value.activities)) {
+    return ev.value.activities
+  }
+  
+  // Если это строка - пытаемся распарсить JSON
+  if (typeof ev.value.activities === 'string') {
+    try {
+      const parsed = JSON.parse(ev.value.activities)
+      return Array.isArray(parsed) ? parsed : [ev.value.activities]
+    } catch {
+      // Если не JSON - возвращаем как массив с одним элементом
+      return [ev.value.activities]
+    }
+  }
+  
+  return []
+})
+
 // Проверка участия пользователя
 const userApplication = computed(() => {
-  if (!auth.isAuthenticated || !snap.value) return null
-  return snap.value.applicants.find(a => a.code === auth.userCode)
+  if (!auth.isAuthenticated || !snap.value || !snap.value.applicants) return null
+  return snap.value.applicants.find((a: any) => a.code === auth.userCode)
 })
 
 // Позиция пользователя в рейтинге (отсортированном по убыванию взноса)
 const userRanking = computed(() => {
-  if (!userApplication.value || !snap.value) return null
-  const sorted = [...snap.value.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
-  const position = sorted.findIndex(a => a.code === auth.userCode) + 1
+  if (!userApplication.value || !snap.value || !snap.value.applicants) return null
+  const sorted = [...snap.value.applicants].sort((a: any, b: any) => b.paidAmount - a.paidAmount)
+  const position = sorted.findIndex((a: any) => a.code === auth.userCode) + 1
   return {
     position,
     total: snap.value.applicants.length,
@@ -138,18 +187,66 @@ const closePaymentModal = () => {
 }
 
 // Обработка оплаты
-const handlePayment = (amountInKopeks: number) => {
-  // TODO: Интеграция с платежной системой
-  // Пока просто показываем alert
-  const amountInRubles = Math.round(amountInKopeks / 100)
+const handlePayment = async (paymentData: any) => {
+  if (!ev.value) return
   
-  if (paymentMode.value === 'application') {
-    alert(`✅ Заявка принята!\n\nСумма к оплате: ${formatMoney(amountInRubles)} ₽\nВаш код: ${auth.userCode}\n\n🔄 В продакшене здесь будет перенаправление на страницу оплаты (Stripe, ЮKassa и т.д.)`)
-  } else {
-    alert(`✅ Дополнительная оплата!\n\nСумма доплаты: ${formatMoney(amountInRubles)} ₽\nВаш код: ${auth.userCode}\n\n🔄 В продакшене здесь будет перенаправление на страницу оплаты`)
+  const isProcessing = ref(false)
+  
+  if (isProcessing.value) return
+  isProcessing.value = true
+  
+  try {
+    // Очищаем номер карты от пробелов
+    const cleanedCardNumber = paymentData.cardNumber.replace(/\s/g, '')
+    
+    const requestBody = {
+      eventId: ev.value.id,
+      userId: auth.userCode,
+      cardNumber: cleanedCardNumber,
+      expiry: paymentData.expiry,
+      cvc: paymentData.cvc,
+      amount: paymentData.amount
+    }
+    
+    console.log('💳 Processing payment...', {
+      ...requestBody,
+      cardNumber: maskCardNumber(cleanedCardNumber) // Маскируем для логов
+    })
+    
+    // Отправляем запрос на создание заявки с оплатой
+    const response = await fetch('/api/applications/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok || !result.success) {
+      // Если есть детальные ошибки валидации, показываем их
+      const errorMessage = result.message || result.statusMessage || 'Payment failed'
+      const errorDetails = result.data ? (Array.isArray(result.data) ? result.data.join(', ') : JSON.stringify(result.data)) : ''
+      throw new Error(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage)
+    }
+    
+    console.log('✅ Payment successful:', result)
+    
+    // Показываем успешное сообщение
+    alert(`✅ ${paymentMode.value === 'application' ? 'Заявка принята!' : 'Дополнительная оплата выполнена!'}\n\nСумма: ${result.data.amount} ${result.data.currency}\nID транзакции: ${result.data.providerTxnId}\nВаш код: ${auth.userCode}`)
+    
+    // Инвалидируем кэш мониторинга и перезагружаем данные
+    mon.invalidate(ev.value.id)
+    await loadMonitoringData()
+    
+    closePaymentModal()
+  } catch (error: any) {
+    console.error('❌ Payment failed:', error)
+    alert(`❌ Ошибка оплаты\n\n${error.message || 'Произошла ошибка при обработке платежа. Попробуйте еще раз.'}`)
+  } finally {
+    isProcessing.value = false
   }
-  
-  closePaymentModal()
 }
 </script>
 
@@ -183,6 +280,20 @@ const handlePayment = (amountInKopeks: number) => {
         <!-- ГЛАВНЫЙ ВИДЖЕТ СТАТУСА (единый для каталога и мониторинга) -->
         <div class="status-section">
           <EventStatus :event="ev" :snapshot="snap || undefined" />
+        </div>
+
+        <!-- ПРЕДУПРЕЖДЕНИЕ ДЛЯ ЛОКАЛЬНЫХ СОБЫТИЙ -->
+        <div v-if="ev.status === 'draft' || (ev.id.startsWith('event-') && snap && snap.applicants.length === 0)" class="local-event-warning">
+          <svg class="warning-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+          </svg>
+          <div class="warning-content">
+            <h3 class="warning-title">Локальное событие</h3>
+            <p class="warning-text">
+              Это событие существует только на вашем устройстве и не синхронизировано с сервером. 
+              Данные мониторинга недоступны до публикации события.
+            </p>
+          </div>
         </div>
 
         <!-- КОМПАКТНАЯ КНОПКА ПОДАЧИ ЗАЯВКИ -->
@@ -282,10 +393,10 @@ const handlePayment = (amountInKopeks: number) => {
             <p>{{ ev.description }}</p>
           </div>
 
-          <div v-if="ev.activities && ev.activities.length > 0" class="activities-list">
+          <div v-if="normalizedActivities.length > 0" class="activities-list">
             <h3 class="subsection-title">Программа:</h3>
             <ul class="activities">
-              <li v-for="(activity, index) in ev.activities" :key="index" class="activity-item">
+              <li v-for="(activity, index) in normalizedActivities" :key="index" class="activity-item">
                 {{ activity }}
               </li>
             </ul>
@@ -770,6 +881,43 @@ const handlePayment = (amountInKopeks: number) => {
   padding: 60px 20px;
   font-size: 18px;
   color: #666;
+}
+
+/* Предупреждение для локальных событий */
+.local-event-warning {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(255, 149, 0, 0.15) 0%, rgba(255, 59, 48, 0.15) 100%);
+  border: 2px solid rgba(255, 149, 0, 0.4);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.warning-icon {
+  width: 32px;
+  height: 32px;
+  color: #ff9500;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.warning-content {
+  flex: 1;
+}
+
+.warning-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.warning-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #444;
+  margin: 0;
 }
 
 /* Responsive */

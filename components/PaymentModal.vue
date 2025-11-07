@@ -14,16 +14,24 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   close: []
-  submit: [amount: number]
+  submit: [paymentData: { amount: number, cardNumber: string, expiry: string, cvc: string }]
 }>()
 
 // Сумма оплаты (в рублях)
 const paymentAmount = ref(0)
 
-// При открытии модалки инициализируем сумму
+// Данные карты
+const cardNumber = ref('')
+const expiry = ref('')
+const cvc = ref('')
+
+// При открытии модалки инициализируем сумму и очищаем поля карты
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     paymentAmount.value = props.initialAmount
+    cardNumber.value = ''
+    expiry.value = ''
+    cvc.value = ''
   }
 })
 
@@ -32,9 +40,30 @@ const formatMoney = (amount: number) => {
   return amount.toLocaleString('ru-RU', { minimumFractionDigits: 0 })
 }
 
+// Форматирование номера карты (добавляем пробелы)
+const formatCardNumber = () => {
+  const cleaned = cardNumber.value.replace(/\s/g, '')
+  const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned
+  cardNumber.value = formatted.slice(0, 19) // 16 цифр + 3 пробела
+}
+
+// Форматирование даты истечения (MM/YY)
+const formatExpiry = () => {
+  let cleaned = expiry.value.replace(/\D/g, '')
+  if (cleaned.length >= 2) {
+    cleaned = cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4)
+  }
+  expiry.value = cleaned
+}
+
 // Валидация
 const isValid = computed(() => {
-  return paymentAmount.value >= props.initialAmount && paymentAmount.value > 0
+  const isAmountValid = paymentAmount.value >= props.initialAmount && paymentAmount.value > 0
+  const isCardValid = cardNumber.value.replace(/\s/g, '').length === 16
+  const isExpiryValid = expiry.value.length === 5 && expiry.value.includes('/')
+  const isCvcValid = cvc.value.length === 3
+  
+  return isAmountValid && isCardValid && isExpiryValid && isCvcValid
 })
 
 // Закрыть модальное окно
@@ -46,9 +75,13 @@ const close = () => {
 const handleSubmit = () => {
   if (!isValid.value) return
   
-  // Конвертируем рубли в копейки для отправки
-  emit('submit', Math.round(paymentAmount.value * 100))
-  close()
+  // Отправляем данные для оплаты
+  emit('submit', {
+    amount: paymentAmount.value, // в рублях
+    cardNumber: cardNumber.value.replace(/\s/g, ''), // убираем пробелы
+    expiry: expiry.value,
+    cvc: cvc.value
+  })
 }
 
 // Быстрые кнопки увеличения суммы
@@ -147,6 +180,47 @@ const quickIncrease = (percent: number) => {
               >
                 +50%
               </button>
+            </div>
+
+            <!-- Данные карты -->
+            <div class="card-details">
+              <h3 class="section-title">Данные карты</h3>
+              
+              <div class="form-group">
+                <label class="form-label">Номер карты</label>
+                <input 
+                  v-model="cardNumber" 
+                  @input="formatCardNumber"
+                  type="text" 
+                  class="form-input"
+                  placeholder="1234 5678 9012 3456"
+                  maxlength="19"
+                >
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Срок (MM/YY)</label>
+                  <input 
+                    v-model="expiry" 
+                    @input="formatExpiry"
+                    type="text" 
+                    class="form-input"
+                    placeholder="12/25"
+                    maxlength="5"
+                  >
+                </div>
+                <div class="form-group">
+                  <label class="form-label">CVV</label>
+                  <input 
+                    v-model="cvc" 
+                    type="text" 
+                    class="form-input"
+                    placeholder="123"
+                    maxlength="3"
+                  >
+                </div>
+              </div>
             </div>
 
             <!-- Итоговая сумма -->
@@ -464,6 +538,59 @@ const quickIncrease = (percent: number) => {
 .warning-text strong {
   color: #ff9500;
   font-weight: 600;
+}
+
+/* Card Details */
+.card-details {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 16px 0;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #007AFF;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+}
+
+.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Footer */
