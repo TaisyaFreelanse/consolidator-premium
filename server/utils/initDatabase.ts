@@ -11,10 +11,21 @@ import { execSync } from 'child_process'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+interface InitOptions {
+  rootDir?: string
+}
+
+function resolveRootDir(options?: InitOptions): string {
+  if (options?.rootDir) return options.rootDir
+  if (process.env.PRISMA_ROOT_DIR) return process.env.PRISMA_ROOT_DIR
+  if (process.env.NUXT_ROOT_DIR) return process.env.NUXT_ROOT_DIR
+  return resolve(__dirname, '../../')
+}
+
 /**
  * Получить путь к файлу БД из DATABASE_URL
  */
-function getDatabasePath(): string | null {
+function getDatabasePath(options?: InitOptions): string | null {
   const dbUrl = process.env.DATABASE_URL
   
   if (!dbUrl) {
@@ -31,14 +42,9 @@ function getDatabasePath(): string | null {
       path = path.substring(1)
     }
     
-    // Если относительный путь, разрешаем относительно текущей рабочей директории
+    // Если относительный путь, разрешаем относительно корня проекта
     if (path.startsWith('./') || path.startsWith('../') || (!path.startsWith('/') && !path.match(/^[A-Z]:/))) {
-      // В production на Render путь должен быть относительно process.cwd()
-      // В development - относительно корня проекта
-      const baseDir = process.env.NODE_ENV === 'production' 
-        ? process.cwd() 
-        : resolve(__dirname, '../../')
-      
+      const baseDir = resolveRootDir(options)
       return resolve(baseDir, path)
     }
     
@@ -78,14 +84,10 @@ function databaseExists(dbPath: string): boolean {
 /**
  * Выполнить миграции Prisma
  */
-async function runMigrations(): Promise<boolean> {
+async function runMigrations(options?: InitOptions): Promise<boolean> {
+  const cwd = resolveRootDir(options)
   try {
     console.log('🔄 Выполняю миграции Prisma...')
-    
-    // Определяем рабочую директорию
-    const cwd = process.env.NODE_ENV === 'production' 
-      ? process.cwd() 
-      : resolve(__dirname, '../../')
     
     // В production используем prisma migrate deploy (безопасно для продакшена)
     // В development используем prisma migrate dev
@@ -98,9 +100,8 @@ async function runMigrations(): Promise<boolean> {
     
     execSync(command, { 
       stdio: 'inherit',
-      cwd: cwd,
-      env: { ...process.env },
-      shell: true
+      cwd,
+      env: { ...process.env }
     })
     
     console.log('✅ Миграции выполнены успешно')
@@ -121,15 +122,10 @@ async function runMigrations(): Promise<boolean> {
     if (errorMessage.includes('Unable to open') || errorMessage.includes('does not exist')) {
       console.log('🔄 Пытаюсь создать БД через prisma db push...')
       try {
-        const cwd = process.env.NODE_ENV === 'production' 
-          ? process.cwd() 
-          : resolve(__dirname, '../../')
-        
         execSync('npx prisma db push --skip-generate', {
           stdio: 'inherit',
-          cwd: cwd,
-          env: { ...process.env },
-          shell: true
+          cwd,
+          env: { ...process.env }
         })
         
         console.log('✅ БД создана через db push')
@@ -148,12 +144,12 @@ async function runMigrations(): Promise<boolean> {
  * Инициализировать базу данных
  * Вызывается при старте сервера
  */
-export async function initDatabase(): Promise<boolean> {
+export async function initDatabase(options?: InitOptions): Promise<boolean> {
   console.log('🚀 === Инициализация базы данных ===')
   
   try {
     // 1. Получаем путь к БД
-    const dbPath = getDatabasePath()
+    const dbPath = getDatabasePath(options)
     
     if (!dbPath) {
       console.error('❌ Не удалось определить путь к БД')
@@ -177,7 +173,7 @@ export async function initDatabase(): Promise<boolean> {
     }
     
     // 4. Выполняем миграции (создаст БД, если её нет)
-    const migrationsOk = await runMigrations()
+    const migrationsOk = await runMigrations(options)
     
     if (!migrationsOk) {
       console.warn('⚠️ Миграции не выполнены, но продолжаем работу')

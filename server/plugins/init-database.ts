@@ -7,10 +7,13 @@ import { initDatabase, testDatabaseConnection } from '../utils/initDatabase'
 
 export default defineNitroPlugin(async (nitroApp) => {
   console.log('🔌 Server plugin: инициализация базы данных...')
+
+  const rootDir = nitroApp.options?.rootDir || process.env.NUXT_ROOT_DIR || process.cwd()
+  process.env.PRISMA_ROOT_DIR = rootDir
   
   try {
     // Инициализируем БД
-    const initSuccess = await initDatabase()
+    const initSuccess = await initDatabase({ rootDir })
     
     if (!initSuccess) {
       console.error('❌ Не удалось инициализировать БД, но продолжаем работу')
