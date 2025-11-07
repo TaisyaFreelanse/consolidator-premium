@@ -4,10 +4,9 @@ const prisma = getPrismaClient()
 
 export default defineEventHandler(async (event) => {
   try {
+    // Возвращаем все события (и draft, и published)
+    // Фронтенд может фильтровать по необходимости
     const events = await prisma.event.findMany({
-      where: {
-        status: 'published' // Возвращаем только опубликованные события
-      },
       orderBy: {
         createdAt: 'desc'
       }

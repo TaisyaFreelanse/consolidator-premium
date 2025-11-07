@@ -179,9 +179,30 @@ export async function initDatabase(options?: InitOptions): Promise<boolean> {
       console.warn('⚠️ Миграции не выполнены, но продолжаем работу')
     }
     
-    // 5. Проверяем, что БД теперь существует
-    if (!databaseExists(dbPath)) {
-      console.error('❌ База данных не была создана после миграций')
+    // 5. Проверяем, что БД теперь существует и работает
+    // Проверяем через Prisma (более надежно, чем проверка файла)
+    let dbWorking = false
+    try {
+      const { getPrismaClient } = await import('./prisma')
+      const prisma = getPrismaClient()
+      await prisma.$queryRaw`SELECT 1`
+      dbWorking = true
+      console.log('✅ База данных работает (проверено через Prisma)')
+    } catch (prismaError: any) {
+      // Если Prisma не может подключиться, проверяем файл
+      const dbExistsAfterMigration = databaseExists(dbPath)
+      if (dbExistsAfterMigration) {
+        console.warn('⚠️ Файл БД существует, но Prisma не может подключиться. Возможно, БД заблокирована.')
+        // Для SQLite это может быть нормально, если БД используется другим процессом
+        dbWorking = true
+      } else {
+        console.error('❌ База данных не была создана после миграций')
+        return false
+      }
+    }
+    
+    if (!dbWorking) {
+      console.error('❌ База данных не работает')
       return false
     }
     

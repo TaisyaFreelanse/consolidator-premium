@@ -147,45 +147,86 @@ const isFormValid = computed(() => {
 })
 
 // Load event for editing
-const loadEvent = () => {
+const loadEvent = async () => {
   const id = route.query.id as string
   if (!id) return
   
   editMode.value = true
   eventId.value = id
   
-  // Load from localStorage
-  const existingEvents = JSON.parse(localStorage.getItem('customEvents') || '[]')
-  const event = existingEvents.find((e: any) => e.id === id)
-  
-  if (event) {
-    formData.value = {
-      title: event.title || '',
-      author: event.author || '', // ID автора из справочника
-      location: event.location || '',
-      startAt: event.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : '',
-      endAt: event.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : '',
-      priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
-      seatLimit: event.seatLimit?.toString() || '',
-      category: event.category || '',
-      description: event.description || '',
-      activities: event.activities?.length > 0 ? event.activities : [''],
-      image: event.image || '',
-      // controlPlan удалён - все точки обязательны
-      startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
-      endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
-      startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : ''
+  try {
+    // Сначала пытаемся загрузить из API (БД)
+    const response = await fetch(`/api/events/${id}`)
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        const event = result.data
+        formData.value = {
+          title: event.title || '',
+          author: event.author || '', // ID автора из справочника
+          location: event.location || '',
+          startAt: event.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : '',
+          endAt: event.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : '',
+          priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
+          seatLimit: event.seatLimit?.toString() || '',
+          category: event.category || '',
+          description: event.description || '',
+          activities: event.activities?.length > 0 ? event.activities : [''],
+          image: event.image || '',
+          startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
+          endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
+          startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : ''
+        }
+        
+        imagePreview.value = event.image || ''
+        createdAt.value = event.createdAt || ''
+        eventStatus.value = event.status || 'draft'
+        eventProducerName.value = event.producerName || ''
+        isPublished.value = event.status === 'published'
+        
+        // Если событие опубликовано, показываем предупреждение
+        if (isPublished.value) {
+          alert('⚠️ Внимание!\n\nЭто мероприятие уже опубликовано.\nРедактирование опубликованных мероприятий запрещено (защита от манипуляций).\n\nВы можете просмотреть информацию, но не можете сохранить изменения.')
+        }
+        return
+      }
     }
+  } catch (error) {
+    console.warn('⚠️ Failed to load event from API, trying localStorage:', error)
+  }
+  
+  // Fallback: Load from localStorage (для старых событий)
+  if (process.client) {
+    const existingEvents = JSON.parse(localStorage.getItem('customEvents') || '[]')
+    const event = existingEvents.find((e: any) => e.id === id)
     
-    imagePreview.value = event.image || ''
-    createdAt.value = event.createdAt || ''
-    eventStatus.value = event.status || 'draft'
-    eventProducerName.value = event.producerName || ''
-    isPublished.value = event.status === 'published'
-    
-    // Если событие опубликовано, показываем предупреждение
-    if (isPublished.value) {
-      alert('⚠️ Внимание!\n\nЭто мероприятие уже опубликовано.\nРедактирование опубликованных мероприятий запрещено (защита от манипуляций).\n\nВы можете просмотреть информацию, но не можете сохранить изменения.')
+    if (event) {
+      formData.value = {
+        title: event.title || '',
+        author: event.author || '',
+        location: event.location || '',
+        startAt: event.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : '',
+        endAt: event.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : '',
+        priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
+        seatLimit: event.seatLimit?.toString() || '',
+        category: event.category || '',
+        description: event.description || '',
+        activities: event.activities?.length > 0 ? event.activities : [''],
+        image: event.image || '',
+        startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
+        endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
+        startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : ''
+      }
+      
+      imagePreview.value = event.image || ''
+      createdAt.value = event.createdAt || ''
+      eventStatus.value = event.status || 'draft'
+      eventProducerName.value = event.producerName || ''
+      isPublished.value = event.status === 'published'
+      
+      if (isPublished.value) {
+        alert('⚠️ Внимание!\n\nЭто мероприятие уже опубликовано.\nРедактирование опубликованных мероприятий запрещено (защита от манипуляций).\n\nВы можете просмотреть информацию, но не можете сохранить изменения.')
+      }
     }
   }
 }
@@ -218,12 +259,10 @@ const saveEvent = async (status: EventStatus) => {
 
   // Convert price to kopeks
   const priceInKopeks = Math.round(parseFloat(formData.value.priceTotal) * 100)
-  
-  const now = new Date().toISOString()
 
-  // Create event object
+  // Create event object for API
   const eventData = {
-    id: editMode.value ? eventId.value : `event-${Date.now()}`,
+    id: editMode.value ? eventId.value : undefined, // Для создания не передаем id
     title: formData.value.title,
     author: formData.value.author,
     location: formData.value.location,
@@ -241,48 +280,49 @@ const saveEvent = async (status: EventStatus) => {
     endApplicationsAt: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).toISOString() : undefined,
     startContractsAt: formData.value.startContractsAt ? new Date(formData.value.startContractsAt).toISOString() : undefined,
     status,
-    producerName: editMode.value ? eventProducerName.value : authorizedProducer.value,
-    createdAt: editMode.value ? createdAt.value : now,
-    updatedAt: now
+    producerName: editMode.value ? eventProducerName.value : authorizedProducer.value
   }
 
-  // Save to localStorage
-  const existingEvents = JSON.parse(localStorage.getItem('customEvents') || '[]')
-  
-  console.log('💾 Saving event:', {
+  console.log('💾 Saving event to server:', {
     id: eventData.id,
     title: eventData.title,
     status: eventData.status,
-    producerName: eventData.producerName,
-    createdAt: eventData.createdAt
+    producerName: eventData.producerName
   })
-  
-  if (editMode.value) {
-    // Update existing event
-    const index = existingEvents.findIndex((e: any) => e.id === eventId.value)
-    if (index > -1) {
-      existingEvents[index] = eventData
-      console.log('✏️ Updated existing event at index', index)
+
+  try {
+    // Отправляем на сервер
+    const response = await fetch('/api/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(eventData)
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      const errorMessage = result.message || result.statusMessage || 'Failed to save event'
+      throw new Error(errorMessage)
     }
-  } else {
-    // Add new event
-    existingEvents.push(eventData)
-    console.log('➕ Added new event, total:', existingEvents.length)
+
+    console.log('✅ Event saved to database:', result.data.id)
+
+    // Обновляем store для синхронизации
+    await eventsStore.reload()
+    console.log('🔄 Store reloaded')
+
+    // Show success message
+    const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
+    alert(editMode.value ? `Мероприятие успешно обновлено (${statusText})!` : `Мероприятие успешно создано (${statusText})!`)
+
+    // Redirect to catalog
+    router.push('/catalog')
+  } catch (error: any) {
+    console.error('❌ Failed to save event:', error)
+    alert(`❌ Ошибка сохранения мероприятия\n\n${error.message || 'Произошла ошибка при сохранении. Попробуйте еще раз.'}`)
   }
-  
-  localStorage.setItem('customEvents', JSON.stringify(existingEvents))
-  console.log('✅ Saved to localStorage, total events:', existingEvents.length)
-
-  // Обновляем store для синхронизации
-  await eventsStore.reload()
-  console.log('🔄 Store reloaded')
-
-  // Show success message
-  const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
-  alert(editMode.value ? `Мероприятие успешно обновлено (${statusText})!` : `Мероприятие успешно создано (${statusText})!`)
-
-  // Redirect to catalog
-  router.push('/catalog')
 }
 
 // Submit form - проверка доступа продюсера
@@ -297,8 +337,8 @@ const submitForm = async (status: EventStatus = 'draft') => {
 }
 
 // Load event on mount if editing
-onMounted(() => {
-  loadEvent()
+onMounted(async () => {
+  await loadEvent()
 })
 </script>
 

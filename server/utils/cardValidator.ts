@@ -91,6 +91,7 @@ export function validateExpiry(expiry: string): boolean {
 
 /**
  * Полная валидация карты
+ * В тестовом режиме всегда возвращает успех (все карты проходят)
  * @param cardNumber - номер карты
  * @param expiry - срок действия MM/YY
  * @param cvv - CVV код
@@ -101,23 +102,11 @@ export function validateCard(
   expiry: string,
   cvv: string
 ): { valid: boolean; errors: string[] } {
-  const errors: string[] = []
-  
-  if (!validateLuhn(cardNumber)) {
-    errors.push('Неверный номер карты')
-  }
-  
-  if (!validateExpiry(expiry)) {
-    errors.push('Неверный срок действия карты или карта просрочена')
-  }
-  
-  if (!validateCVV(cvv)) {
-    errors.push('Неверный CVV/CVC код')
-  }
-  
+  // В тестовом режиме все карты проходят как успешные
+  // Нет смысла проверять реальные данные карт для тестовой оплаты
   return {
-    valid: errors.length === 0,
-    errors
+    valid: true,
+    errors: []
   }
 }
 

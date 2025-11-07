@@ -13,16 +13,28 @@ interface CreateApplicationBody {
 }
 
 export default defineEventHandler(async (event) => {
+  console.log('📥 POST /api/applications/create - Request received')
+  
   const body = await readBody<CreateApplicationBody>(event)
+  console.log('📦 Request body:', { 
+    eventId: body.eventId, 
+    userId: body.userId, 
+    hasCardNumber: !!body.cardNumber,
+    hasExpiry: !!body.expiry,
+    hasCvc: !!body.cvc,
+    amount: body.amount 
+  })
 
   // Валидация обязательных полей
   if (!body.eventId || !body.userId || !body.cardNumber || !body.expiry || !body.cvc || !body.amount) {
+    console.error('❌ Missing required fields')
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
   const { eventId, userId, cardNumber, expiry, cvc, amount } = body
 
   try {
+    console.log(`🔍 Looking for event: ${eventId}`)
     // 1. Проверяем, существует ли событие
     const eventData = await prisma.event.findUnique({
       where: { id: eventId }
@@ -32,18 +44,21 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Event not found' })
     }
 
-    // 2. Валидация карты
+    // 2. Валидация карты (в тестовом режиме всегда успешна)
     const validationResult = validateCard(cardNumber, expiry, cvc)
+    console.log('💳 Card validation result:', validationResult.valid ? '✅ Valid' : '❌ Invalid')
 
     if (!validationResult.valid) {
+      console.error('❌ Card validation failed:', validationResult.errors)
       throw createError({ 
         statusCode: 400, 
         statusMessage: validationResult.errors.join(', ') || 'Invalid card details' 
       })
     }
 
-    // 3. Создаем платеж (имитация)
+    // 3. Создаем платеж (имитация - все карты проходят)
     const providerTxnId = `TEST-${crypto.randomUUID()}`
+    console.log(`💰 Creating payment: ${providerTxnId} for event ${eventId}, user ${userId}, amount ${amount} RUB`)
 
     const payment = await prisma.payment.create({
       data: {
@@ -56,6 +71,8 @@ export default defineEventHandler(async (event) => {
         isTest: true
       }
     })
+
+    console.log('✅ Payment created successfully:', payment.id)
 
     return {
       success: true,

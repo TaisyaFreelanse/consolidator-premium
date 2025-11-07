@@ -282,8 +282,8 @@ const handlePayment = async (paymentData: any) => {
           <EventStatus :event="ev" :snapshot="snap || undefined" />
         </div>
 
-        <!-- ПРЕДУПРЕЖДЕНИЕ ДЛЯ ЛОКАЛЬНЫХ СОБЫТИЙ -->
-        <div v-if="ev.status === 'draft' || (ev.id.startsWith('event-') && snap && snap.applicants.length === 0)" class="local-event-warning">
+        <!-- ПРЕДУПРЕЖДЕНИЕ ДЛЯ ЛОКАЛЬНЫХ СОБЫТИЙ (только для старых событий из localStorage) -->
+        <div v-if="ev.id.startsWith('event-')" class="local-event-warning">
           <svg class="warning-icon" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
           </svg>
