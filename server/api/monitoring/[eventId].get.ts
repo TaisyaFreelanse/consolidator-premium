@@ -41,14 +41,15 @@ export default defineEventHandler(async (event) => {
     eventData.payments.forEach(payment => {
       const userId = payment.userId || 'anonymous'
       const existing = applicantsMap.get(userId)
+      const amount = Number(payment.amount) // BigInt -> Number
 
       if (existing) {
-        existing.paidAmount += payment.amount
+        existing.paidAmount += amount
       } else {
         applicantsMap.set(userId, {
           code: userId,
           seats: 1, // Один участник = одно место
-          paidAmount: payment.amount
+          paidAmount: amount
         })
       }
     })
@@ -58,9 +59,10 @@ export default defineEventHandler(async (event) => {
     // Вычисляем общую собранную сумму
     const collected = applicants.reduce((sum, app) => sum + app.paidAmount, 0)
     
-    // Вычисляем дефицит/профицит
-    const deficit = Math.max(0, eventData.priceTotal - collected)
-    const surplus = Math.max(0, collected - eventData.priceTotal)
+    // Вычисляем дефицит/профицит (конвертируем BigInt в Number)
+    const priceTotal = Number(eventData.priceTotal)
+    const deficit = Math.max(0, priceTotal - collected)
+    const surplus = Math.max(0, collected - priceTotal)
 
     // Возвращаем данные в формате MonitoringSnapshot
     return {

@@ -18,8 +18,8 @@ model Event {
   startAt              DateTime
   endAt                DateTime?
   seatLimit            Int?
-  priceTotal           Int      // в копейках
-  pricePerSeat         Int?     // в копейках
+  priceTotal           BigInt   // в копейках (BigInt для больших сумм)
+  pricePerSeat         BigInt?  // в копейках (BigInt для больших сумм)
   image                String?
   category             String?
   description          String?
@@ -62,7 +62,7 @@ model Payment {
   id             String   @id @default(uuid())
   eventId        String
   userId         String?  // может быть null для неавторизованных
-  amount         Int      // в копейках
+  amount         BigInt   // в копейках (BigInt для больших сумм)
   currency       String   @default("RUB")
   status         String   @default("PENDING") // PENDING | SUCCESS | FAILED
   providerTxnId  String?  // TEST-UUID для тестовых платежей

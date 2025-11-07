@@ -45,8 +45,8 @@ export default defineEventHandler(async (event) => {
         startAt: eventData.startAt.toISOString(),
         endAt: eventData.endAt?.toISOString(),
         seatLimit: eventData.seatLimit,
-        priceTotal: eventData.priceTotal,
-        pricePerSeat: eventData.pricePerSeat,
+        priceTotal: Number(eventData.priceTotal), // BigInt -> Number для API
+        pricePerSeat: eventData.pricePerSeat ? Number(eventData.pricePerSeat) : null,
         image: eventData.image,
         controlPlan: controlPlan,
         category: eventData.category,

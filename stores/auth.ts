@@ -27,6 +27,15 @@ const PRESET_PRODUCERS: User[] = [
   }
 ]
 
+// Предустановленный модератор
+const PRESET_MODERATOR: User = {
+  code: 'MOD001',
+  name: 'moderator',
+  password: 'modpass',
+  role: 'moderator',
+  createdAt: new Date('2025-01-01').toISOString()
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     currentUser: null as User | null,
@@ -36,7 +45,8 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.currentUser,
     userCode: (state) => state.currentUser?.code || null,
-    isProducer: (state) => state.currentUser?.role === 'producer'
+    isProducer: (state) => state.currentUser?.role === 'producer',
+    isModerator: (state) => state.currentUser?.role === 'moderator'
   },
 
   actions: {
@@ -55,6 +65,11 @@ export const useAuthStore = defineStore('auth', {
               this.users.push(producer)
             }
           })
+          
+          // Добавляем предустановленного модератора, если его еще нет
+          if (!this.users.some(u => u.code === PRESET_MODERATOR.code)) {
+            this.users.push(PRESET_MODERATOR)
+          }
           
           // Сохраняем обновленный список
           localStorage.setItem('users', JSON.stringify(this.users))

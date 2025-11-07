@@ -3,11 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
 import ProducerAuthModal from '~/components/ProducerAuthModal.vue'
 import { useEventsStore } from '~/stores/events'
+import { useAuthStore } from '~/stores/auth'
 import { AUTHORS, getAuthorById, getAuthorFullName } from '~/data/authors'
 
 const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
+const auth = useAuthStore()
 
 // Edit mode
 const editMode = ref(false)
@@ -241,13 +243,41 @@ const handleProducerAuthorized = (producerName: string) => {
 
 // Сохранение события
 const saveEvent = async (status: EventStatus) => {
-  if (!isFormValid.value) {
-    alert('Пожалуйста, заполните все обязательные поля')
-    return
+  // Очищаем предыдущие ошибки
+  validationErrors.value = []
+  
+  // Валидация обязательных полей
+  if (!formData.value.title.trim()) {
+    validationErrors.value.push('Название мероприятия обязательно')
+  }
+  if (!formData.value.author) {
+    validationErrors.value.push('Выберите автора из списка')
+  }
+  if (!formData.value.location.trim()) {
+    validationErrors.value.push('Место проведения обязательно')
+  }
+  if (!formData.value.startAt) {
+    validationErrors.value.push('Дата начала мероприятия обязательна')
+  }
+  if (!formData.value.priceTotal || parseFloat(formData.value.priceTotal) <= 0) {
+    validationErrors.value.push('Общая стоимость должна быть больше 0')
+  }
+  if (!formData.value.seatLimit || parseInt(formData.value.seatLimit) <= 0) {
+    validationErrors.value.push('Количество участников должно быть больше 0')
+  }
+  if (!formData.value.category) {
+    validationErrors.value.push('Выберите категорию')
   }
   
   // Validate dates
   if (!validateDates()) {
+    // Ошибки дат уже добавлены в validationErrors
+  }
+  
+  // Если есть ошибки, показываем их
+  if (validationErrors.value.length > 0) {
+    // Прокручиваем к первой ошибке
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     return
   }
   
@@ -327,10 +357,21 @@ const saveEvent = async (status: EventStatus) => {
 
 // Submit form - проверка доступа продюсера
 const submitForm = async (status: EventStatus = 'draft') => {
-  // Если создаем новое событие, нужна авторизация продюсера
+  // Проверяем авторизацию продюсера
+  auth.loadUsers()
+  
+  // Если пользователь авторизован как продюсер, используем его имя
+  if (auth.isProducer && auth.currentUser) {
+    authorizedProducer.value = auth.currentUser.name
+  }
+  
+  // Если создаем новое событие и нет авторизованного продюсера, показываем модальное окно
   if (!editMode.value && !authorizedProducer.value) {
-    showProducerAuth.value = true
-    return
+    if (!auth.isProducer) {
+      alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nПожалуйста, войдите как продюсер.')
+      showProducerAuth.value = true
+      return
+    }
   }
   
   await saveEvent(status)
@@ -338,6 +379,15 @@ const submitForm = async (status: EventStatus = 'draft') => {
 
 // Load event on mount if editing
 onMounted(async () => {
+  // Загружаем пользователей для проверки авторизации
+  auth.loadUsers()
+  
+  // Если пользователь авторизован как продюсер, автоматически устанавливаем его имя
+  if (auth.isProducer && auth.currentUser) {
+    authorizedProducer.value = auth.currentUser.name
+    console.log('✅ Producer auto-authorized:', authorizedProducer.value)
+  }
+  
   await loadEvent()
 })
 </script>
@@ -373,7 +423,7 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div class="flex-1">
-              <h3 class="text-red-400 font-semibold mb-2">Ошибки в датах:</h3>
+              <h3 class="text-red-400 font-semibold mb-2">Ошибки заполнения формы:</h3>
               <ul class="list-disc list-inside space-y-1">
                 <li v-for="(error, index) in validationErrors" :key="index" class="text-red-300 text-sm">
                   {{ error }}
@@ -430,15 +480,19 @@ onMounted(async () => {
 
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
-                Автор/Организатор <span class="text-red-400">*</span>
+                Автор <span class="text-red-400">*</span>
               </label>
-              <input 
+              <select 
                 v-model="formData.author"
-                type="text" 
                 required
-                placeholder="Имя автора"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
               >
+                <option value="" disabled>Выберите автора</option>
+                <option v-for="author in AUTHORS" :key="author.id" :value="author.id" class="bg-[#1A1F3E]">
+                  {{ getAuthorFullName(author) }}
+                </option>
+              </select>
+              <p v-if="validationErrors.includes('author')" class="text-red-400 text-sm mt-1">Выберите автора из списка</p>
             </div>
 
             <div>
@@ -502,10 +556,14 @@ onMounted(async () => {
                 type="number" 
                 required
                 min="0"
-                step="0.01"
-                placeholder="0.00"
+                step="1"
+                placeholder="0"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'border-red-500': validationErrors.some(e => e.includes('стоимость') || e.includes('цена')) }"
               >
+              <p v-if="validationErrors.some(e => e.includes('стоимость') || e.includes('цена'))" class="text-red-400 text-sm mt-1">
+                {{ validationErrors.find(e => e.includes('стоимость') || e.includes('цена')) }}
+              </p>
             </div>
 
             <div>

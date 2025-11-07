@@ -41,8 +41,10 @@ const loadMonitoringData = async () => {
   }
 }
 
-const eventId = computed(() => (route.query.event as string) || (events.list[0]?.id ?? ''))
-const ev = computed(() => events.list.find(e => e.id === eventId.value))
+// Фильтруем только опубликованные события для мониторинга
+const publishedEvents = computed(() => events.list.filter(e => e.status === 'published'))
+const eventId = computed(() => (route.query.event as string) || (publishedEvents.value[0]?.id ?? ''))
+const ev = computed(() => publishedEvents.value.find(e => e.id === eventId.value))
 
 // Следим за изменением eventId и перезагружаем данные
 watch(eventId, async (newId) => {
@@ -259,10 +261,10 @@ const handlePayment = async (paymentData: any) => {
       </div>
 
       <!-- Селектор мероприятия -->
-      <div v-if="events.list.length > 1" class="event-selector">
+      <div v-if="publishedEvents.length > 1" class="event-selector">
         <label class="selector-label">Выберите мероприятие:</label>
         <select :value="eventId" @change="(e) => switchEvent((e.target as HTMLSelectElement).value)" class="selector-dropdown">
-          <option v-for="event in events.list" :key="event.id" :value="event.id">
+          <option v-for="event in publishedEvents" :key="event.id" :value="event.id">
             {{ event.title }} - {{ getDisplayAuthorName(event.author) }}
           </option>
         </select>

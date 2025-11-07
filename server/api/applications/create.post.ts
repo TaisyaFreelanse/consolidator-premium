@@ -44,7 +44,15 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Event not found' })
     }
 
-    // 2. Валидация карты (в тестовом режиме всегда успешна)
+    // 2. Проверка статуса события - заявки принимаются только для опубликованных событий
+    if (eventData.status !== 'published') {
+      throw createError({ 
+        statusCode: 403, 
+        statusMessage: 'Applications are only accepted for published events. This event is still in draft status.' 
+      })
+    }
+
+    // 3. Валидация карты (в тестовом режиме всегда успешна)
     const validationResult = validateCard(cardNumber, expiry, cvc)
     console.log('💳 Card validation result:', validationResult.valid ? '✅ Valid' : '❌ Invalid')
 
@@ -56,7 +64,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // 3. Создаем платеж (имитация - все карты проходят)
+    // 4. Создаем платеж (имитация - все карты проходят)
     const providerTxnId = `TEST-${crypto.randomUUID()}`
     console.log(`💰 Creating payment: ${providerTxnId} for event ${eventId}, user ${userId}, amount ${amount} RUB`)
 
@@ -64,7 +72,7 @@ export default defineEventHandler(async (event) => {
       data: {
         eventId: eventId,
         userId: userId,
-        amount: amount * 100, // Сохраняем в копейках
+        amount: BigInt(Math.round(amount * 100)), // Сохраняем в копейках как BigInt
         currency: 'RUB',
         status: 'SUCCESS', // Для имитации всегда SUCCESS
         providerTxnId: providerTxnId,
@@ -81,7 +89,7 @@ export default defineEventHandler(async (event) => {
         paymentId: payment.id,
         status: payment.status,
         providerTxnId: payment.providerTxnId,
-        amount: payment.amount / 100,
+        amount: Number(payment.amount) / 100, // BigInt -> Number для API
         currency: payment.currency
       }
     }

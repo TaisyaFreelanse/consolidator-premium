@@ -3,12 +3,14 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventsStore } from '~/stores/events'
 import { useFavoritesStore } from '~/stores/favorites'
+import { useAuthStore } from '~/stores/auth'
 import Toast from '~/components/Toast.vue'
 import { getAuthorById, getAuthorShortName } from '~/data/authors'
 
 const router = useRouter()
 const events = useEventsStore()
 const favorites = useFavoritesStore()
+const auth = useAuthStore()
 const isLoading = ref(true)
 const searchQuery = ref('')
 
@@ -150,9 +152,9 @@ onMounted(async () => {
           
           <!-- Кнопки в углах -->
           <div class="corner-buttons">
-            <!-- Кнопка редактирования (только для кастомных и НЕ опубликованных) -->
+            <!-- Кнопка редактирования (для черновиков продюсера) -->
             <button 
-              v-if="isCustomEvent(event.id) && event.status !== 'published'"
+              v-if="event.status === 'draft' && auth.isProducer"
               @click.stop="goToEdit(event.id)" 
               class="edit-corner-btn"
               title="Редактировать мероприятие"

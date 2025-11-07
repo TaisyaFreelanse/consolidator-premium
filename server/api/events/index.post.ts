@@ -50,8 +50,8 @@ export default defineEventHandler(async (event) => {
       startAt: new Date(body.startAt),
       endAt: body.endAt ? new Date(body.endAt) : null,
       seatLimit: body.seatLimit,
-      priceTotal: body.priceTotal,
-      pricePerSeat: body.pricePerSeat || Math.round(body.priceTotal / body.seatLimit),
+      priceTotal: BigInt(body.priceTotal), // Number -> BigInt для БД
+      pricePerSeat: body.pricePerSeat ? BigInt(body.pricePerSeat) : BigInt(Math.round(body.priceTotal / body.seatLimit)),
       image: body.image || '/mock/placeholder.jpg',
       category: body.category || null,
       description: body.description || null,
@@ -72,13 +72,22 @@ export default defineEventHandler(async (event) => {
       // Обновление существующего события
       console.log(`✏️ Updating event: ${body.id}`)
       
-      // Проверяем, что событие существует и не опубликовано (защита от редактирования опубликованных)
+      // Проверяем, что событие существует
       const existing = await prisma.event.findUnique({ where: { id: body.id } })
       if (!existing) {
         throw createError({ statusCode: 404, statusMessage: 'Event not found' })
       }
+      
+      // Проверяем права доступа:
+      // - Опубликованные события нельзя редактировать (защита от манипуляций)
+      // - Черновики может редактировать только создавший их продюсер
       if (existing.status === 'published') {
         throw createError({ statusCode: 403, statusMessage: 'Cannot edit published events' })
+      }
+      
+      // Проверка: продюсер может редактировать только свои черновики
+      if (existing.producerName && body.producerName && existing.producerName !== body.producerName) {
+        throw createError({ statusCode: 403, statusMessage: 'You can only edit your own draft events' })
       }
 
       savedEvent = await prisma.event.update({
@@ -122,8 +131,8 @@ export default defineEventHandler(async (event) => {
         startAt: savedEvent.startAt.toISOString(),
         endAt: savedEvent.endAt?.toISOString(),
         seatLimit: savedEvent.seatLimit,
-        priceTotal: savedEvent.priceTotal,
-        pricePerSeat: savedEvent.pricePerSeat,
+        priceTotal: Number(savedEvent.priceTotal), // BigInt -> Number для API
+        pricePerSeat: savedEvent.pricePerSeat ? Number(savedEvent.pricePerSeat) : null,
         image: savedEvent.image,
         controlPlan: controlPlan,
         category: savedEvent.category,
