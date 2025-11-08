@@ -132,14 +132,71 @@ const closeAuthModal = () => {
   showAuthModal.value = false
 }
 
+const formatDateTime = (date: Date) => {
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const copyCurrentEventLink = async (): Promise<boolean> => {
+  if (!process.client) return false
+  if (!navigator?.clipboard?.writeText) return false
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    return true
+  } catch (error) {
+    console.warn('Не удалось скопировать ссылку на событие:', error)
+    return false
+  }
+}
+
 // Подать заявку (с оплатой)
-const submitApplication = () => {
+const submitApplication = async () => {
+  if (!ev.value) return
+
+  if (!hasApplicationsStarted.value) {
+    const startMessage = applicationsStartDate.value
+      ? `Прием заявок начнется ${formatDateTime(applicationsStartDate.value)}.`
+      : 'Прием заявок еще не открыт.'
+
+    const copied = await copyCurrentEventLink()
+
+    let message = `⏳ Прием заявок еще не начался.
+
+${startMessage}`
+
+    if (!auth.isAuthenticated) {
+      message += `
+
+Создайте личный кабинет продюсера или участника, чтобы вернуться и подать заявку.`
+    }
+
+    message += copied
+      ? `
+
+🔗 Ссылка на это мероприятие скопирована в буфер обмена.`
+      : `
+
+Сохраните ссылку на мероприятие, чтобы быстро вернуться позже.`
+
+    alert(message)
+    return
+  }
+
+  if (!canSubmitApplications.value) {
+    alert('❌ Прием заявок завершен\n\nПопробуйте выбрать другое мероприятие.')
+    return
+  }
+
   if (!auth.isAuthenticated) {
     openAuthModal()
     return
   }
-  
-  // Открыть модальное окно оплаты
+
   const pricePerSeat = ev.value?.pricePerSeat || (ev.value ? ev.value.priceTotal / (ev.value.seatLimit || 20) : 0)
   paymentAmount.value = Math.round(pricePerSeat / 100) // конвертируем копейки в рубли
   paymentMode.value = 'application'
@@ -154,8 +211,25 @@ const canSubmitApplications = computed(() => {
   return new Date() < new Date(ti20)
 })
 
+const applicationsStartDate = computed(() => {
+  if (!ev.value?.startApplicationsAt) return null
+  return new Date(ev.value.startApplicationsAt)
+})
+
+const hasApplicationsStarted = computed(() => {
+  if (!applicationsStartDate.value) return true
+  return Date.now() >= applicationsStartDate.value.getTime()
+})
+
+const applicationWindowOpen = computed(() => hasApplicationsStarted.value && canSubmitApplications.value)
+
 // Увеличить ставку (доплатить)
 const increaseBid = () => {
+  if (!hasApplicationsStarted.value) {
+    alert('⏳ Дополнительные оплаты будут доступны после начала приема заявок.')
+    return
+  }
+
   // Проверка 1: Завершился ли прием заявок?
   if (!canSubmitApplications.value) {
     alert('❌ Прием заявок завершен\n\nДополнительная оплата больше недоступна.')
@@ -303,7 +377,15 @@ const handlePayment = async (paymentData: any) => {
           <button 
             class="submit-application-btn" 
             @click="submitApplication"
-            :title="auth.isAuthenticated ? 'Подать заявку с оплатой' : 'Требуется авторизация'"
+            :title="
+              !applicationWindowOpen
+                ? 'Прием заявок еще не начался или уже завершен'
+                : auth.isAuthenticated
+                  ? 'Подать заявку с оплатой'
+                  : 'Требуется авторизация'
+            "
+            :disabled="!applicationWindowOpen"
+            :class="{ 'is-disabled': !applicationWindowOpen }"
           >
             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -311,10 +393,15 @@ const handlePayment = async (paymentData: any) => {
             <span class="btn-text">Подать заявку</span>
           </button>
           <p class="application-hint">
-            {{ auth.isAuthenticated 
-              ? `Минимальный взнос: ${formatMoney(ev.pricePerSeat || (ev.priceTotal / (ev.seatLimit || 20)))} ₽` 
-              : '🔒 Войдите или зарегистрируйтесь для подачи заявки' 
-            }}
+            <template v-if="!applicationWindowOpen">
+              ⏳ Прием заявок откроется {{ applicationsStartDate ? formatDateTime(applicationsStartDate) : 'позже' }}
+            </template>
+            <template v-else>
+              {{ auth.isAuthenticated 
+                ? `Минимальный взнос: ${formatMoney(ev.pricePerSeat || (ev.priceTotal / (ev.seatLimit || 20)))} ₽` 
+                : '🔒 Войдите или зарегистрируйтесь для подачи заявки' 
+              }}
+            </template>
           </p>
         </div>
 
@@ -555,24 +642,37 @@ const handlePayment = async (paymentData: any) => {
 }
 
 .submit-application-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 32px;
-  font-size: 18px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
   border: none;
-  border-radius: 14px;
-  color: #fff;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 6px 20px rgba(52, 199, 89, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.submit-application-btn.is-disabled,
+.submit-application-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.submit-application-btn.is-disabled:hover,
+.submit-application-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .submit-application-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(52, 199, 89, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(79, 70, 229, 0.35);
 }
 
 .submit-application-btn .icon {

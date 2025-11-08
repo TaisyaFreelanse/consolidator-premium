@@ -33,8 +33,66 @@ export const useEventsStore = defineStore('events', {
             const stored = localStorage.getItem('customEvents')
             if (stored) {
               customEvents = JSON.parse(stored)
-              console.log('✅ Loaded custom events from localStorage:', customEvents.length)
-              
+              if (customEvents.length > 0) {
+                try {
+                  const payload = customEvents.map(event => {
+                    const priceTotalRaw = Number(event.priceTotal || 0)
+                    const pricePerSeatRaw = event.pricePerSeat != null ? Number(event.pricePerSeat) : null
+
+                    const normalizeMoney = (value: number) => {
+                      if (!Number.isFinite(value)) return 0
+                      // Если сумма выглядит как рубли, переводим в копейки
+                      return value < 1000 ? Math.round(value * 100) : Math.round(value)
+                    }
+
+                    return {
+                      id: event.id,
+                      title: event.title,
+                      author: event.author,
+                      location: event.location,
+                      startAt: event.startAt,
+                      endAt: event.endAt || null,
+                      seatLimit: event.seatLimit ?? null,
+                      priceTotal: normalizeMoney(priceTotalRaw),
+                      pricePerSeat: pricePerSeatRaw != null ? normalizeMoney(pricePerSeatRaw) : null,
+                      image: event.image || null,
+                      category: event.category || null,
+                      description: event.description || null,
+                      activities: event.activities || [],
+                      controlPlan: event.controlPlan || [],
+                      startApplicationsAt: event.startApplicationsAt || null,
+                      endApplicationsAt: event.endApplicationsAt || null,
+                      startContractsAt: event.startContractsAt || null,
+                      status: event.status || 'draft',
+                      producerName: event.producerName || null,
+                      createdAt: event.createdAt || null,
+                      updatedAt: event.updatedAt || null
+                    }
+                  })
+
+                  const importResponse = await fetch('/api/events/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ events: payload })
+                  })
+
+                  const importResult = await importResponse.json()
+
+                  if (importResponse.ok && importResult.success) {
+                    console.log(`🚚 Migrated ${importResult.data?.imported ?? payload.length} local events to the backend`)
+                    localStorage.removeItem('customEvents')
+                    // Обновляем список событий из API после миграции
+                    this.loaded = false
+                    await this.fetch(true)
+                    return
+                  }
+
+                  console.warn('⚠️ Не удалось импортировать локальные события:', importResult)
+                } catch (migrationError) {
+                  console.warn('⚠️ Ошибка при миграции локальных событий:', migrationError)
+                }
+              }
+ 
               // Логируем каждое событие
               customEvents.forEach((event, index) => {
                 console.log(`  Event ${index}:`, {

@@ -153,6 +153,12 @@ const formatMoney = (amount: number) => {
             </div>
             
             <div class="draft-card-footer">
+              <button
+                class="moderate-btn"
+                @click="navigateTo(`/create-event?id=${event.id}&mode=moderate`)"
+              >
+                🔍 Модерировать
+              </button>
               <button 
                 @click="publishEvent(event.id)"
                 :disabled="isPublishing === event.id"
@@ -322,25 +328,48 @@ const formatMoney = (amount: number) => {
 
 .draft-card-footer {
   display: flex;
-  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.moderate-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.25);
+}
+
+.moderate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 24px rgba(99, 102, 241, 0.35);
+}
+
+.moderate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .publish-btn {
-  background: #10b981;
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #10b981, #22c55e);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.25);
 }
 
 .publish-btn:hover:not(:disabled) {
-  background: #059669;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 14px 24px rgba(16, 185, 129, 0.35);
 }
 
 .publish-btn:disabled {

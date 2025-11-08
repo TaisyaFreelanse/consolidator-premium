@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
-import ProducerAuthModal from '~/components/ProducerAuthModal.vue'
+import AuthModal from '~/components/AuthModal.vue'
 import { useEventsStore } from '~/stores/events'
 import { useAuthStore } from '~/stores/auth'
 import { AUTHORS, getAuthorById, getAuthorFullName } from '~/data/authors'
@@ -15,14 +15,20 @@ const auth = useAuthStore()
 const editMode = ref(false)
 const eventId = ref<string>('')
 
-// Producer auth
-const showProducerAuth = ref(false)
-const authorizedProducer = ref<string>('')
+// Authentication modals
+const showAuthModal = ref(false)
 
 // Event status
 const eventStatus = ref<EventStatus>('draft')
 const eventProducerName = ref<string>('')
 const isPublished = ref(false)
+const isPublishing = ref(false)
+
+// Roles & permissions
+const isModeratorRoute = computed(() => route.query.mode === 'moderate')
+const isModeratorReview = computed(() => isModeratorRoute.value && auth.isModerator)
+const isFormReadOnly = computed(() => isModeratorRoute.value || (editMode.value && isPublished.value && !auth.isProducer))
+const currentProducerName = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.name : '')
 
 // Form data
 const formData = ref({
@@ -63,16 +69,19 @@ const imageInput = ref<HTMLInputElement | null>(null)
 
 // Add activity
 const addActivity = () => {
+  if (isFormReadOnly.value) return
   formData.value.activities.push('')
 }
 
 // Remove activity
 const removeActivity = (index: number) => {
+  if (isFormReadOnly.value) return
   formData.value.activities.splice(index, 1)
 }
 
 // Handle image upload
 const handleImageUpload = (event: Event) => {
+  if (isFormReadOnly.value) return
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   
@@ -233,14 +242,6 @@ const loadEvent = async () => {
   }
 }
 
-// Обработка авторизации продюсера
-const handleProducerAuthorized = (producerName: string) => {
-  authorizedProducer.value = producerName
-  showProducerAuth.value = false
-  console.log('✅ Producer authorized:', producerName)
-  // НЕ сохраняем автоматически - пользователь должен нажать кнопку сохранения
-}
-
 // Сохранение события
 const saveEvent = async (status: EventStatus) => {
   // Очищаем предыдущие ошибки
@@ -287,8 +288,17 @@ const saveEvent = async (status: EventStatus) => {
     return
   }
 
+  if (isFormReadOnly.value) {
+    alert('ℹ️ Режим просмотра для модератора.\n\nРедактирование данных недоступно в этом режиме.')
+    return
+  }
+
   // Convert price to kopeks
   const priceInKopeks = Math.round(parseFloat(formData.value.priceTotal) * 100)
+
+  const resolvedProducerName = editMode.value
+    ? (eventProducerName.value || currentProducerName.value || null)
+    : (currentProducerName.value || null)
 
   // Create event object for API
   const eventData = {
@@ -310,7 +320,7 @@ const saveEvent = async (status: EventStatus) => {
     endApplicationsAt: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).toISOString() : undefined,
     startContractsAt: formData.value.startContractsAt ? new Date(formData.value.startContractsAt).toISOString() : undefined,
     status,
-    producerName: editMode.value ? eventProducerName.value : authorizedProducer.value
+    producerName: resolvedProducerName || undefined
   }
 
   console.log('💾 Saving event to server:', {
@@ -357,38 +367,89 @@ const saveEvent = async (status: EventStatus) => {
 
 // Submit form - проверка доступа продюсера
 const submitForm = async (status: EventStatus = 'draft') => {
-  // Проверяем авторизацию продюсера
+  if (isFormReadOnly.value) {
+    alert('ℹ️ Режим просмотра для модератора.\n\nИспользуйте кнопку «Опубликовать», чтобы подтвердить черновик.')
+    return
+  }
+
   auth.loadUsers()
-  
-  // Если пользователь авторизован как продюсер, используем его имя
-  if (auth.isProducer && auth.currentUser) {
-    authorizedProducer.value = auth.currentUser.name
+
+  if (!auth.isAuthenticated) {
+    showAuthModal.value = true
+    alert('🔒 Создание мероприятий доступно только авторизованным продюсерам.\n\nПожалуйста, войдите или зарегистрируйтесь и повторите попытку.')
+    return
   }
-  
-  // Если создаем новое событие и нет авторизованного продюсера, показываем модальное окно
-  if (!editMode.value && !authorizedProducer.value) {
-    if (!auth.isProducer) {
-      alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nПожалуйста, войдите как продюсер.')
-      showProducerAuth.value = true
-      return
-    }
+
+  if (!auth.isProducer) {
+    showAuthModal.value = true
+    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nВойдите под учетной записью продюсера (producer1/prod1pass).')
+    return
   }
-  
+
+  if (!currentProducerName.value) {
+    alert('❌ Не удалось определить учетную запись продюсера. Попробуйте выйти и войти снова.')
+    return
+  }
+
   await saveEvent(status)
+}
+
+const closeAuthModal = () => {
+  showAuthModal.value = false
+}
+
+const publishAsModerator = async () => {
+  if (!isModeratorReview.value) return
+  if (!eventId.value) {
+    alert('❌ Не удалось определить идентификатор мероприятия. Попробуйте открыть черновик заново.')
+    return
+  }
+
+  if (isPublishing.value) return
+
+  if (eventStatus.value === 'published') {
+    alert('ℹ️ Мероприятие уже опубликовано.')
+    return
+  }
+
+  try {
+    isPublishing.value = true
+
+    const response = await fetch(`/api/events/${eventId.value}/publish`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      const errorMessage = result.message || result.statusMessage || 'Failed to publish event'
+      throw new Error(errorMessage)
+    }
+
+    alert(`✅ Мероприятие «${result.data.title}» опубликовано`)
+    await eventsStore.reload()
+    router.push('/moderator')
+  } catch (error: any) {
+    console.error('❌ Failed to publish event:', error)
+    alert(`❌ Ошибка публикации\n\n${error.message || 'Не удалось опубликовать мероприятие. Попробуйте еще раз.'}`)
+  } finally {
+    isPublishing.value = false
+  }
 }
 
 // Load event on mount if editing
 onMounted(async () => {
   // Загружаем пользователей для проверки авторизации
   auth.loadUsers()
-  
-  // Если пользователь авторизован как продюсер, автоматически устанавливаем его имя
-  if (auth.isProducer && auth.currentUser) {
-    authorizedProducer.value = auth.currentUser.name
-    console.log('✅ Producer auto-authorized:', authorizedProducer.value)
-  }
-  
+
   await loadEvent()
+
+  if (isModeratorRoute.value && !auth.isModerator) {
+    showAuthModal.value = true
+  }
 })
 </script>
 
@@ -433,39 +494,67 @@ onMounted(async () => {
           </div>
         </div>
 
-        <form @submit.prevent="submitForm" class="space-y-6">
-          <!-- Image Upload -->
-          <div>
+        <form @submit.prevent>
+          <div 
+            v-if="isModeratorRoute" 
+            class="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3"
+          >
+            <svg class="w-6 h-6 text-blue-300 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 class="text-blue-300 font-semibold mb-1">
+                Режим модератора
+              </h3>
+              <p class="text-white/80 text-sm" v-if="isModeratorReview">
+                Поля заблокированы для защиты данных. Ознакомьтесь с информацией и используйте кнопку «Опубликовать» ниже, чтобы подтвердить черновик.
+              </p>
+              <p class="text-white/80 text-sm" v-else>
+                Чтобы опубликовать мероприятие, войдите под учетной записью модератора (moderator / modpass).
+              </p>
+            </div>
+          </div>
+
+          <fieldset 
+            :disabled="isFormReadOnly" 
+            :class="['space-y-6', isFormReadOnly ? 'opacity-90' : '']"
+          >
+            <!-- Image Upload -->
+            <div>
             <label class="block text-sm font-medium text-white/80 mb-2">
               Фотография мероприятия
             </label>
             <div 
-              class="relative border-2 border-dashed border-white/20 rounded-2xl overflow-hidden cursor-pointer hover:border-[#007AFF]/50 transition-colors"
-              :class="imagePreview ? 'h-64' : 'h-48'"
-              @click="imageInput?.click()"
-            >
-              <input 
-                ref="imageInput"
-                type="file" 
-                accept="image/*" 
-                class="hidden" 
-                @change="handleImageUpload"
+                class="relative border-2 border-dashed border-white/20 rounded-2xl overflow-hidden transition-colors"
+                :class="[
+                  imagePreview ? 'h-64' : 'h-48',
+                  isFormReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-[#007AFF]/50'
+                ]"
+                @click="!isFormReadOnly && imageInput?.click()"
               >
-              <div v-if="!imagePreview" class="absolute inset-0 flex flex-col items-center justify-center text-white/40">
-                <svg class="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p>Нажмите, чтобы загрузить фото</p>
-              </div>
-              <div v-else class="absolute inset-0">
-                <img :src="imagePreview" alt="Preview" class="w-full h-full object-cover">
+                <input 
+                  ref="imageInput"
+                  type="file" 
+                  accept="image/*" 
+                  class="hidden" 
+                  :disabled="isFormReadOnly"
+                  @change="handleImageUpload"
+                >
+                <div v-if="!imagePreview" class="absolute inset-0 flex flex-col items-center justify-center text-white/40">
+                  <svg class="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p>Нажмите, чтобы загрузить фото</p>
+                </div>
+                <div v-else class="absolute inset-0">
+                  <img :src="imagePreview" alt="Preview" class="w-full h-full object-cover">
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Basic Information -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
+            <!-- Basic Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="md:col-span-2">
               <label class="block text-sm font-medium text-white/80 mb-2">
                 Название мероприятия <span class="text-red-400">*</span>
               </label>
@@ -474,97 +563,88 @@ onMounted(async () => {
                 type="text" 
                 required
                 placeholder="Введите название"
+                :disabled="isFormReadOnly"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
               >
             </div>
+              <div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Место проведения <span class="text-red-400">*</span>
+                </label>
+                <input 
+                  v-model="formData.location"
+                  type="text" 
+                  required
+                  placeholder="Адрес или название места"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                >
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Автор <span class="text-red-400">*</span>
-              </label>
-              <select 
-                v-model="formData.author"
-                required
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-                <option value="" disabled>Выберите автора</option>
-                <option v-for="author in AUTHORS" :key="author.id" :value="author.id" class="bg-[#1A1F3E]">
-                  {{ getAuthorFullName(author) }}
-                </option>
-              </select>
-              <p v-if="validationErrors.includes('author')" class="text-red-400 text-sm mt-1">Выберите автора из списка</p>
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Категория <span class="text-red-400">*</span>
+                </label>
+                <select 
+                  v-model="formData.category"
+                  required
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                >
+                  <option value="" disabled>Выберите категорию</option>
+                  <option v-for="cat in categories" :key="cat.value" :value="cat.value" class="bg-[#1A1F3E]">
+                    {{ cat.label }}
+                  </option>
+                </select>
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Место проведения <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="formData.location"
-                type="text" 
-                required
-                placeholder="Адрес или название места"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Начало мероприятия (ti40) <span class="text-red-400">*</span>
+                </label>
+                <input 
+                  v-model="formData.startAt"
+                  type="datetime-local" 
+                  required
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                >
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Окончание мероприятия (ti50)
+                </label>
+                <input 
+                  v-model="formData.endAt"
+                  type="datetime-local"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                >
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Категория <span class="text-red-400">*</span>
-              </label>
-              <select 
-                v-model="formData.category"
-                required
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-                <option value="" disabled>Выберите категорию</option>
-                <option v-for="cat in categories" :key="cat.value" :value="cat.value" class="bg-[#1A1F3E]">
-                  {{ cat.label }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Начало мероприятия (ti40) <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="formData.startAt"
-                type="datetime-local" 
-                required
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Окончание мероприятия (ti50)
-              </label>
-              <input 
-                v-model="formData.endAt"
-                type="datetime-local"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Общая стоимость (₽) <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="formData.priceTotal"
-                type="number" 
-                required
-                min="0"
-                step="1"
-                placeholder="0"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'border-red-500': validationErrors.some(e => e.includes('стоимость') || e.includes('цена')) }"
-              >
-              <p v-if="validationErrors.some(e => e.includes('стоимость') || e.includes('цена'))" class="text-red-400 text-sm mt-1">
-                {{ validationErrors.find(e => e.includes('стоимость') || e.includes('цена')) }}
-              </p>
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Общая стоимость (₽) <span class="text-red-400">*</span>
+                </label>
+                <input 
+                  v-model="formData.priceTotal"
+                  type="number" 
+                  required
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                  :class="{
+                    'border-red-500': validationErrors.some(e => e.includes('стоимость') || e.includes('цена')),
+                    'opacity-70 cursor-not-allowed': isFormReadOnly
+                  }"
+                >
+                <p v-if="validationErrors.some(e => e.includes('стоимость') || e.includes('цена'))" class="text-red-400 text-sm mt-1">
+                  {{ validationErrors.find(e => e.includes('стоимость') || e.includes('цена')) }}
+                </p>
+              </div>
 
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
@@ -577,6 +657,7 @@ onMounted(async () => {
                 min="1"
                 placeholder="10"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
               >
             </div>
 
@@ -588,6 +669,7 @@ onMounted(async () => {
                 v-model="formData.startApplicationsAt"
                 type="datetime-local"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
               >
             </div>
 
@@ -599,6 +681,7 @@ onMounted(async () => {
                 v-model="formData.endApplicationsAt"
                 type="datetime-local"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
               >
             </div>
             
@@ -610,6 +693,7 @@ onMounted(async () => {
                 v-model="formData.startContractsAt"
                 type="datetime-local"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
               >
             </div>
           </div>
@@ -624,6 +708,7 @@ onMounted(async () => {
               rows="4"
               placeholder="Расскажите о вашем мероприятии..."
               class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all resize-none"
+              :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
             ></textarea>
           </div>
 
@@ -639,9 +724,10 @@ onMounted(async () => {
                   type="text" 
                   placeholder="Описание активности"
                   class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
                 >
                 <button 
-                  v-if="formData.activities.length > 1"
+                  v-if="!isFormReadOnly && formData.activities.length > 1"
                   type="button"
                   @click="removeActivity(index)"
                   class="px-4 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-colors"
@@ -652,6 +738,7 @@ onMounted(async () => {
                 </button>
               </div>
               <button 
+                v-if="!isFormReadOnly"
                 type="button"
                 @click="addActivity"
                 class="w-full bg-white/5 border border-white/10 border-dashed rounded-xl px-4 py-3 text-white/60 hover:text-white hover:border-[#007AFF]/50 transition-all"
@@ -671,6 +758,7 @@ onMounted(async () => {
               <select 
                 v-model="formData.author"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
               >
                 <option value="" disabled class="bg-[#1a1f2e] text-white/50">Выберите автора...</option>
                 <option 
@@ -682,6 +770,12 @@ onMounted(async () => {
                   {{ getAuthorFullName(author) }} — {{ author.title }}
                 </option>
               </select>
+              <p 
+                v-if="validationErrors.includes('Выберите автора из списка')"
+                class="text-red-400 text-sm mt-2"
+              >
+                Выберите автора из списка
+              </p>
               
               <!-- Preview selected author -->
               <div v-if="formData.author" class="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl">
@@ -737,31 +831,48 @@ onMounted(async () => {
             </div>
           </div>
 
+          </fieldset>
+
           <!-- Submit Buttons -->
-          <div class="flex flex-col sm:flex-row gap-4 pt-6">
-            <!-- Кнопка "Сохранить как черновик" -->
+          <div v-if="isModeratorRoute" class="flex flex-col sm:flex-row gap-4 pt-6">
+            <button
+              type="button"
+              @click="publishAsModerator"
+              :disabled="isPublishing || eventStatus !== 'draft' || !auth.isModerator"
+              class="flex-1 bg-gradient-to-r from-[#34c759] to-[#30d158] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#34c759]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {{ isPublishing ? 'Публикуем…' : '✅ Опубликовать' }}
+            </button>
+
+            <NuxtLink
+              to="/moderator"
+              class="px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-medium hover:bg-white/10 transition-all text-center"
+            >
+              Вернуться к модерации
+            </NuxtLink>
+          </div>
+
+          <div v-else class="flex flex-col sm:flex-row gap-4 pt-6">
             <button 
               v-if="!isPublished"
               type="button"
               @click="submitForm('draft')"
-              :disabled="!isFormValid"
+              :disabled="!isFormValid || isFormReadOnly"
               class="flex-1 bg-white/5 border border-white/10 text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:bg-white/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               📝 {{ editMode ? 'Сохранить черновик' : 'Создать черновик' }}
             </button>
             
-            <!-- Кнопка "Опубликовать" -->
             <button 
               v-if="!isPublished"
               type="button"
               @click="submitForm('published')"
-              :disabled="!isFormValid"
+              :disabled="!isFormValid || isFormReadOnly"
               class="flex-1 bg-gradient-to-r from-[#34c759] to-[#30d158] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#34c759]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               ✅ Опубликовать
             </button>
             
-            <!-- Кнопка отмены -->
             <NuxtLink 
               to="/catalog"
               class="px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-medium hover:bg-white/10 transition-all text-center"
@@ -770,14 +881,17 @@ onMounted(async () => {
             </NuxtLink>
           </div>
         </form>
+
+        <!-- /Form container -->
       </div>
+
+      <!-- /Page container -->
     </div>
-    
+ 
     <!-- Producer Auth Modal -->
-    <ProducerAuthModal 
-      :is-open="showProducerAuth" 
-      @close="showProducerAuth = false"
-      @authorized="handleProducerAuthorized"
+    <AuthModal 
+      :is-open="showAuthModal" 
+      @close="closeAuthModal"
     />
   </div>
 </template>
@@ -808,4 +922,5 @@ onMounted(async () => {
   scrollbar-color: rgba(0, 122, 255, 0.5) rgba(255, 255, 255, 0.05);
 }
 </style>
+
 
