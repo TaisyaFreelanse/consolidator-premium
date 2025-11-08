@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
 import AuthModal from '~/components/AuthModal.vue'
+import DateTimeField from '~/components/DateTimeField.vue'
 import { useEventsStore } from '~/stores/events'
 import { useAuthStore } from '~/stores/auth'
 import { AUTHORS, getAuthorById, getAuthorFullName } from '~/data/authors'
@@ -66,6 +67,43 @@ const categories: { value: EventCategory; label: string }[] = [
 // Image preview
 const imagePreview = ref<string>('')
 const imageInput = ref<HTMLInputElement | null>(null)
+
+type TimeOffsetPreset = { label: string; minutes: number }
+
+const eventStartPresets: TimeOffsetPreset[] = [
+  { label: '-1 ч', minutes: -60 },
+  { label: '-15 мин', minutes: -15 },
+  { label: '+15 мин', minutes: 15 },
+  { label: '+1 ч', minutes: 60 }
+]
+
+const eventEndPresets: TimeOffsetPreset[] = [
+  { label: '+15 мин', minutes: 15 },
+  { label: '+30 мин', minutes: 30 },
+  { label: '+1 ч', minutes: 60 },
+  { label: '+1 д', minutes: 1440 }
+]
+
+const applicationsStartPresets: TimeOffsetPreset[] = [
+  { label: '-1 д', minutes: -1440 },
+  { label: '-6 ч', minutes: -360 },
+  { label: '-1 ч', minutes: -60 },
+  { label: '+1 ч', minutes: 60 }
+]
+
+const applicationsEndPresets: TimeOffsetPreset[] = [
+  { label: '+1 ч', minutes: 60 },
+  { label: '+6 ч', minutes: 360 },
+  { label: '+12 ч', minutes: 720 },
+  { label: '+1 д', minutes: 1440 }
+]
+
+const contractsStartPresets: TimeOffsetPreset[] = [
+  { label: '+30 мин', minutes: 30 },
+  { label: '+2 ч', minutes: 120 },
+  { label: '+6 ч', minutes: 360 },
+  { label: '+1 д', minutes: 1440 }
+]
 
 // Add activity
 const addActivity = () => {
@@ -599,30 +637,23 @@ onMounted(async () => {
                 </select>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Начало мероприятия (ti40) <span class="text-red-400">*</span>
-                </label>
-                <input 
-                  v-model="formData.startAt"
-                  type="datetime-local" 
-                  required
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
-                >
-              </div>
+              <DateTimeField
+                v-model="formData.startAt"
+                label="Начало мероприятия (ti40)"
+                :required="true"
+                :disabled="isFormReadOnly"
+                :offset-presets="eventStartPresets"
+                :error="validationErrors.find(e => e.includes('Начало мероприятия')) || ''"
+              />
               
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Окончание мероприятия (ti50)
-                </label>
-                <input 
-                  v-model="formData.endAt"
-                  type="datetime-local"
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
-                >
-              </div>
+              <DateTimeField
+                v-model="formData.endAt"
+                label="Окончание мероприятия (ti50)"
+                :disabled="isFormReadOnly"
+                :offset-presets="eventEndPresets"
+                :copy-from-value="formData.startAt"
+                copy-from-label="началом мероприятия"
+              />
 
               <div>
                 <label class="block text-sm font-medium text-white/80 mb-2">
@@ -661,41 +692,35 @@ onMounted(async () => {
               >
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Начало приема заявок (ti10)
-              </label>
-              <input 
-                v-model="formData.startApplicationsAt"
-                type="datetime-local"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
-              >
-            </div>
+            <DateTimeField
+              v-model="formData.startApplicationsAt"
+              label="Начало приема заявок (ti10)"
+              :disabled="isFormReadOnly"
+              :offset-presets="applicationsStartPresets"
+              :copy-from-value="formData.startAt"
+              copy-from-label="началом мероприятия"
+              :error="validationErrors.find(e => e.includes('приема заявок (ti10)')) || ''"
+            />
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Окончание приема заявок (ti20)
-              </label>
-              <input 
-                v-model="formData.endApplicationsAt"
-                type="datetime-local"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
-              >
-            </div>
+            <DateTimeField
+              v-model="formData.endApplicationsAt"
+              label="Окончание приема заявок (ti20)"
+              :disabled="isFormReadOnly"
+              :offset-presets="applicationsEndPresets"
+              :copy-from-value="formData.startApplicationsAt"
+              copy-from-label="началом приема заявок"
+              :error="validationErrors.find(e => e.includes('ti20')) || ''"
+            />
             
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Начало оформления договоров (ti30)
-              </label>
-              <input 
-                v-model="formData.startContractsAt"
-                type="datetime-local"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
-              >
-            </div>
+            <DateTimeField
+              v-model="formData.startContractsAt"
+              label="Начало оформления договоров (ti30)"
+              :disabled="isFormReadOnly"
+              :offset-presets="contractsStartPresets"
+              :copy-from-value="formData.endApplicationsAt || formData.startApplicationsAt"
+              copy-from-label="окончанием приема заявок"
+              :error="validationErrors.find(e => e.includes('ti30')) || ''"
+            />
           </div>
 
           <!-- Description -->
