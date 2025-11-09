@@ -56,6 +56,11 @@ const goToEdit = (eventId: string) => {
   router.push(`/create-event?id=${eventId}`)
 }
 
+// Переход к модерации (тот же маршрут, права определяются ролью)
+const goToModerate = (eventId: string) => {
+  router.push(`/create-event?id=${eventId}`)
+}
+
 // Проверка, является ли ивент кастомным (созданным пользователем)
 const isCustomEvent = (eventId: string) => {
   return eventId.startsWith('event-')
@@ -173,6 +178,18 @@ onMounted(async () => {
               <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
                 <path v-if="isFavorite(event.id)" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 <path v-else d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </button>
+
+            <!-- Кнопка модерации (для модераторов) -->
+            <button
+              v-if="event.status === 'draft' && auth.isModerator"
+              @click.stop="goToModerate(event.id)"
+              class="moderate-corner-btn"
+              title="Просмотреть как модератор"
+            >
+              <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
           </div>
@@ -464,8 +481,7 @@ onMounted(async () => {
 
 /* Информация о мероприятии "от автора" */
 .event-info {
-  padding: 24px;
-  padding-bottom: 16px;
+  padding: 92px 24px 16px 24px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -687,6 +703,34 @@ onMounted(async () => {
   height: 24px;
 }
 
+/* Кнопка модерации */
+.moderate-corner-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 2px solid #5e5ce6;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #5e5ce6;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.moderate-corner-btn:hover {
+  background: #eae8ff;
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(94, 92, 230, 0.3);
+}
+
+.moderate-corner-btn .icon {
+  width: 24px;
+  height: 24px;
+}
+
 /* Подсказка о клике */
 .click-hint {
   display: flex;
@@ -788,7 +832,7 @@ onMounted(async () => {
   }
 
   .event-info {
-    padding: 20px;
+    padding: 84px 20px 16px 20px;
   }
 
   .corner-buttons {

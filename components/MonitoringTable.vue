@@ -1,20 +1,32 @@
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { MonitoringSnapshot } from '~/types'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
-defineProps<{ data: MonitoringSnapshot }>()
+const props = defineProps<{ data: MonitoringSnapshot; seatLimit?: number }>()
 
 const columns = [
+  { key: 'rank', label: 'Место', icon: 'M12 8l1.176 3.618h3.804l-3.078 2.239 1.176 3.618L12 15.236l-3.078 2.237 1.176-3.618-3.078-2.239h3.804L12 8z' },
   { key: 'code', label: 'Код заявителя', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2' },
   { key: 'seats', label: 'Количество мест', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-  { key: 'paidAmount', label: 'Внесенная сумма, ₽', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+  { key: 'paidAmount', label: 'Внесенная сумма, ₽', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c1.11 0 2.08-.402 2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
 ]
 
-// Проверка, является ли участник текущим пользователем
 const isCurrentUser = (applicantCode: string) => {
   return auth.isAuthenticated && auth.userCode === applicantCode
+}
+
+const sortedApplicants = computed(() => {
+  return [...props.data.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
+})
+
+const seatLimit = computed(() => Math.max(props.seatLimit ?? 0, 0))
+
+const isWithinLimit = (index: number) => {
+  if (!seatLimit.value) return true
+  return index < seatLimit.value
 }
 </script>
 
@@ -55,13 +67,20 @@ const isCurrentUser = (applicantCode: string) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in data.applicants" :key="row.code" 
+          <tr v-for="(row, index) in sortedApplicants" :key="row.code" 
               class="border-b border-white/5 transition-all duration-300"
               :class="{ 
-                'bg-white/[0.02]': index % 2 === 0 && !isCurrentUser(row.code),
+                'bg-white/[0.02]': index % 2 === 0 && !isCurrentUser(row.code) && isWithinLimit(index),
                 'current-user-row': isCurrentUser(row.code),
+                'overflow-row': !isWithinLimit(index),
                 'hover:bg-white/5': !isCurrentUser(row.code)
               }">
+            <td class="px-6 py-4">
+              <div :class="['rank-chip', isWithinLimit(index) ? 'in-limit' : 'out-limit']">
+                <span class="rank-number">#{{ index + 1 }}</span>
+                <span v-if="seatLimit && seatLimit === index + 1" class="rank-threshold">граница</span>
+              </div>
+            </td>
             <td class="px-6 py-4">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center border"
@@ -138,6 +157,54 @@ const isCurrentUser = (applicantCode: string) => {
   width: 4px;
   background: linear-gradient(180deg, #34c759 0%, #30d158 100%);
   box-shadow: 0 0 10px rgba(52, 199, 89, 0.5);
+}
+
+/* Ряд вне лимита мест */
+.overflow-row {
+  background: linear-gradient(90deg, rgba(255, 95, 109, 0.1) 0%, rgba(255, 195, 113, 0.05) 100%) !important;
+  border-left: 4px solid rgba(255, 95, 109, 0.6);
+  border-right: 4px solid rgba(255, 195, 113, 0.3);
+}
+
+.overflow-row:hover {
+  background: linear-gradient(90deg, rgba(255, 95, 109, 0.16) 0%, rgba(255, 195, 113, 0.1) 100%) !important;
+  box-shadow: inset 0 0 25px rgba(255, 95, 109, 0.12);
+}
+
+/* Ранги */
+.rank-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+
+.rank-chip.in-limit {
+  background: rgba(0, 122, 255, 0.12);
+  color: #0a84ff;
+  border: 1px solid rgba(0, 122, 255, 0.25);
+}
+
+.rank-chip.out-limit {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+  border: 1px solid rgba(255, 59, 48, 0.25);
+}
+
+.rank-number {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.rank-threshold {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
 }
 
 /* Горизонтальный скроллбар для таблицы */

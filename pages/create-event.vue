@@ -26,9 +26,12 @@ const isPublished = ref(false)
 const isPublishing = ref(false)
 
 // Roles & permissions
-const isModeratorRoute = computed(() => route.query.mode === 'moderate')
-const isModeratorReview = computed(() => isModeratorRoute.value && auth.isModerator)
-const isFormReadOnly = computed(() => isModeratorRoute.value || (editMode.value && isPublished.value && !auth.isProducer))
+const isModerator = computed(() => auth.isModerator)
+const isModeratorReview = computed(() => isModerator.value && editMode.value)
+const isFormReadOnly = computed(() => {
+  if (isModeratorReview.value) return true
+  return editMode.value && isPublished.value && !auth.isProducer
+})
 const currentProducerName = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.name : '')
 
 // Form data
@@ -437,7 +440,7 @@ const closeAuthModal = () => {
 }
 
 const publishAsModerator = async () => {
-  if (!isModeratorReview.value) return
+  if (!isModeratorReview.value || !auth.isModerator) return
   if (!eventId.value) {
     alert('❌ Не удалось определить идентификатор мероприятия. Попробуйте открыть черновик заново.')
     return
@@ -467,12 +470,12 @@ const publishAsModerator = async () => {
       throw new Error(errorMessage)
     }
 
-    alert(`✅ Мероприятие «${result.data.title}» опубликовано`)
+    alert(`✅ Мероприятие «${result.data.title}» сохранено и опубликовано`)
     await eventsStore.reload()
-    router.push('/moderator')
+    router.push('/catalog')
   } catch (error: any) {
     console.error('❌ Failed to publish event:', error)
-    alert(`❌ Ошибка публикации\n\n${error.message || 'Не удалось опубликовать мероприятие. Попробуйте еще раз.'}`)
+    alert(`❌ Ошибка сохранения\n\n${error.message || 'Не удалось завершить модерацию. Попробуйте еще раз.'}`)
   } finally {
     isPublishing.value = false
   }
@@ -484,10 +487,6 @@ onMounted(async () => {
   auth.loadUsers()
 
   await loadEvent()
-
-  if (isModeratorRoute.value && !auth.isModerator) {
-    showAuthModal.value = true
-  }
 })
 </script>
 
@@ -534,7 +533,7 @@ onMounted(async () => {
 
         <form @submit.prevent>
           <div 
-            v-if="isModeratorRoute" 
+            v-if="isModeratorReview" 
             class="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3"
           >
             <svg class="w-6 h-6 text-blue-300 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -544,11 +543,8 @@ onMounted(async () => {
               <h3 class="text-blue-300 font-semibold mb-1">
                 Режим модератора
               </h3>
-              <p class="text-white/80 text-sm" v-if="isModeratorReview">
-                Поля заблокированы для защиты данных. Ознакомьтесь с информацией и используйте кнопку «Опубликовать» ниже, чтобы подтвердить черновик.
-              </p>
-              <p class="text-white/80 text-sm" v-else>
-                Чтобы опубликовать мероприятие, войдите под учетной записью модератора (moderator / modpass).
+              <p class="text-white/80 text-sm">
+                Поля заблокированы для защиты данных. Ознакомьтесь с информацией и нажмите кнопку «Сохранить» внизу, чтобы утвердить черновик.
               </p>
             </div>
           </div>
@@ -859,21 +855,21 @@ onMounted(async () => {
           </fieldset>
 
           <!-- Submit Buttons -->
-          <div v-if="isModeratorRoute" class="flex flex-col sm:flex-row gap-4 pt-6">
+          <div v-if="isModeratorReview" class="flex flex-col sm:flex-row gap-4 pt-6">
             <button
               type="button"
               @click="publishAsModerator"
-              :disabled="isPublishing || eventStatus !== 'draft' || !auth.isModerator"
-              class="flex-1 bg-gradient-to-r from-[#34c759] to-[#30d158] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#34c759]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              :disabled="isPublishing || eventStatus !== 'draft'"
+              class="flex-1 bg-gradient-to-r from-[#0a84ff] to-[#5e5ce6] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#0a84ff]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              {{ isPublishing ? 'Публикуем…' : '✅ Опубликовать' }}
+              {{ isPublishing ? 'Сохраняем…' : '💾 Сохранить' }}
             </button>
 
             <NuxtLink
-              to="/moderator"
+              to="/catalog"
               class="px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-medium hover:bg-white/10 transition-all text-center"
             >
-              Вернуться к модерации
+              Вернуться в каталог
             </NuxtLink>
           </div>
 

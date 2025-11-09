@@ -8,6 +8,7 @@ import EventStatus from '~/components/EventStatus.vue'
 import MonitoringTable from '~/components/MonitoringTable.vue'
 import AuthModal from '~/components/AuthModal.vue'
 import PaymentModal from '~/components/PaymentModal.vue'
+import PersonalCalculation from '~/components/PersonalCalculation.vue'
 import { getAuthorById, getAuthorShortName } from '~/data/authors'
 
 const route = useRoute()
@@ -20,6 +21,7 @@ const showPaymentModal = ref(false)
 const paymentMode = ref<'application' | 'additional'>('application')
 const paymentAmount = ref(0) // в рублях
 const snap = ref<any>(null) // Данные мониторинга
+const showPersonalCalc = ref(false)
 
 onMounted(async () => { 
   auth.loadUsers()
@@ -222,6 +224,7 @@ const hasApplicationsStarted = computed(() => {
 })
 
 const applicationWindowOpen = computed(() => hasApplicationsStarted.value && canSubmitApplications.value)
+const applicationsFinished = computed(() => hasApplicationsStarted.value && !canSubmitApplications.value)
 
 // Увеличить ставку (доплатить)
 const increaseBid = () => {
@@ -260,6 +263,15 @@ const increaseBid = () => {
 // Закрыть модальное окно оплаты
 const closePaymentModal = () => {
   showPaymentModal.value = false
+}
+
+const openPersonalCalculation = () => {
+  if (!snap.value) return
+  showPersonalCalc.value = true
+}
+
+const closePersonalCalculation = () => {
+  showPersonalCalc.value = false
 }
 
 // Обработка оплаты
@@ -427,6 +439,16 @@ const handlePayment = async (paymentData: any) => {
               <span class="mini-value">{{ userRanking?.position }} / {{ userRanking?.total }}</span>
             </div>
           </div>
+          <button
+            v-if="applicationsFinished"
+            class="personal-calc-btn"
+            @click="openPersonalCalculation"
+          >
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Персональная калькуляция</span>
+          </button>
         </div>
 
         <!-- Таблица участников -->
@@ -452,7 +474,7 @@ const handlePayment = async (paymentData: any) => {
             </button>
           </div>
 
-          <MonitoringTable :data="snap" />
+          <MonitoringTable :data="snap" :seat-limit="ev.seatLimit || 0" />
 
           <div class="table-note">
             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,6 +546,15 @@ const handlePayment = async (paymentData: any) => {
       :mode="paymentMode"
       @close="closePaymentModal"
       @submit="handlePayment"
+    />
+
+    <PersonalCalculation
+      v-if="ev && snap"
+      :event="ev"
+      :snapshot="snap"
+      :is-open="showPersonalCalc"
+      :current-user-code="auth.userCode || undefined"
+      @close="closePersonalCalculation"
     />
   </section>
 </template>
@@ -736,6 +767,36 @@ const handlePayment = async (paymentData: any) => {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   backdrop-filter: blur(8px);
+}
+
+.personal-calc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  margin-left: 16px;
+  background: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 14px rgba(10, 132, 255, 0.25);
+}
+
+.personal-calc-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.personal-calc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(10, 132, 255, 0.35);
+}
+
+.personal-calc-btn:active {
+  transform: translateY(0);
 }
 
 .mini-label {

@@ -155,7 +155,7 @@ const formatMoney = (amount: number) => {
             <div class="draft-card-footer">
               <button
                 class="moderate-btn"
-                @click="navigateTo(`/create-event?id=${event.id}&mode=moderate`)"
+                  @click="navigateTo(`/create-event?id=${event.id}`)"
               >
                 🔍 Модерировать
               </button>

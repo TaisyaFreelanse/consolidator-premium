@@ -37,7 +37,16 @@ export interface EventItem {
   updatedAt?: string // Дата последнего обновления
 }
 export interface FavoriteItem { eventId: string; pinnedAt: string }
-export interface Applicant { code: string; seats: number; paidAmount: number }
+export interface PaymentEntry {
+  amount: number
+  createdAt: string
+}
+export interface Applicant {
+  code: string
+  seats: number
+  paidAmount: number
+  payments?: PaymentEntry[]
+}
 export interface MonitoringSnapshot {
   eventId: string
   nowPoint: ControlPointCode

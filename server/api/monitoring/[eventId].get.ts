@@ -1,3 +1,4 @@
+import type { ControlPointCode } from '~/types'
 import { getPrismaClient } from '../../utils/prisma'
 
 const prisma = getPrismaClient()
@@ -6,6 +7,42 @@ interface Applicant {
   code: string
   seats: number
   paidAmount: number
+  payments: { amount: number; createdAt: string }[]
+}
+
+function resolveControlPoint(eventData: any): { current: ControlPointCode; nextDeadline: string | null } {
+  const now = Date.now()
+
+  const timeline: Array<{ code: ControlPointCode; at?: Date | null }> = [
+    { code: 't0', at: eventData.createdAt ?? null },
+    { code: 'ti10', at: eventData.startApplicationsAt ?? null },
+    { code: 'ti20', at: eventData.endApplicationsAt ?? null },
+    { code: 'ti30', at: eventData.startContractsAt ?? null },
+    { code: 'ti40', at: eventData.startAt ?? null },
+    { code: 'ti50', at: eventData.endAt ?? null }
+  ]
+
+  let current: ControlPointCode = 't0'
+  let nextDeadline: string | null = null
+
+  for (const point of timeline) {
+    if (!point.at) {
+      continue
+    }
+
+    const time = point.at.getTime()
+    if (time <= now) {
+      current = point.code
+      continue
+    }
+
+    if (!nextDeadline) {
+      nextDeadline = point.at.toISOString()
+    }
+    break
+  }
+
+  return { current, nextDeadline }
 }
 
 export default defineEventHandler(async (event) => {
@@ -35,6 +72,19 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Event not found' })
     }
 
+    const { current, nextDeadline } = resolveControlPoint(eventData)
+
+    if (eventData.currentControlPoint !== current) {
+      try {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: { currentControlPoint: current }
+        })
+      } catch (updateError) {
+        console.warn('⚠️ Failed to update currentControlPoint:', updateError)
+      }
+    }
+
     // Группируем платежи по пользователям (userId)
     const applicantsMap = new Map<string, Applicant>()
 
@@ -42,19 +92,25 @@ export default defineEventHandler(async (event) => {
       const userId = payment.userId || 'anonymous'
       const existing = applicantsMap.get(userId)
       const amount = Number(payment.amount) // BigInt -> Number
+      const paymentRecord = {
+        amount,
+        createdAt: payment.createdAt ? payment.createdAt.toISOString() : new Date().toISOString()
+      }
 
       if (existing) {
         existing.paidAmount += amount
+        existing.payments.push(paymentRecord)
       } else {
         applicantsMap.set(userId, {
           code: userId,
           seats: 1, // Один участник = одно место
-          paidAmount: amount
+          paidAmount: amount,
+          payments: [paymentRecord]
         })
       }
     })
 
-    const applicants = Array.from(applicantsMap.values())
+    const applicants = Array.from(applicantsMap.values()).sort((a, b) => b.paidAmount - a.paidAmount)
     
     // Вычисляем общую собранную сумму
     const collected = applicants.reduce((sum, app) => sum + app.paidAmount, 0)
@@ -69,12 +125,13 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: {
         eventId: eventData.id,
-        nowPoint: eventData.currentControlPoint || 't0',
-        collected: collected,
-        deficit: deficit,
-        surplus: surplus,
+        nowPoint: current,
+        deadlineNext: nextDeadline || undefined,
+        collected,
+        deficit,
+        surplus,
         isCancelled: eventData.isCancelled || false,
-        applicants: applicants
+        applicants
       }
     }
   } catch (error: any) {

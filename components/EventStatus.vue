@@ -7,7 +7,6 @@ import {
   controlPointToInterval,
   getMoneyStatus, 
   getSeatsStatus,
-  getTimeRemaining,
   getCountdownTimer 
 } from '~/utils/statusMessages'
 
@@ -88,12 +87,6 @@ const seatsStatus = computed(() => {
   return getSeatsStatus(applicantsCount, seatLimit)
 })
 
-// Время до конца сбора
-const timeRemaining = computed(() => {
-  if (!props.event.endApplicationsAt) return null
-  return getTimeRemaining(props.event.endApplicationsAt)
-})
-
 // Процент собранных средств
 const collectedPercent = computed(() => {
   const collected = props.snapshot?.collected || 0
@@ -172,10 +165,34 @@ const getNextMilestone = computed(() => {
 
 // Таймер обратного отсчета (реактивный)
 const countdownTick = ref(0) // Для принудительного обновления каждую секунду
+const countdownDeadline = computed(() => {
+  if (props.snapshot?.deadlineNext) {
+    return props.snapshot.deadlineNext
+  }
+
+  const interval = timeInterval.value?.currentInterval
+  if (!interval) return null
+
+  switch (interval) {
+    case 't0-ti10':
+      return props.event.startApplicationsAt || props.event.startAt
+    case 'ti10-ti20':
+      return props.event.endApplicationsAt || props.event.startContractsAt || props.event.startAt
+    case 'ti20-ti30':
+      return props.event.startContractsAt || props.event.startAt
+    case 'ti30-ti40':
+      return props.event.startAt
+    case 'ti40-ti50':
+      return props.event.endAt
+    default:
+      return null
+  }
+})
+
 const countdown = computed(() => {
   countdownTick.value // Зависимость для реактивности
   return getCountdownTimer(
-    props.snapshot?.deadlineNext,
+    countdownDeadline.value,
     timeInterval.value?.currentInterval
   )
 })
@@ -267,13 +284,6 @@ onUnmounted(() => {
       <div class="date-line">
         <span class="date-label-secondary">окончание —</span>
         <span class="date-value">{{ event.endApplicationsAt ? formatDate(event.endApplicationsAt) : 'Не указано' }}</span>
-      </div>
-      
-      <div v-if="timeRemaining" class="time-remaining-inline" :class="{ urgent: timeRemaining.urgent, ended: timeRemaining.ended }">
-        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <span>{{ timeRemaining.formatted }}</span>
       </div>
     </div>
 
