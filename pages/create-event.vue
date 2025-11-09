@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
 import AuthModal from '~/components/AuthModal.vue'
 import DateTimeField from '~/components/DateTimeField.vue'
@@ -149,11 +149,31 @@ const FULL_CONTROL_PLAN: ControlPointCode[] = ['t0', 'ti10', 'ti20', 'ti30', 'ti
 
 // Validation messages
 const validationErrors = ref<string[]>([])
+const fieldErrors = reactive({
+  title: '',
+  author: '',
+  location: '',
+  category: '',
+  startAt: '',
+  endAt: '',
+  priceTotal: '',
+  seatLimit: '',
+  startApplicationsAt: '',
+  endApplicationsAt: '',
+  startContractsAt: ''
+})
+type FieldKey = keyof typeof fieldErrors
+
+const resetFieldErrors = () => {
+  (Object.keys(fieldErrors) as FieldKey[]).forEach((key) => {
+    fieldErrors[key] = ''
+  })
+}
 
 // Date validation
-const validateDates = (): boolean => {
-  validationErrors.value = []
-  
+const validateDates = (): string[] => {
+  const errors: string[] = []
+
   const dates = {
     ti10: formData.value.startApplicationsAt ? new Date(formData.value.startApplicationsAt).getTime() : null,
     ti20: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).getTime() : null,
@@ -161,36 +181,33 @@ const validateDates = (): boolean => {
     ti40: formData.value.startAt ? new Date(formData.value.startAt).getTime() : null,
     ti50: formData.value.endAt ? new Date(formData.value.endAt).getTime() : null
   }
-  
-  // ti40 обязательно
+
   if (!dates.ti40) {
-    validationErrors.value.push('Дата начала мероприятия (ti40) обязательна')
-    return false
+    errors.push('Дата начала мероприятия (ti40) обязательна')
+    return errors
   }
-  
-  // Проверка последовательности дат
+
   if (dates.ti10 && dates.ti20 && dates.ti10 >= dates.ti20) {
-    validationErrors.value.push('Начало приема заявок (ti10) должно быть раньше окончания (ti20)')
+    errors.push('Начало приема заявок (ti10) должно быть раньше окончания (ti20)')
   }
-  
+
   if (dates.ti20 && dates.ti30 && dates.ti20 >= dates.ti30) {
-    validationErrors.value.push('Окончание приема заявок (ti20) должно быть раньше начала оформления договоров (ti30)')
+    errors.push('Окончание приема заявок (ti20) должно быть раньше начала оформления договоров (ti30)')
   }
-  
+
   if (dates.ti30 && dates.ti40 && dates.ti30 >= dates.ti40) {
-    validationErrors.value.push('Начало оформления договоров (ti30) должно быть раньше начала мероприятия (ti40)')
+    errors.push('Начало оформления договоров (ti30) должно быть раньше начала мероприятия (ti40)')
   }
-  
+
   if (dates.ti40 && dates.ti50 && dates.ti40 >= dates.ti50) {
-    validationErrors.value.push('Начало мероприятия (ti40) должно быть раньше окончания (ti50)')
+    errors.push('Начало мероприятия (ti40) должно быть раньше окончания (ti50)')
   }
-  
-  // Также проверяем, что ti10 < ti40 (если есть ti10 но нет промежуточных)
+
   if (dates.ti10 && dates.ti40 && dates.ti10 >= dates.ti40) {
-    validationErrors.value.push('Начало приема заявок (ti10) должно быть раньше начала мероприятия (ti40)')
+    errors.push('Начало приема заявок (ti10) должно быть раньше начала мероприятия (ti40)')
   }
-  
-  return validationErrors.value.length === 0
+
+  return errors
 }
 
 // Basic validation
@@ -200,6 +217,9 @@ const isFormValid = computed(() => {
     formData.value.author.trim() !== '' &&
     formData.value.location.trim() !== '' &&
     formData.value.startAt !== '' &&
+    formData.value.startApplicationsAt !== '' &&
+    formData.value.endApplicationsAt !== '' &&
+    formData.value.startContractsAt !== '' &&
     formData.value.priceTotal !== '' &&
     formData.value.seatLimit !== '' &&
     formData.value.category !== ''
@@ -292,41 +312,81 @@ const loadEvent = async () => {
 }
 
 // Сохранение события
+const addValidationError = (field: FieldKey | null, message: string, mirrorFields: FieldKey[] = []) => {
+  if (!validationErrors.value.includes(message)) {
+    validationErrors.value.push(message)
+  }
+  if (field) {
+    fieldErrors[field] = message
+  }
+  mirrorFields.forEach((mirrorField) => {
+    fieldErrors[mirrorField] = message
+  })
+}
+
 const saveEvent = async (status: EventStatus) => {
-  // Очищаем предыдущие ошибки
   validationErrors.value = []
-  
-  // Валидация обязательных полей
+  resetFieldErrors()
+
   if (!formData.value.title.trim()) {
-    validationErrors.value.push('Название мероприятия обязательно')
+    addValidationError('title', 'Название мероприятия обязательно')
   }
   if (!formData.value.author) {
-    validationErrors.value.push('Выберите автора из списка')
+    addValidationError('author', 'Выберите автора из списка')
   }
   if (!formData.value.location.trim()) {
-    validationErrors.value.push('Место проведения обязательно')
-  }
-  if (!formData.value.startAt) {
-    validationErrors.value.push('Дата начала мероприятия обязательна')
-  }
-  if (!formData.value.priceTotal || parseFloat(formData.value.priceTotal) <= 0) {
-    validationErrors.value.push('Общая стоимость должна быть больше 0')
-  }
-  if (!formData.value.seatLimit || parseInt(formData.value.seatLimit) <= 0) {
-    validationErrors.value.push('Количество участников должно быть больше 0')
+    addValidationError('location', 'Место проведения обязательно')
   }
   if (!formData.value.category) {
-    validationErrors.value.push('Выберите категорию')
+    addValidationError('category', 'Выберите категорию')
   }
-  
-  // Validate dates
-  if (!validateDates()) {
-    // Ошибки дат уже добавлены в validationErrors
+  if (!formData.value.priceTotal || parseFloat(formData.value.priceTotal) <= 0) {
+    addValidationError('priceTotal', 'Общая стоимость должна быть больше 0')
   }
-  
-  // Если есть ошибки, показываем их
+  if (!formData.value.seatLimit || parseInt(formData.value.seatLimit) <= 0) {
+    addValidationError('seatLimit', 'Количество участников должно быть больше 0')
+  }
+  if (!formData.value.startApplicationsAt) {
+    addValidationError('startApplicationsAt', 'Укажите дату начала приема заявок (ti10)')
+  }
+  if (!formData.value.endApplicationsAt) {
+    addValidationError('endApplicationsAt', 'Укажите дату окончания приема заявок (ti20)')
+  }
+  if (!formData.value.startContractsAt) {
+    addValidationError('startContractsAt', 'Укажите дату начала оформления договоров (ti30)')
+  }
+
+  const dateErrors = validateDates()
+  dateErrors.forEach((error) => {
+    if (!validationErrors.value.includes(error)) {
+      validationErrors.value.push(error)
+    }
+
+    if (error.includes('ti10') && error.includes('ti20')) {
+      fieldErrors.startApplicationsAt = error
+      fieldErrors.endApplicationsAt = error
+    } else if (error.includes('ti20') && error.includes('ti30')) {
+      fieldErrors.endApplicationsAt = error
+      fieldErrors.startContractsAt = error
+    } else if (error.includes('ti30') && error.includes('ti40')) {
+      fieldErrors.startContractsAt = error
+      fieldErrors.startAt = error
+    } else if (error.includes('ti40') && error.includes('ti50')) {
+      fieldErrors.startAt = error
+      fieldErrors.endAt = error
+    } else if (error.includes('ti10') && error.includes('ti40')) {
+      fieldErrors.startApplicationsAt = error
+      fieldErrors.startAt = error
+    } else if (error.includes('ti40') && error.includes('обязательна')) {
+      fieldErrors.startAt = error
+    }
+  })
+
+  if (!formData.value.startAt) {
+    addValidationError('startAt', 'Дата начала мероприятия (ti40) обязательна')
+  }
+
   if (validationErrors.value.length > 0) {
-    // Прокручиваем к первой ошибке
     window.scrollTo({ top: 0, behavior: 'smooth' })
     return
   }
@@ -431,7 +491,7 @@ const submitForm = async (status: EventStatus = 'draft') => {
 
   if (!auth.isProducer) {
     showAuthModal.value = true
-    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nВойдите под учетной записью продюсера (producer1/prod1pass).')
+    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nВойдите под учетной записью продюсера (прод1/пар1).')
     return
   }
 
@@ -611,9 +671,13 @@ onMounted(async () => {
                 required
                 placeholder="Введите название"
                 :disabled="isFormReadOnly"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                :class="[
+                  'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                  isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                  fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                ]"
               >
+              <p v-if="fieldErrors.title" class="text-red-400 text-sm mt-1">{{ fieldErrors.title }}</p>
             </div>
               <div>
                 <label class="block text-sm font-medium text-white/80 mb-2">
@@ -624,9 +688,13 @@ onMounted(async () => {
                   type="text" 
                   required
                   placeholder="Адрес или название места"
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                  :class="[
+                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                    fieldErrors.location ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                  ]"
                 >
+                <p v-if="fieldErrors.location" class="text-red-400 text-sm mt-1">{{ fieldErrors.location }}</p>
               </div>
 
               <div>
@@ -636,14 +704,18 @@ onMounted(async () => {
                 <select 
                   v-model="formData.category"
                   required
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                  :class="[
+                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                    fieldErrors.category ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                  ]"
                 >
                   <option value="" disabled>Выберите категорию</option>
                   <option v-for="cat in categories" :key="cat.value" :value="cat.value" class="bg-[#1A1F3E]">
                     {{ cat.label }}
                   </option>
                 </select>
+                <p v-if="fieldErrors.category" class="text-red-400 text-sm mt-1">{{ fieldErrors.category }}</p>
               </div>
 
               <DateTimeField
@@ -652,7 +724,7 @@ onMounted(async () => {
                 :required="true"
                 :disabled="isFormReadOnly"
                 :offset-presets="eventStartPresets"
-                :error="validationErrors.find(e => e.includes('Начало мероприятия')) || ''"
+                :error="fieldErrors.startAt"
               />
               
               <DateTimeField
@@ -662,6 +734,7 @@ onMounted(async () => {
                 :offset-presets="eventEndPresets"
                 :copy-from-value="formData.startAt"
                 copy-from-label="началом мероприятия"
+                :error="fieldErrors.endAt"
               />
 
               <div>
@@ -675,14 +748,14 @@ onMounted(async () => {
                   min="0"
                   step="1"
                   placeholder="0"
-                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  :class="{
-                    'border-red-500': validationErrors.some(e => e.includes('стоимость') || e.includes('цена')),
-                    'opacity-70 cursor-not-allowed': isFormReadOnly
-                  }"
+                  :class="[
+                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                    fieldErrors.priceTotal ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                  ]"
                 >
-                <p v-if="validationErrors.some(e => e.includes('стоимость') || e.includes('цена'))" class="text-red-400 text-sm mt-1">
-                  {{ validationErrors.find(e => e.includes('стоимость') || e.includes('цена')) }}
+                <p v-if="fieldErrors.priceTotal" class="text-red-400 text-sm mt-1">
+                  {{ fieldErrors.priceTotal }}
                 </p>
               </div>
 
@@ -696,9 +769,13 @@ onMounted(async () => {
                 required
                 min="1"
                 placeholder="10"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                :class="[
+                  'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                  isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                  fieldErrors.seatLimit ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                ]"
               >
+              <p v-if="fieldErrors.seatLimit" class="text-red-400 text-sm mt-1">{{ fieldErrors.seatLimit }}</p>
             </div>
 
             <DateTimeField
@@ -708,7 +785,7 @@ onMounted(async () => {
               :offset-presets="applicationsStartPresets"
               :copy-from-value="formData.startAt"
               copy-from-label="началом мероприятия"
-              :error="validationErrors.find(e => e.includes('приема заявок (ti10)')) || ''"
+              :error="fieldErrors.startApplicationsAt"
             />
 
             <DateTimeField
@@ -718,7 +795,7 @@ onMounted(async () => {
               :offset-presets="applicationsEndPresets"
               :copy-from-value="formData.startApplicationsAt"
               copy-from-label="началом приема заявок"
-              :error="validationErrors.find(e => e.includes('ti20')) || ''"
+              :error="fieldErrors.endApplicationsAt"
             />
             
             <DateTimeField
@@ -728,7 +805,7 @@ onMounted(async () => {
               :offset-presets="contractsStartPresets"
               :copy-from-value="formData.endApplicationsAt || formData.startApplicationsAt"
               copy-from-label="окончанием приема заявок"
-              :error="validationErrors.find(e => e.includes('ti30')) || ''"
+              :error="fieldErrors.startContractsAt"
             />
           </div>
 
@@ -791,8 +868,11 @@ onMounted(async () => {
               </label>
               <select 
                 v-model="formData.author"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
+                :class="[
+                  'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                  isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                  fieldErrors.author ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                ]"
               >
                 <option value="" disabled class="bg-[#1a1f2e] text-white/50">Выберите автора...</option>
                 <option 
@@ -804,11 +884,8 @@ onMounted(async () => {
                   {{ getAuthorFullName(author) }} — {{ author.title }}
                 </option>
               </select>
-              <p 
-                v-if="validationErrors.includes('Выберите автора из списка')"
-                class="text-red-400 text-sm mt-2"
-              >
-                Выберите автора из списка
+              <p v-if="fieldErrors.author" class="text-red-400 text-sm mt-2">
+                {{ fieldErrors.author }}
               </p>
               
               <!-- Preview selected author -->

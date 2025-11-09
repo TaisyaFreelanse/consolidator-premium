@@ -5,6 +5,12 @@ export const migrateLocalStorage = () => {
 
   console.log('🔄 === Starting localStorage migration ===')
 
+  const LEGACY_NAME_MAP: Record<string, string> = {
+    producer1: 'прод1',
+    producer2: 'прод2',
+    moderator: 'мод1'
+  }
+
   try {
     // 1. Миграция пользователей (добавляем роль, если её нет)
     const usersRaw = localStorage.getItem('users')
@@ -16,12 +22,35 @@ export const migrateLocalStorage = () => {
         if (!user.role) {
           // Если это продюсер (по коду или имени)
           if (user.code === 'PROD001' || user.code === 'PROD002' || 
-              user.name === 'producer1' || user.name === 'producer2') {
+              user.name === 'producer1' || user.name === 'producer2' ||
+              user.name === 'прод1' || user.name === 'прод2') {
             user.role = 'producer'
           } else {
             user.role = 'applicant'
           }
           usersUpdated = true
+        }
+
+        if (LEGACY_NAME_MAP[user.name]) {
+          user.name = LEGACY_NAME_MAP[user.name]
+          usersUpdated = true
+        }
+
+        if (user.code === 'PROD001') {
+          if (user.password !== 'пар1') {
+            user.password = 'пар1'
+            usersUpdated = true
+          }
+        } else if (user.code === 'PROD002') {
+          if (user.password !== 'пар2') {
+            user.password = 'пар2'
+            usersUpdated = true
+          }
+        } else if (user.code === 'MOD001') {
+          if (user.password !== 'пар0') {
+            user.password = 'пар0'
+            usersUpdated = true
+          }
         }
       })
 
@@ -57,11 +86,16 @@ export const migrateLocalStorage = () => {
           console.log(`    ⚠️ Added status: published`)
         }
 
-        // Добавляем producerName если его нет
-        if (!event.producerName) {
-          event.producerName = 'producer1' // Неизвестный продюсер
+        if (event.producerName && LEGACY_NAME_MAP[event.producerName]) {
+          event.producerName = LEGACY_NAME_MAP[event.producerName]
           eventsUpdated = true
-          console.log(`    ⚠️ Added producer: producer1`)
+          console.log(`    ⚠️ Updated producer name to ${event.producerName}`)
+        }
+
+        if (!event.producerName) {
+          event.producerName = 'прод1' // Неизвестный продюсер
+          eventsUpdated = true
+          console.log(`    ⚠️ Added producer: прод1`)
         }
 
         // Добавляем createdAt если его нет

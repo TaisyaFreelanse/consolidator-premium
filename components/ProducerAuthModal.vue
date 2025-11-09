@@ -150,7 +150,7 @@ const closeModal = () => {
                 <input 
                   v-model="producerLogin"
                   type="text"
-                  placeholder="producer1 или producer2"
+                  placeholder="прод1 или прод2"
                   class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#ff9500] focus:ring-2 focus:ring-[#ff9500]/20 outline-none transition-all"
                 >
               </div>
@@ -186,7 +186,7 @@ const closeModal = () => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   Для тестирования доступны 2 продюсера: <br>
-                  <strong>producer1</strong> / <strong>producer2</strong>
+                  <strong>прод1</strong> / <strong>прод2</strong>
                 </p>
               </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import type { EventItem, MonitoringSnapshot, Applicant } from '~/types'
 
 const props = defineProps<{
@@ -11,10 +11,32 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
-const selectedApplicantCode = ref('')
+const getLastPaymentTimestamp = (applicant: Applicant): number | null => {
+  const payments = applicant.payments ?? []
+  if (!payments.length) return null
+  const lastPayment = payments[payments.length - 1]
+  const timestamp = new Date(lastPayment.createdAt).getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
 
 const sortedApplicants = computed<Applicant[]>(() => {
-  return [...props.snapshot.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
+  return [...props.snapshot.applicants].sort((a, b) => {
+    if (b.paidAmount !== a.paidAmount) {
+      return b.paidAmount - a.paidAmount
+    }
+
+    const timeA = getLastPaymentTimestamp(a)
+    const timeB = getLastPaymentTimestamp(b)
+
+    if (timeA !== null && timeB !== null && timeA !== timeB) {
+      return timeA - timeB
+    }
+
+    if (timeA !== null && timeB === null) return -1
+    if (timeA === null && timeB !== null) return 1
+
+    return a.code.localeCompare(b.code)
+  })
 })
 
 const limitIndex = computed(() => {
@@ -81,16 +103,6 @@ const eventSuccessful = computed(() => {
   return deficit <= 0
 })
 
-const selectedApplicant = computed(() => {
-  if (!selectedApplicantCode.value) return null
-  return sortedApplicants.value.find((applicant) => applicant.code === selectedApplicantCode.value) ?? null
-})
-
-const selectedIndex = computed(() => {
-  if (!selectedApplicant.value) return -1
-  return sortedApplicants.value.findIndex((applicant) => applicant.code === selectedApplicant.value?.code)
-})
-
 const formatMoney = (amount: number) => {
   return (amount / 100).toLocaleString('ru-RU', {
     minimumFractionDigits: 2,
@@ -108,8 +120,42 @@ const formatDateTime = (iso: string) => {
   })
 }
 
-const result = computed(() => {
-  const applicant = selectedApplicant.value
+const formatTimestamp = (timestamp: number | null) => {
+  if (timestamp === null) return '—'
+  return new Date(timestamp).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const closeModal = () => {
+  emit('close')
+}
+
+const isViewerParticipant = computed(() => {
+  if (!props.currentUserCode) return false
+  return sortedApplicants.value.some(applicant => applicant.code === props.currentUserCode)
+})
+
+const ownerApplicant = computed(() => {
+  if (!props.currentUserCode) return null
+  return sortedApplicants.value.find(applicant => applicant.code === props.currentUserCode) ?? null
+})
+
+const resultForOwner = computed(() => {
+  if (!ownerApplicant.value) {
+    if (!sortedApplicants.value.length) return null
+    return null
+  }
+  return computeResult(ownerApplicant.value)
+})
+
+const result = computed(() => resultForOwner.value)
+
+const computeResult = (applicant: Applicant | null) => {
   if (!applicant) return null
 
   const payments = (applicant.payments ?? []).map((payment) => ({
@@ -129,12 +175,37 @@ const result = computed(() => {
     }
   }
 
-  if (selectedIndex.value >= limitIndex.value) {
+  const index = sortedApplicants.value.findIndex((candidate) => candidate.code === applicant.code)
+  const effectiveIndex = index === -1 && ownerApplicant.value ? sortedApplicants.value.findIndex((candidate) => candidate.code === ownerApplicant.value?.code) : index
+  const positionIndex = effectiveIndex === -1 ? sortedApplicants.value.findIndex(candidate => candidate.code === applicant.code) : effectiveIndex
+
+  if (positionIndex >= limitIndex.value) {
+    const thresholdApplicant = limitIndex.value > 0 ? sortedApplicants.value[limitIndex.value - 1] : null
+    const thresholdAmount = thresholdApplicant?.paidAmount ?? null
+    const thresholdTime = thresholdApplicant ? getLastPaymentTimestamp(thresholdApplicant) : null
+    const selectedTime = getLastPaymentTimestamp(applicant)
+
+    let reason: 'lower' | 'late' = 'lower'
+    if (
+      thresholdApplicant &&
+      thresholdAmount !== null &&
+      thresholdAmount === totalPaid &&
+      selectedTime !== null &&
+      thresholdTime !== null &&
+      selectedTime > thresholdTime
+    ) {
+      reason = 'late'
+    }
+
     return {
       status: 'overflow' as const,
       totalPaid,
       payments,
-      refundTotal: totalPaid
+      refundTotal: totalPaid,
+      reason,
+      thresholdAmount,
+      thresholdTime,
+      selectedTime
     }
   }
 
@@ -168,35 +239,6 @@ const result = computed(() => {
     surplusAvailable: surplusForDistribution.value,
     overflowTotal: overflowTotal.value
   }
-})
-
-watch(
-  () => props.isOpen,
-  (opened) => {
-    if (!opened) return
-    const codes = sortedApplicants.value.map((app) => app.code)
-    if (props.currentUserCode && codes.includes(props.currentUserCode)) {
-      selectedApplicantCode.value = props.currentUserCode
-    } else if (!codes.includes(selectedApplicantCode.value)) {
-      selectedApplicantCode.value = codes[0] ?? ''
-    }
-  },
-  { immediate: true }
-)
-
-watch(
-  () => props.snapshot.applicants,
-  (list) => {
-    const codes = list.map((applicant) => applicant.code)
-    if (!codes.includes(selectedApplicantCode.value)) {
-      selectedApplicantCode.value = codes[0] ?? ''
-    }
-  },
-  { deep: true }
-)
-
-const closeModal = () => {
-  emit('close')
 }
 </script>
 
@@ -224,28 +266,28 @@ const closeModal = () => {
       >
         <div
           v-if="isOpen"
-          class="w-full max-w-3xl bg-gradient-to-br from-[#1a1a1a] to-[#0f0f1a] border border-white/20 rounded-3xl shadow-2xl overflow-hidden"
+          class="w-full max-w-2xl bg-gradient-to-br from-[#1a1a1a] to-[#0f0f1a] border border-white/15 rounded-3xl shadow-2xl overflow-hidden"
         >
-          <div class="relative bg-gradient-to-r from-[#007AFF]/20 to-[#5E5CE6]/20 border-b border-white/10 p-8">
+          <div class="relative bg-gradient-to-r from-[#007AFF]/20 to-[#5E5CE6]/20 border-b border-white/10 p-6">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-3xl font-bold text-white mb-2" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+                <h2 class="text-2xl font-bold text-white mb-2" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
                   Персональная калькуляция
                 </h2>
-                <p class="text-white/70 text-sm">Расчет возврата средств по итогам приема заявок</p>
+                <p class="text-white/70 text-xs">Расчет возврата средств по итогам приема заявок</p>
               </div>
               <button
                 @click="closeModal"
-                class="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                class="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
               >
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
               </button>
             </div>
           </div>
 
-          <div class="p-8 space-y-6">
+          <div class="p-6 space-y-5">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="info-card">
                 <span class="label">Мест всего</span>
@@ -261,24 +303,19 @@ const closeModal = () => {
               </div>
             </div>
 
-            <div>
-              <label class="block text-white/80 font-semibold mb-3 text-sm uppercase tracking-wider">
-                Выберите заявителя
-              </label>
-              <select
-                v-model="selectedApplicantCode"
-                class="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl px-6 py-4 text-white focus:outline-none focus:border-[#007AFF] transition-colors font-mono text-lg"
-              >
-                <option value="" class="bg-[#1a1a1a] text-white/60">Выберите заявителя...</option>
-                <option
-                  v-for="applicant in sortedApplicants"
-                  :key="applicant.code"
-                  :value="applicant.code"
-                  class="bg-[#1a1a1a] text-white"
-                >
-                  {{ applicant.code }} — {{ formatMoney(applicant.paidAmount) }} ₽
-                </option>
-              </select>
+            <div v-if="!isViewerParticipant" class="p-6 rounded-2xl border border-white/10 bg-white/5 text-white/70 text-sm">
+              Вы еще не подавали заявку на это мероприятие. Подайте заявку, чтобы увидеть персональный расчет.
+            </div>
+
+            <div v-else-if="ownerApplicant" class="p-6 rounded-2xl border border-white/10 bg-white/5 text-white/80 text-sm space-y-2">
+              <div class="flex justify-between">
+                <span>Ваш код участника</span>
+                <span class="font-mono text-white">{{ ownerApplicant.code }}</span>
+              </div>
+              <div class="flex justify-between" v-if="ownerApplicant.paidAmount">
+                <span>Всего оплачено</span>
+                <span class="font-semibold text-white">{{ formatMoney(ownerApplicant.paidAmount) }} ₽</span>
+              </div>
             </div>
 
             <div v-if="result" class="space-y-5">
@@ -311,18 +348,35 @@ const closeModal = () => {
               <div v-else-if="result.status === 'overflow'" class="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6">
                 <h3 class="section-title text-yellow-300">Вы не вошли в список участников</h3>
                 <p class="text-white/80 text-sm mb-4">
-                  Ваша ставка оказалась ниже порога. Внесенные средства будут возвращены полностью.
+                  <template v-if="result.reason === 'late'">
+                    Ваша ставка поступила позже других участников с такой же суммой. Все внесенные средства будут возвращены полностью.
+                  </template>
+                  <template v-else>
+                    Ваша ставка оказалась ниже порога. Внесенные средства будут возвращены полностью.
+                  </template>
                 </p>
                 <div class="flex justify-between text-white/80 text-sm">
                   <span>Общая сумма взносов</span>
                   <span class="font-semibold text-white">{{ formatMoney(result.totalPaid) }} ₽</span>
+                </div>
+                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="result.thresholdAmount !== null">
+                  <span>Пороговая ставка</span>
+                  <span>{{ formatMoney(result.thresholdAmount) }} ₽</span>
+                </div>
+                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="result.reason === 'late' && result.thresholdTime !== null">
+                  <span>Время порогового платежа</span>
+                  <span>{{ formatTimestamp(result.thresholdTime) }}</span>
+                </div>
+                <div class="flex justify-between text-white/60 text-xs mt-1" v-if="result.reason === 'late' && result.selectedTime !== null">
+                  <span>Ваш платеж поступил</span>
+                  <span>{{ formatTimestamp(result.selectedTime) }}</span>
                 </div>
               </div>
 
               <div v-else class="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 space-y-3">
                 <h3 class="section-title text-blue-300">Событие состоится</h3>
                 <div class="flex justify-between text-white/70 text-sm">
-                  <span>Минимальный взнос ({{ (selectedApplicant?.seats || 1) }} × {{ formatMoney(pricePerSeat) }} ₽)</span>
+                  <span>Минимальный взнос ({{ (ownerApplicant?.seats || 1) }} × {{ formatMoney(pricePerSeat) }} ₽)</span>
                   <span class="text-white font-semibold">{{ formatMoney(result.expectedPayment) }} ₽</span>
                 </div>
                 <div class="flex justify-between text-white/70 text-sm">
@@ -362,8 +416,8 @@ const closeModal = () => {
               </div>
             </div>
 
-            <div v-else class="text-center py-12 text-white/60">
-              Выберите заявителя, чтобы увидеть расчет.
+            <div v-else-if="isViewerParticipant" class="text-center py-12 text-white/60">
+              Персональный расчет появится после обработки ваших платежей.
             </div>
 
             <div class="flex justify-end">
@@ -388,14 +442,14 @@ const closeModal = () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 18px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .info-card .label {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.6);
@@ -403,7 +457,7 @@ const closeModal = () => {
 }
 
 .info-card .value {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: white;
 }
@@ -417,9 +471,9 @@ const closeModal = () => {
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .summary-card {
@@ -427,15 +481,15 @@ const closeModal = () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  border-radius: 20px;
+  padding: 20px;
+  border-radius: 18px;
   background: linear-gradient(135deg, rgba(0, 122, 255, 0.25), rgba(94, 92, 230, 0.2));
   border: 1px solid rgba(0, 122, 255, 0.35);
   text-align: center;
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7);
@@ -443,7 +497,7 @@ const closeModal = () => {
 }
 
 .summary-value {
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 800;
   color: white;
 }

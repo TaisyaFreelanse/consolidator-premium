@@ -13,15 +13,15 @@ export interface User {
 const PRESET_PRODUCERS: User[] = [
   {
     code: 'PROD001',
-    name: 'producer1',
-    password: 'prod1pass',
+    name: 'прод1',
+    password: 'пар1',
     role: 'producer',
     createdAt: new Date('2025-01-01').toISOString()
   },
   {
     code: 'PROD002',
-    name: 'producer2',
-    password: 'prod2pass',
+    name: 'прод2',
+    password: 'пар2',
     role: 'producer',
     createdAt: new Date('2025-01-01').toISOString()
   }
@@ -30,8 +30,8 @@ const PRESET_PRODUCERS: User[] = [
 // Предустановленный модератор
 const PRESET_MODERATOR: User = {
   code: 'MOD001',
-  name: 'moderator',
-  password: 'modpass',
+  name: 'мод1',
+  password: 'пар0',
   role: 'moderator',
   createdAt: new Date('2025-01-01').toISOString()
 }
@@ -58,21 +58,52 @@ export const useAuthStore = defineStore('auth', {
           if (stored) {
             this.users = JSON.parse(stored)
           }
-          
-          // Добавляем предустановленных продюсеров, если их еще нет
-          PRESET_PRODUCERS.forEach(producer => {
-            if (!this.users.some(u => u.code === producer.code)) {
-              this.users.push(producer)
-            }
-          })
-          
-          // Добавляем предустановленного модератора, если его еще нет
-          if (!this.users.some(u => u.code === PRESET_MODERATOR.code)) {
-            this.users.push(PRESET_MODERATOR)
+
+          const LEGACY_NAME_MAP: Record<string, string> = {
+            producer1: 'прод1',
+            producer2: 'прод2',
+            moderator: 'мод1'
           }
-          
-          // Сохраняем обновленный список
-          localStorage.setItem('users', JSON.stringify(this.users))
+
+          let usersChanged = false
+
+          this.users = this.users.map((user) => {
+            if (LEGACY_NAME_MAP[user.name]) {
+              usersChanged = true
+              return { ...user, name: LEGACY_NAME_MAP[user.name] }
+            }
+            return user
+          })
+
+          const ensurePresetUser = (preset: User) => {
+            const index = this.users.findIndex(u => u.code === preset.code)
+            if (index === -1) {
+              this.users.push(preset)
+              usersChanged = true
+              return
+            }
+
+            const existing = this.users[index]
+            const updated: User = {
+              ...existing,
+              name: preset.name,
+              role: preset.role,
+              createdAt: existing.createdAt || preset.createdAt,
+              password: preset.password
+            }
+
+            if (updated.name !== existing.name || updated.role !== existing.role || updated.password !== existing.password || updated.createdAt !== existing.createdAt) {
+              this.users.splice(index, 1, updated)
+              usersChanged = true
+            }
+          }
+
+          PRESET_PRODUCERS.forEach(ensurePresetUser)
+          ensurePresetUser(PRESET_MODERATOR)
+
+          if (usersChanged) {
+            localStorage.setItem('users', JSON.stringify(this.users))
+          }
 
           const currentUserCode = localStorage.getItem('currentUserCode')
           if (currentUserCode) {

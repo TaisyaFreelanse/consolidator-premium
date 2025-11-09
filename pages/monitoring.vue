@@ -253,9 +253,8 @@ const increaseBid = () => {
   // Проверка 3: Есть ли данные о рейтинге?
   if (!userRanking.value) return
   
-  // Всё ок - открываем модальное окно оплаты (25% от текущей ставки, округленно)
-  const additionalAmount = Math.round((userRanking.value.currentBid / 100) * 0.25)
-  paymentAmount.value = additionalAmount
+  // Всё ок - открываем модальное окно оплаты без предустановленной суммы
+  paymentAmount.value = 0
   paymentMode.value = 'additional'
   showPaymentModal.value = true
 }
@@ -419,12 +418,6 @@ const handlePayment = async (paymentData: any) => {
 
         <!-- СТАТУС УЧАСТНИКА (если уже участвует) -->
         <div v-else class="user-status-compact">
-          <div class="status-badge">
-            <svg class="icon-check" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-            <span>Вы участвуете</span>
-          </div>
           <div class="user-mini-stats">
             <div class="mini-stat">
               <span class="mini-label">Код:</span>
@@ -815,10 +808,12 @@ const handlePayment = async (paymentData: any) => {
 
 /* Секция участников */
 .participants-section {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 24px;
+  background: linear-gradient(135deg, rgba(17, 21, 39, 0.95) 0%, rgba(32, 41, 71, 0.9) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 24px 48px rgba(8, 12, 24, 0.45);
+  backdrop-filter: blur(18px);
 }
 
 .section-header {
@@ -827,7 +822,7 @@ const handlePayment = async (paymentData: any) => {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -839,20 +834,25 @@ const handlePayment = async (paymentData: any) => {
 }
 
 .section-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: #1a1a1a;
   margin: 0;
+}
+
+.participants-section .section-title {
+  color: #f8fafc;
 }
 
 .participants-count {
   display: inline-block;
   padding: 6px 16px;
-  background: #007AFF;
-  color: white;
-  border-radius: 20px;
-  font-size: 14px;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.9) 0%, rgba(94, 92, 230, 0.9) 100%);
+  color: #f8fafc;
+  border-radius: 999px;
+  font-size: 15px;
   font-weight: 700;
+  box-shadow: 0 10px 25px rgba(14, 165, 233, 0.25);
 }
 
 /* КНОПКА ДОПОЛНИТЕЛЬНОЙ ОПЛАТЫ */
@@ -895,12 +895,12 @@ const handlePayment = async (paymentData: any) => {
   align-items: flex-start;
   gap: 12px;
   margin-top: 16px;
-  padding: 14px;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 16px 18px;
+  background: rgba(15, 118, 110, 0.1);
+  border: 1px solid rgba(94, 234, 212, 0.25);
+  border-radius: 16px;
   font-size: 14px;
-  color: #666;
+  color: rgba(226, 232, 240, 0.8);
   line-height: 1.5;
 }
 
@@ -908,7 +908,7 @@ const handlePayment = async (paymentData: any) => {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: #007AFF;
+  color: #22d3ee;
   margin-top: 2px;
 }
 

@@ -25,13 +25,19 @@ const cardNumber = ref('')
 const expiry = ref('')
 const cvc = ref('')
 
+const TEST_CARD = {
+  number: '5559 0000 0000 0008',
+  expiry: '12/34',
+  cvc: '000'
+}
+
 // При открытии модалки инициализируем сумму и очищаем поля карты
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
-    paymentAmount.value = props.initialAmount
-    cardNumber.value = ''
-    expiry.value = ''
-    cvc.value = ''
+    paymentAmount.value = props.mode === 'additional' ? 0 : props.initialAmount
+    cardNumber.value = TEST_CARD.number
+    expiry.value = TEST_CARD.expiry
+    cvc.value = TEST_CARD.cvc
   }
 })
 
@@ -58,7 +64,8 @@ const formatExpiry = () => {
 
 // Валидация
 const isValid = computed(() => {
-  const isAmountValid = paymentAmount.value >= props.initialAmount && paymentAmount.value > 0
+  const minAmount = props.mode === 'application' ? Math.max(props.initialAmount, 1) : 1
+  const isAmountValid = paymentAmount.value >= minAmount && paymentAmount.value > 0
   const isCardValid = cardNumber.value.replace(/\s/g, '').length === 16
   const isExpiryValid = expiry.value.length === 5 && expiry.value.includes('/')
   const isCvcValid = cvc.value.length === 3
@@ -128,9 +135,9 @@ const quickIncrease = (percent: number) => {
                   Вы можете внести больше, чтобы повысить свои шансы попасть в число участников
                 </template>
                 <template v-else>
-                  <strong>Рекомендуемая доплата:</strong> {{ formatMoney(initialAmount) }} ₽
+                  <strong>Введите сумму доплаты вручную.</strong>
                   <br>
-                  Увеличьте свою ставку, чтобы подняться в рейтинге участников
+                  Укажите любое значение в рублях, чтобы скорректировать свою ставку.
                 </template>
               </div>
             </div>
@@ -144,8 +151,8 @@ const quickIncrease = (percent: number) => {
                 <input 
                   v-model.number="paymentAmount" 
                   type="number" 
-                  :min="initialAmount"
-                  step="100"
+                  :min="mode === 'application' ? initialAmount : 1"
+                  step="1"
                   class="amount-input"
                   :class="{ invalid: !isValid }"
                   placeholder="Введите сумму"
@@ -153,12 +160,12 @@ const quickIncrease = (percent: number) => {
                 <span class="currency">₽</span>
               </div>
               <p v-if="!isValid && paymentAmount > 0" class="error-text">
-                Сумма не может быть меньше {{ formatMoney(initialAmount) }} ₽
+                {{ mode === 'application' ? `Сумма не может быть меньше ${formatMoney(initialAmount)} ₽` : 'Сумма доплаты должна быть больше 0 ₽' }}
               </p>
             </div>
 
             <!-- Быстрые кнопки увеличения -->
-            <div class="quick-buttons">
+            <div v-if="mode === 'application'" class="quick-buttons">
               <button 
                 type="button"
                 class="quick-btn" 
