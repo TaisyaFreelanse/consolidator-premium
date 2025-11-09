@@ -18,19 +18,37 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Текущий временной интервал - используем контрольную точку из API, если есть snapshot
+const controlPointOrder: Record<ControlPointCode, number> = {
+  t0: 0,
+  ti10: 1,
+  ti20: 2,
+  ti30: 3,
+  ti40: 4,
+  ti50: 5,
+  t999: 6
+}
+
+const fallbackInterval = computed(() => getCurrentTimeInterval(props.event, props.event.createdAt))
+
+// Текущий временной интервал — выбираем наиболее продвинутую точку между snapshot и локальным вычислением
 const timeInterval = computed(() => {
-  // Если есть snapshot с nowPoint, используем его (приоритет API)
+  const fallbackPoint = fallbackInterval.value.currentPoint
+  const fallbackOrder = controlPointOrder[fallbackPoint] ?? 0
+
   if (props.snapshot?.nowPoint) {
-    const interval = controlPointToInterval(props.snapshot.nowPoint)
-    return {
-      currentInterval: interval,
-      currentPoint: props.snapshot.nowPoint,
-      progress: 50 // Примерное значение, можно улучшить
+    const snapshotPoint = props.snapshot.nowPoint
+    const snapshotOrder = controlPointOrder[snapshotPoint] ?? 0
+
+    if (snapshotOrder >= fallbackOrder) {
+      return {
+        currentInterval: controlPointToInterval(snapshotPoint),
+        currentPoint: snapshotPoint,
+        progress: fallbackInterval.value.progress
+      }
     }
   }
-  // Иначе вычисляем на основе дат (fallback для локальных событий)
-  return getCurrentTimeInterval(props.event, props.event.createdAt)
+
+  return fallbackInterval.value
 })
 
 // Определяем, отменено ли мероприятие
@@ -167,7 +185,10 @@ const getNextMilestone = computed(() => {
 const countdownTick = ref(0) // Для принудительного обновления каждую секунду
 const countdownDeadline = computed(() => {
   if (props.snapshot?.deadlineNext) {
-    return props.snapshot.deadlineNext
+    const snapshotDeadline = new Date(props.snapshot.deadlineNext).getTime()
+    if (snapshotDeadline > Date.now()) {
+      return props.snapshot.deadlineNext
+    }
   }
 
   const interval = timeInterval.value?.currentInterval

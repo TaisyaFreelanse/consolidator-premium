@@ -41,6 +41,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields: title, author, location, startAt, seatLimit, priceTotal' })
   }
 
+  if (body.status === 'published') {
+    console.warn('🚫 Attempt to publish event via POST /api/events. Publication is restricted to moderators.')
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Only a moderator can publish events. Save as draft and request moderation.'
+    })
+  }
+
   try {
     // Преобразуем данные для БД
     const eventData = {
@@ -60,7 +68,7 @@ export default defineEventHandler(async (event) => {
       startApplicationsAt: body.startApplicationsAt ? new Date(body.startApplicationsAt) : null,
       endApplicationsAt: body.endApplicationsAt ? new Date(body.endApplicationsAt) : null,
       startContractsAt: body.startContractsAt ? new Date(body.startContractsAt) : null,
-      status: body.status,
+      status: 'draft',
       producerName: body.producerName || null,
       currentControlPoint: 't0', // По умолчанию начальная точка
       isCancelled: false

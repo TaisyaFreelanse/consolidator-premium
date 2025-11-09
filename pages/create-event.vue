@@ -34,6 +34,14 @@ const isFormReadOnly = computed(() => {
 })
 const currentProducerName = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.name : '')
 
+const toLocalInputValue = (value?: string | null) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const tzOffset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16)
+}
+
 // Form data
 const formData = ref({
   title: '',
@@ -217,17 +225,17 @@ const loadEvent = async () => {
           title: event.title || '',
           author: event.author || '', // ID автора из справочника
           location: event.location || '',
-          startAt: event.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : '',
-          endAt: event.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : '',
+          startAt: toLocalInputValue(event.startAt),
+          endAt: toLocalInputValue(event.endAt),
           priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
           seatLimit: event.seatLimit?.toString() || '',
           category: event.category || '',
           description: event.description || '',
           activities: event.activities?.length > 0 ? event.activities : [''],
           image: event.image || '',
-          startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
-          endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
-          startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : ''
+          startApplicationsAt: toLocalInputValue(event.startApplicationsAt),
+          endApplicationsAt: toLocalInputValue(event.endApplicationsAt),
+          startContractsAt: toLocalInputValue(event.startContractsAt)
         }
         
         imagePreview.value = event.image || ''
@@ -257,17 +265,17 @@ const loadEvent = async () => {
         title: event.title || '',
         author: event.author || '',
         location: event.location || '',
-        startAt: event.startAt ? new Date(event.startAt).toISOString().slice(0, 16) : '',
-        endAt: event.endAt ? new Date(event.endAt).toISOString().slice(0, 16) : '',
+          startAt: toLocalInputValue(event.startAt),
+          endAt: toLocalInputValue(event.endAt),
         priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
         seatLimit: event.seatLimit?.toString() || '',
         category: event.category || '',
         description: event.description || '',
         activities: event.activities?.length > 0 ? event.activities : [''],
         image: event.image || '',
-        startApplicationsAt: event.startApplicationsAt ? new Date(event.startApplicationsAt).toISOString().slice(0, 16) : '',
-        endApplicationsAt: event.endApplicationsAt ? new Date(event.endApplicationsAt).toISOString().slice(0, 16) : '',
-        startContractsAt: event.startContractsAt ? new Date(event.startContractsAt).toISOString().slice(0, 16) : ''
+          startApplicationsAt: toLocalInputValue(event.startApplicationsAt),
+          endApplicationsAt: toLocalInputValue(event.endApplicationsAt),
+          startContractsAt: toLocalInputValue(event.startContractsAt)
       }
       
       imagePreview.value = event.image || ''
@@ -424,6 +432,11 @@ const submitForm = async (status: EventStatus = 'draft') => {
   if (!auth.isProducer) {
     showAuthModal.value = true
     alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nВойдите под учетной записью продюсера (producer1/prod1pass).')
+    return
+  }
+
+  if (status === 'published' && !auth.isModerator) {
+    alert('⚠️ Публикация доступна только модератору.\n\nСохраните мероприятие как черновик и дождитесь модерации.')
     return
   }
 
@@ -885,7 +898,7 @@ onMounted(async () => {
             </button>
             
             <button 
-              v-if="!isPublished"
+              v-if="!isPublished && auth.isModerator"
               type="button"
               @click="submitForm('published')"
               :disabled="!isFormValid || isFormReadOnly"
