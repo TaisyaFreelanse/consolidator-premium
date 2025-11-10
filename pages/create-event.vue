@@ -631,7 +631,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <form @submit.prevent>
+        <form @submit.prevent @keydown.enter.prevent>
           <div 
             v-if="isModeratorReview" 
             class="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3"
@@ -656,23 +656,23 @@ onMounted(async () => {
             <!-- Basic Information -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Название мероприятия <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="formData.title"
-                type="text" 
-                required
-                placeholder="Введите название"
-                :disabled="isFormReadOnly"
-                :class="[
-                  'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
-                  isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
-                  fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
-                ]"
-              >
-              <p v-if="fieldErrors.title" class="text-red-400 text-sm mt-1">{{ fieldErrors.title }}</p>
-            </div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Название мероприятия <span class="text-red-400">*</span>
+                </label>
+                <input 
+                  v-model="formData.title"
+                  type="text" 
+                  required
+                  placeholder="Введите название"
+                  :disabled="isFormReadOnly"
+                  :class="[
+                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                    fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                  ]"
+                >
+                <p v-if="fieldErrors.title" class="text-red-400 text-sm mt-1">{{ fieldErrors.title }}</p>
+              </div>
               <div>
                 <label class="block text-sm font-medium text-white/80 mb-2">
                   Место проведения <span class="text-red-400">*</span>
@@ -691,71 +691,77 @@ onMounted(async () => {
                 <p v-if="fieldErrors.location" class="text-red-400 text-sm mt-1">{{ fieldErrors.location }}</p>
               </div>
 
-              <DateTimeField
-                v-model="formData.startAt"
-                label="Начало мероприятия (ti40)"
-                :required="true"
-                :disabled="isFormReadOnly"
-                :error="fieldErrors.startAt"
-                :show-quick-actions="false"
-                :show-now-button="false"
-              />
-              
-              <DateTimeField
-                v-model="formData.endAt"
-                label="Окончание мероприятия (ti50)"
-                :disabled="isFormReadOnly"
-                :error="fieldErrors.endAt"
-                :show-quick-actions="false"
-                :show-now-button="false"
-              />
-
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Количество участников <span class="text-red-400">*</span>
-                </label>
-                <input 
-                  v-model="formData.seatLimit"
-                  type="number" 
-                  required
-                  min="1"
-                  placeholder="10"
-                  :class="[
-                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
-                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
-                    fieldErrors.seatLimit ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
-                  ]"
-                >
-                <p v-if="fieldErrors.seatLimit" class="text-red-400 text-sm mt-1">{{ fieldErrors.seatLimit }}</p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Цена за место (₽) <span class="text-red-400">*</span>
-                </label>
-                <input 
-                  v-model="formData.pricePerSeat"
-                  type="number" 
-                  required
-                  min="0"
-                  step="0.01"
-                  placeholder="0"
-                  :class="[
-                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
-                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
-                    fieldErrors.pricePerSeat ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
-                  ]"
-                >
-                <p v-if="fieldErrors.pricePerSeat" class="text-red-400 text-sm mt-1">
-                  {{ fieldErrors.pricePerSeat }}
-                </p>
+              <div class="md:col-span-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <DateTimeField
+                    v-model="formData.startAt"
+                    label="Начало мероприятия (ti40)"
+                    :required="true"
+                    :disabled="isFormReadOnly"
+                    :error="fieldErrors.startAt"
+                    :show-quick-actions="false"
+                    :show-now-button="false"
+                  />
+                  
+                  <DateTimeField
+                    v-model="formData.endAt"
+                    label="Окончание мероприятия (ti50)"
+                    :disabled="isFormReadOnly"
+                    :error="fieldErrors.endAt"
+                    :show-quick-actions="false"
+                    :show-now-button="false"
+                  />
+                </div>
               </div>
 
               <div class="md:col-span-2">
-                <div class="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 flex flex-col gap-1">
-                  <span class="text-xs uppercase tracking-wider text-white/50">Складочный сбор</span>
-                  <span class="text-2xl font-semibold text-white">{{ formattedTotalAmount }} ₽</span>
-                  <span class="text-xs text-white/40">= цена места × количество участников</span>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+                  <div>
+                    <label class="block text-sm font-medium text-white/80 mb-2">
+                      Количество участников <span class="text-red-400">*</span>
+                    </label>
+                    <input 
+                      v-model="formData.seatLimit"
+                      type="number" 
+                      required
+                      min="1"
+                      placeholder="10"
+                      :class="[
+                        'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                        isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                        fieldErrors.seatLimit ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                      ]"
+                    >
+                    <p v-if="fieldErrors.seatLimit" class="text-red-400 text-sm mt-1">{{ fieldErrors.seatLimit }}</p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-white/80 mb-2">
+                      Цена за место (₽) <span class="text-red-400">*</span>
+                    </label>
+                    <input 
+                      v-model="formData.pricePerSeat"
+                      type="number" 
+                      required
+                      min="0"
+                      step="0.01"
+                      placeholder="0"
+                      :class="[
+                        'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                        isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                        fieldErrors.pricePerSeat ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                      ]"
+                    >
+                    <p v-if="fieldErrors.pricePerSeat" class="text-red-400 text-sm mt-1">
+                      {{ fieldErrors.pricePerSeat }}
+                    </p>
+                  </div>
+
+                  <div class="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 flex flex-col justify-center gap-1">
+                    <span class="text-xs uppercase tracking-wider text-white/50">Складочный сбор</span>
+                    <span class="text-2xl font-semibold text-white">{{ formattedTotalAmount }} ₽</span>
+                    <span class="text-xs text-white/40">= цена места × количество участников</span>
+                  </div>
                 </div>
               </div>
 
