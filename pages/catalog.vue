@@ -240,6 +240,14 @@ onMounted(async () => {
                 <span class="meta-value">{{ formatDate(event.createdAt) }}</span>
               </div>
 
+              <div v-if="event.updatedAt && event.updatedAt !== event.createdAt" class="meta-row">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span class="meta-label">Обновлено:</span>
+                <span class="meta-value">{{ formatDate(event.updatedAt) }}</span>
+              </div>
+
               <div class="meta-row">
                 <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>

@@ -37,6 +37,7 @@ const toPlainEvent = (event: any) => {
     startContractsAt: event.startContractsAt?.toISOString() || null,
     status: event.status,
     producerName: event.producerName,
+    producerCode: event.producerCode,
     currentControlPoint: event.currentControlPoint,
     isCancelled: event.isCancelled,
     createdAt: event.createdAt?.toISOString() || null,

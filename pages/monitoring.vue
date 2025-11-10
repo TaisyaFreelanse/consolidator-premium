@@ -107,6 +107,8 @@ const normalizedActivities = computed(() => {
 })
 
 // Проверка участия пользователя
+const isModeratorUser = computed(() => auth.isModerator)
+
 const userApplication = computed(() => {
   if (!auth.isAuthenticated || !snap.value || !snap.value.applicants) return null
   return snap.value.applicants.find((a: any) => a.code === auth.userCode)
@@ -159,6 +161,11 @@ const copyCurrentEventLink = async (): Promise<boolean> => {
 // Подать заявку (с оплатой)
 const submitApplication = async () => {
   if (!ev.value) return
+
+  if (isModeratorUser.value) {
+    alert('❌ Модератор не может подавать заявки или оплачивать участие.\n\nВойдите под учетной записью участника или продюсера.')
+    return
+  }
 
   if (!hasApplicationsStarted.value) {
     const startMessage = applicationsStartDate.value
@@ -233,6 +240,11 @@ const increaseBid = () => {
     return
   }
 
+  if (isModeratorUser.value) {
+    alert('❌ Модератор не может совершать оплаты.\n\nИспользуйте аккаунт участника, который подал заявку.')
+    return
+  }
+
   // Проверка 1: Завершился ли прием заявок?
   if (!canSubmitApplications.value) {
     alert('❌ Прием заявок завершен\n\nДополнительная оплата больше недоступна.')
@@ -266,6 +278,10 @@ const closePaymentModal = () => {
 
 const openPersonalCalculation = () => {
   if (!snap.value) return
+  if (isModeratorUser.value) {
+    alert('ℹ️ Персональная калькуляция доступна только участникам.\n\nВойдите под кодом участника, чтобы просмотреть расчёт.')
+    return
+  }
   showPersonalCalc.value = true
 }
 
@@ -389,14 +405,16 @@ const handlePayment = async (paymentData: any) => {
             class="submit-application-btn" 
             @click="submitApplication"
             :title="
-              !applicationWindowOpen
-                ? 'Прием заявок еще не начался или уже завершен'
-                : auth.isAuthenticated
-                  ? 'Подать заявку с оплатой'
-                  : 'Требуется авторизация'
+              isModeratorUser
+                ? 'Модератор не может подавать заявки'
+                : !applicationWindowOpen
+                  ? 'Прием заявок еще не начался или уже завершен'
+                  : auth.isAuthenticated
+                    ? 'Подать заявку с оплатой'
+                    : 'Требуется авторизация'
             "
-            :disabled="!applicationWindowOpen"
-            :class="{ 'is-disabled': !applicationWindowOpen }"
+            :disabled="!applicationWindowOpen || isModeratorUser"
+            :class="{ 'is-disabled': !applicationWindowOpen || isModeratorUser }"
           >
             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -455,10 +473,10 @@ const handlePayment = async (paymentData: any) => {
             <!-- КНОПКА ДОПОЛНИТЕЛЬНОЙ ОПЛАТЫ (видна всегда) -->
             <button 
               class="additional-payment-btn"
-              :class="{ 'disabled': !canSubmitApplications }"
-              :disabled="!canSubmitApplications"
+            :class="{ 'disabled': !canSubmitApplications || isModeratorUser }"
+            :disabled="!canSubmitApplications || isModeratorUser"
               @click="increaseBid"
-              :title="canSubmitApplications ? 'Увеличить ставку' : 'Прием заявок завершен'"
+            :title="isModeratorUser ? 'Модератор не может вносить оплату' : canSubmitApplications ? 'Увеличить ставку' : 'Прием заявок завершен'"
             >
               <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
@@ -487,37 +505,6 @@ const handlePayment = async (paymentData: any) => {
           </svg>
           <p>Пока нет зарегистрированных участников</p>
           <p class="hint">Станьте первым!</p>
-        </div>
-
-        <!-- Описание мероприятия (ВТОРИЧНО - показываем в конце) -->
-        <div v-if="ev.description || (ev.activities && ev.activities.length > 0)" class="description-section">
-          <h2 class="section-title">О мероприятии</h2>
-          
-          <div v-if="ev.description" class="description-text">
-            <p>{{ ev.description }}</p>
-          </div>
-
-          <div v-if="normalizedActivities.length > 0" class="activities-list">
-            <h3 class="subsection-title">Программа:</h3>
-            <ul class="activities">
-              <li v-for="(activity, index) in normalizedActivities" :key="index" class="activity-item">
-                {{ activity }}
-              </li>
-            </ul>
-          </div>
-
-          <div v-if="ev.authorInfo" class="author-info">
-            <h3 class="subsection-title">Автор мероприятия:</h3>
-            <div class="author-card">
-              <div class="author-name">{{ ev.authorInfo.name }}</div>
-              <div class="author-title">{{ ev.authorInfo.title }}</div>
-              <ul v-if="ev.authorInfo.achievements" class="achievements">
-                <li v-for="(achievement, idx) in ev.authorInfo.achievements" :key="idx">
-                  {{ achievement }}
-                </li>
-              </ul>
-            </div>
-          </div>
         </div>
 
       </div>
@@ -910,105 +897,6 @@ const handlePayment = async (paymentData: any) => {
   flex-shrink: 0;
   color: #22d3ee;
   margin-top: 2px;
-}
-
-/* Секция описания (вторична) */
-.description-section {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 24px;
-}
-
-.description-text {
-  margin-bottom: 24px;
-}
-
-.description-text p {
-  font-size: 16px;
-  line-height: 1.6;
-  color: #444;
-  margin: 0;
-}
-
-.subsection-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 16px 0;
-}
-
-.activities-list {
-  margin-bottom: 24px;
-}
-
-.activities {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.activity-item {
-  position: relative;
-  padding-left: 24px;
-  margin-bottom: 12px;
-  font-size: 15px;
-  line-height: 1.5;
-  color: #444;
-}
-
-.activity-item::before {
-  content: '•';
-  position: absolute;
-  left: 8px;
-  color: #007AFF;
-  font-weight: 700;
-}
-
-/* Информация об авторе */
-.author-info {
-  padding-top: 24px;
-  border-top: 1px solid #e0e0e0;
-}
-
-.author-card {
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.author-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-}
-
-.author-title {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 12px;
-}
-
-.achievements {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0 0;
-}
-
-.achievements li {
-  position: relative;
-  padding-left: 20px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #444;
-}
-
-.achievements li::before {
-  content: '🏆';
-  position: absolute;
-  left: 0;
 }
 
 /* Нет участников */

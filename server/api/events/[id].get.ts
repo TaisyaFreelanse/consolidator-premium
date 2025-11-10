@@ -57,6 +57,7 @@ export default defineEventHandler(async (event) => {
         startContractsAt: eventData.startContractsAt?.toISOString(),
         status: eventData.status,
         producerName: eventData.producerName,
+        producerCode: eventData.producerCode,
         createdAt: eventData.createdAt.toISOString(),
         updatedAt: eventData.updatedAt.toISOString()
       }

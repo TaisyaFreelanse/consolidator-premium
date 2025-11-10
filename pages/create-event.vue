@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
-import type { EventCategory, ControlPointCode, EventStatus } from '~/types'
+import type { ControlPointCode, EventStatus } from '~/types'
 import AuthModal from '~/components/AuthModal.vue'
 import DateTimeField from '~/components/DateTimeField.vue'
 import { useEventsStore } from '~/stores/events'
@@ -22,17 +22,37 @@ const showAuthModal = ref(false)
 // Event status
 const eventStatus = ref<EventStatus>('draft')
 const eventProducerName = ref<string>('')
+const eventProducerCode = ref<string>('')
 const isPublished = ref(false)
 const isPublishing = ref(false)
 
 // Roles & permissions
 const isModerator = computed(() => auth.isModerator)
 const isModeratorReview = computed(() => isModerator.value && editMode.value)
+const currentProducerName = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.name : '')
+const currentProducerCode = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.code : '')
+const isProducerOwner = computed(() => {
+  if (!editMode.value) {
+    return auth.isProducer
+  }
+  if (!auth.isProducer || !auth.currentUser) {
+    return false
+  }
+  if (eventProducerCode.value) {
+    return auth.currentUser.code === eventProducerCode.value
+  }
+  if (eventProducerName.value) {
+    return auth.currentUser.name === eventProducerName.value
+  }
+  // Если информация о владельце отсутствует (устаревшие данные), разрешаем первому продюсеру.
+  return true
+})
 const isFormReadOnly = computed(() => {
   if (isModeratorReview.value) return true
-  return editMode.value && isPublished.value && !auth.isProducer
+  if (!editMode.value) return false
+  if (isPublished.value) return true
+  return !isProducerOwner.value
 })
-const currentProducerName = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.name : '')
 
 const toLocalInputValue = (value?: string | null) => {
   if (!value) return ''
@@ -42,107 +62,61 @@ const toLocalInputValue = (value?: string | null) => {
   return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16)
 }
 
-// Form data
+// Form data (без креативного блока)
 const formData = ref({
   title: '',
   author: '', // ID автора из справочника
   location: '',
   startAt: '',
   endAt: '', // ti50
-  priceTotal: '',
   seatLimit: '',
-  category: '' as EventCategory | '',
+  pricePerSeat: '',
   description: '',
-  activities: [''],
-  image: '',
   // controlPlan удалён - все точки обязательны для каждого события
   startApplicationsAt: '', // ti10
   endApplicationsAt: '', // ti20
   startContractsAt: '' // ti30
 })
 
+const existingImage = ref<string>('')
+const existingCategory = ref<string | null>(null)
+const existingActivities = ref<string[]>([])
+
 // Timestamps
 const createdAt = ref<string>('')
 const updatedAt = ref<string>('')
 
-// Categories
-const categories: { value: EventCategory; label: string }[] = [
-  { value: 'master-class', label: 'Мастер-класс' },
-  { value: 'training', label: 'Тренинг' },
-  { value: 'excursion', label: 'Экскурсия' },
-  { value: 'gastro-show', label: 'Гастро-шоу' },
-  { value: 'lecture', label: 'Лекция' },
-  { value: 'cruise', label: 'Круиз' }
-]
-
-// Image preview
-const imagePreview = ref<string>('')
-const imageInput = ref<HTMLInputElement | null>(null)
-
-type TimeOffsetPreset = { label: string; minutes: number }
-
-const eventStartPresets: TimeOffsetPreset[] = [
-  { label: '-1 ч', minutes: -60 },
-  { label: '-15 мин', minutes: -15 },
-  { label: '+15 мин', minutes: 15 },
-  { label: '+1 ч', minutes: 60 }
-]
-
-const eventEndPresets: TimeOffsetPreset[] = [
-  { label: '+15 мин', minutes: 15 },
-  { label: '+30 мин', minutes: 30 },
-  { label: '+1 ч', minutes: 60 },
-  { label: '+1 д', minutes: 1440 }
-]
-
-const applicationsStartPresets: TimeOffsetPreset[] = [
-  { label: '-1 д', minutes: -1440 },
-  { label: '-6 ч', minutes: -360 },
-  { label: '-1 ч', minutes: -60 },
-  { label: '+1 ч', minutes: 60 }
-]
-
-const applicationsEndPresets: TimeOffsetPreset[] = [
-  { label: '+1 ч', minutes: 60 },
-  { label: '+6 ч', minutes: 360 },
-  { label: '+12 ч', minutes: 720 },
-  { label: '+1 д', minutes: 1440 }
-]
-
-const contractsStartPresets: TimeOffsetPreset[] = [
-  { label: '+30 мин', minutes: 30 },
-  { label: '+2 ч', minutes: 120 },
-  { label: '+6 ч', minutes: 360 },
-  { label: '+1 д', minutes: 1440 }
-]
-
-// Add activity
-const addActivity = () => {
-  if (isFormReadOnly.value) return
-  formData.value.activities.push('')
+const parseMoneyInput = (value: string): number => {
+  if (!value) return 0
+  const normalized = value.replace(',', '.')
+  const parsed = parseFloat(normalized)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
-// Remove activity
-const removeActivity = (index: number) => {
-  if (isFormReadOnly.value) return
-  formData.value.activities.splice(index, 1)
-}
+const seatLimitNumber = computed(() => {
+  const parsed = parseInt(formData.value.seatLimit, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+})
 
-// Handle image upload
-const handleImageUpload = (event: Event) => {
-  if (isFormReadOnly.value) return
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  
-  if (file) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreview.value = e.target?.result as string
-      formData.value.image = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
-  }
-}
+const pricePerSeatNumber = computed(() => {
+  const parsed = parseMoneyInput(formData.value.pricePerSeat)
+  return parsed > 0 ? parsed : 0
+})
+
+const totalAmountRub = computed(() => {
+  if (!seatLimitNumber.value || !pricePerSeatNumber.value) return 0
+  return Math.round(seatLimitNumber.value * pricePerSeatNumber.value * 100) / 100
+})
+
+const formattedTotalAmount = computed(() => {
+  const value = totalAmountRub.value
+  if (!value) return '0'
+  const hasFraction = Math.abs(value - Math.trunc(value)) > 1e-6
+  return value.toLocaleString('ru-RU', {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: hasFraction ? 2 : 0
+  })
+})
 
 // Полный набор контрольных точек - обязателен для ВСЕХ событий
 const FULL_CONTROL_PLAN: ControlPointCode[] = ['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']
@@ -153,10 +127,9 @@ const fieldErrors = reactive({
   title: '',
   author: '',
   location: '',
-  category: '',
   startAt: '',
   endAt: '',
-  priceTotal: '',
+  pricePerSeat: '',
   seatLimit: '',
   startApplicationsAt: '',
   endApplicationsAt: '',
@@ -220,9 +193,8 @@ const isFormValid = computed(() => {
     formData.value.startApplicationsAt !== '' &&
     formData.value.endApplicationsAt !== '' &&
     formData.value.startContractsAt !== '' &&
-    formData.value.priceTotal !== '' &&
-    formData.value.seatLimit !== '' &&
-    formData.value.category !== ''
+    formData.value.pricePerSeat !== '' &&
+    formData.value.seatLimit !== ''
   )
 })
 
@@ -241,27 +213,39 @@ const loadEvent = async () => {
       const result = await response.json()
       if (result.success && result.data) {
         const event = result.data
+        existingImage.value = event.image || ''
+        existingCategory.value = event.category || null
+        existingActivities.value = Array.isArray(event.activities) ? [...event.activities] : []
+
+        const seatLimitStr = event.seatLimit?.toString() || ''
+        const pricePerSeatRub = event.pricePerSeat != null
+          ? Number(event.pricePerSeat) / 100
+          : event.seatLimit
+            ? Number(event.priceTotal || 0) / 100 / event.seatLimit
+            : 0
+        const pricePerSeatStr = pricePerSeatRub
+          ? Number(pricePerSeatRub.toFixed(2)).toString()
+          : ''
+
         formData.value = {
           title: event.title || '',
           author: event.author || '', // ID автора из справочника
           location: event.location || '',
           startAt: toLocalInputValue(event.startAt),
           endAt: toLocalInputValue(event.endAt),
-          priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
-          seatLimit: event.seatLimit?.toString() || '',
-          category: event.category || '',
+          seatLimit: seatLimitStr,
+          pricePerSeat: pricePerSeatStr,
           description: event.description || '',
-          activities: event.activities?.length > 0 ? event.activities : [''],
-          image: event.image || '',
           startApplicationsAt: toLocalInputValue(event.startApplicationsAt),
           endApplicationsAt: toLocalInputValue(event.endApplicationsAt),
           startContractsAt: toLocalInputValue(event.startContractsAt)
         }
         
-        imagePreview.value = event.image || ''
         createdAt.value = event.createdAt || ''
+        updatedAt.value = event.updatedAt || ''
         eventStatus.value = event.status || 'draft'
         eventProducerName.value = event.producerName || ''
+        eventProducerCode.value = event.producerCode || ''
         isPublished.value = event.status === 'published'
         
         // Если событие опубликовано, показываем предупреждение
@@ -281,27 +265,40 @@ const loadEvent = async () => {
     const event = existingEvents.find((e: any) => e.id === id)
     
     if (event) {
+      existingImage.value = event.image || ''
+      existingCategory.value = event.category || null
+      existingActivities.value = Array.isArray(event.activities) ? [...event.activities] : []
+
+      const seatLimitStr = event.seatLimit?.toString() || ''
+      const rawPriceTotal = Number(event.priceTotal || 0)
+      const pricePerSeatRub = event.pricePerSeat != null
+        ? Number(event.pricePerSeat) / 100
+        : event.seatLimit
+          ? rawPriceTotal / 100 / event.seatLimit
+          : 0
+      const pricePerSeatStr = pricePerSeatRub
+        ? Number(pricePerSeatRub.toFixed(2)).toString()
+        : ''
+
       formData.value = {
         title: event.title || '',
         author: event.author || '',
         location: event.location || '',
-          startAt: toLocalInputValue(event.startAt),
-          endAt: toLocalInputValue(event.endAt),
-        priceTotal: event.priceTotal ? (event.priceTotal / 100).toString() : '',
-        seatLimit: event.seatLimit?.toString() || '',
-        category: event.category || '',
+        startAt: toLocalInputValue(event.startAt),
+        endAt: toLocalInputValue(event.endAt),
+        seatLimit: seatLimitStr,
+        pricePerSeat: pricePerSeatStr,
         description: event.description || '',
-        activities: event.activities?.length > 0 ? event.activities : [''],
-        image: event.image || '',
-          startApplicationsAt: toLocalInputValue(event.startApplicationsAt),
-          endApplicationsAt: toLocalInputValue(event.endApplicationsAt),
-          startContractsAt: toLocalInputValue(event.startContractsAt)
+        startApplicationsAt: toLocalInputValue(event.startApplicationsAt),
+        endApplicationsAt: toLocalInputValue(event.endApplicationsAt),
+        startContractsAt: toLocalInputValue(event.startContractsAt)
       }
       
-      imagePreview.value = event.image || ''
       createdAt.value = event.createdAt || ''
+      updatedAt.value = event.updatedAt || ''
       eventStatus.value = event.status || 'draft'
       eventProducerName.value = event.producerName || ''
+      eventProducerCode.value = event.producerCode || ''
       isPublished.value = event.status === 'published'
       
       if (isPublished.value) {
@@ -337,14 +334,13 @@ const saveEvent = async (status: EventStatus) => {
   if (!formData.value.location.trim()) {
     addValidationError('location', 'Место проведения обязательно')
   }
-  if (!formData.value.category) {
-    addValidationError('category', 'Выберите категорию')
-  }
-  if (!formData.value.priceTotal || parseFloat(formData.value.priceTotal) <= 0) {
-    addValidationError('priceTotal', 'Общая стоимость должна быть больше 0')
-  }
-  if (!formData.value.seatLimit || parseInt(formData.value.seatLimit) <= 0) {
+  const seatLimitParsed = parseInt(formData.value.seatLimit, 10)
+  const pricePerSeatParsed = parseMoneyInput(formData.value.pricePerSeat)
+  if (!formData.value.seatLimit || !Number.isFinite(seatLimitParsed) || seatLimitParsed <= 0) {
     addValidationError('seatLimit', 'Количество участников должно быть больше 0')
+  }
+  if (!formData.value.pricePerSeat || pricePerSeatParsed <= 0) {
+    addValidationError('pricePerSeat', 'Цена за место должна быть больше 0')
   }
   if (!formData.value.startApplicationsAt) {
     addValidationError('startApplicationsAt', 'Укажите дату начала приема заявок (ti10)')
@@ -402,12 +398,16 @@ const saveEvent = async (status: EventStatus) => {
     return
   }
 
-  // Convert price to kopeks
-  const priceInKopeks = Math.round(parseFloat(formData.value.priceTotal) * 100)
+  const seatLimitValue = Number.isFinite(seatLimitParsed) ? seatLimitParsed : 0
+  const pricePerSeatInKopeks = Math.round(pricePerSeatParsed * 100)
+  const priceTotalInKopeks = pricePerSeatInKopeks * seatLimitValue
 
   const resolvedProducerName = editMode.value
     ? (eventProducerName.value || currentProducerName.value || null)
     : (currentProducerName.value || null)
+  const resolvedProducerCode = editMode.value
+    ? (eventProducerCode.value || currentProducerCode.value || null)
+    : (currentProducerCode.value || null)
 
   // Create event object for API
   const eventData = {
@@ -417,26 +417,31 @@ const saveEvent = async (status: EventStatus) => {
     location: formData.value.location,
     startAt: new Date(formData.value.startAt).toISOString(),
     endAt: formData.value.endAt ? new Date(formData.value.endAt).toISOString() : undefined,
-    seatLimit: parseInt(formData.value.seatLimit),
-    priceTotal: priceInKopeks,
-    pricePerSeat: Math.round(priceInKopeks / parseInt(formData.value.seatLimit)),
-    image: formData.value.image || '/mock/placeholder.jpg',
-    category: formData.value.category,
+    seatLimit: seatLimitValue,
+    priceTotal: priceTotalInKopeks,
+    pricePerSeat: pricePerSeatInKopeks,
+    image: existingImage.value || '/mock/placeholder.jpg',
+    category: existingCategory.value || undefined,
     description: formData.value.description || undefined,
-    activities: formData.value.activities.filter(a => a.trim() !== ''),
+    activities: existingActivities.value,
     controlPlan: FULL_CONTROL_PLAN, // Все точки обязательны для каждого события
     startApplicationsAt: formData.value.startApplicationsAt ? new Date(formData.value.startApplicationsAt).toISOString() : undefined,
     endApplicationsAt: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).toISOString() : undefined,
     startContractsAt: formData.value.startContractsAt ? new Date(formData.value.startContractsAt).toISOString() : undefined,
     status,
-    producerName: resolvedProducerName || undefined
+    producerName: resolvedProducerName || undefined,
+    producerCode: resolvedProducerCode || undefined
   }
 
   console.log('💾 Saving event to server:', {
     id: eventData.id,
     title: eventData.title,
     status: eventData.status,
-    producerName: eventData.producerName
+    producerName: eventData.producerName,
+    producerCode: eventData.producerCode,
+    seatLimit: eventData.seatLimit,
+    pricePerSeat: eventData.pricePerSeat,
+    priceTotal: eventData.priceTotal
   })
 
   try {
@@ -495,12 +500,17 @@ const submitForm = async (status: EventStatus = 'draft') => {
     return
   }
 
+  if (editMode.value && !isProducerOwner.value) {
+    alert('❌ Вы не являетесь автором этого черновика.\n\nРедактирование доступно только продюсеру, который создал мероприятие.')
+    return
+  }
+
   if (status === 'published' && !auth.isModerator) {
     alert('⚠️ Публикация доступна только модератору.\n\nСохраните мероприятие как черновик и дождитесь модерации.')
     return
   }
 
-  if (!currentProducerName.value) {
+  if (!currentProducerName.value || !currentProducerCode.value) {
     alert('❌ Не удалось определить учетную запись продюсера. Попробуйте выйти и войти снова.')
     return
   }
@@ -604,6 +614,23 @@ onMounted(async () => {
           </div>
         </div>
 
+        <div 
+          v-if="editMode && !isModeratorReview && !isProducerOwner" 
+          class="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3"
+        >
+          <svg class="w-6 h-6 text-amber-300 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <h3 class="text-amber-300 font-semibold mb-1">
+              Черновик защищён владельцем
+            </h3>
+            <p class="text-white/80 text-sm">
+              Изменения может вносить только продюсер, создавший мероприятие. Вы можете просмотреть данные, но сохранение недоступно.
+            </p>
+          </div>
+        </div>
+
         <form @submit.prevent>
           <div 
             v-if="isModeratorReview" 
@@ -626,39 +653,6 @@ onMounted(async () => {
             :disabled="isFormReadOnly" 
             :class="['space-y-6', isFormReadOnly ? 'opacity-90' : '']"
           >
-            <!-- Image Upload -->
-            <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Фотография мероприятия
-            </label>
-            <div 
-                class="relative border-2 border-dashed border-white/20 rounded-2xl overflow-hidden transition-colors"
-                :class="[
-                  imagePreview ? 'h-64' : 'h-48',
-                  isFormReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-[#007AFF]/50'
-                ]"
-                @click="!isFormReadOnly && imageInput?.click()"
-              >
-                <input 
-                  ref="imageInput"
-                  type="file" 
-                  accept="image/*" 
-                  class="hidden" 
-                  :disabled="isFormReadOnly"
-                  @change="handleImageUpload"
-                >
-                <div v-if="!imagePreview" class="absolute inset-0 flex flex-col items-center justify-center text-white/40">
-                  <svg class="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p>Нажмите, чтобы загрузить фото</p>
-                </div>
-                <div v-else class="absolute inset-0">
-                  <img :src="imagePreview" alt="Preview" class="w-full h-full object-cover">
-                </div>
-              </div>
-            </div>
-
             <!-- Basic Information -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="md:col-span-2">
@@ -697,116 +691,100 @@ onMounted(async () => {
                 <p v-if="fieldErrors.location" class="text-red-400 text-sm mt-1">{{ fieldErrors.location }}</p>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-white/80 mb-2">
-                  Категория <span class="text-red-400">*</span>
-                </label>
-                <select 
-                  v-model="formData.category"
-                  required
-                  :class="[
-                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
-                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
-                    fieldErrors.category ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
-                  ]"
-                >
-                  <option value="" disabled>Выберите категорию</option>
-                  <option v-for="cat in categories" :key="cat.value" :value="cat.value" class="bg-[#1A1F3E]">
-                    {{ cat.label }}
-                  </option>
-                </select>
-                <p v-if="fieldErrors.category" class="text-red-400 text-sm mt-1">{{ fieldErrors.category }}</p>
-              </div>
-
               <DateTimeField
                 v-model="formData.startAt"
                 label="Начало мероприятия (ti40)"
                 :required="true"
                 :disabled="isFormReadOnly"
-                :offset-presets="eventStartPresets"
                 :error="fieldErrors.startAt"
+                :show-quick-actions="false"
+                :show-now-button="false"
               />
               
               <DateTimeField
                 v-model="formData.endAt"
                 label="Окончание мероприятия (ti50)"
                 :disabled="isFormReadOnly"
-                :offset-presets="eventEndPresets"
-                :copy-from-value="formData.startAt"
-                copy-from-label="началом мероприятия"
                 :error="fieldErrors.endAt"
+                :show-quick-actions="false"
+                :show-now-button="false"
               />
 
               <div>
                 <label class="block text-sm font-medium text-white/80 mb-2">
-                  Общая стоимость (₽) <span class="text-red-400">*</span>
+                  Количество участников <span class="text-red-400">*</span>
                 </label>
                 <input 
-                  v-model="formData.priceTotal"
+                  v-model="formData.seatLimit"
+                  type="number" 
+                  required
+                  min="1"
+                  placeholder="10"
+                  :class="[
+                    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
+                    isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
+                    fieldErrors.seatLimit ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                  ]"
+                >
+                <p v-if="fieldErrors.seatLimit" class="text-red-400 text-sm mt-1">{{ fieldErrors.seatLimit }}</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-white/80 mb-2">
+                  Цена за место (₽) <span class="text-red-400">*</span>
+                </label>
+                <input 
+                  v-model="formData.pricePerSeat"
                   type="number" 
                   required
                   min="0"
-                  step="1"
+                  step="0.01"
                   placeholder="0"
                   :class="[
                     'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
                     isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
-                    fieldErrors.priceTotal ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
+                    fieldErrors.pricePerSeat ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
                   ]"
                 >
-                <p v-if="fieldErrors.priceTotal" class="text-red-400 text-sm mt-1">
-                  {{ fieldErrors.priceTotal }}
+                <p v-if="fieldErrors.pricePerSeat" class="text-red-400 text-sm mt-1">
+                  {{ fieldErrors.pricePerSeat }}
                 </p>
               </div>
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Количество участников <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="formData.seatLimit"
-                type="number" 
-                required
-                min="1"
-                placeholder="10"
-                :class="[
-                  'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all',
-                  isFormReadOnly ? 'opacity-70 cursor-not-allowed' : '',
-                  fieldErrors.seatLimit ? 'border-red-500 focus:border-red-500 focus:ring-red-400/40' : ''
-                ]"
-              >
-              <p v-if="fieldErrors.seatLimit" class="text-red-400 text-sm mt-1">{{ fieldErrors.seatLimit }}</p>
-            </div>
+              <div class="md:col-span-2">
+                <div class="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 flex flex-col gap-1">
+                  <span class="text-xs uppercase tracking-wider text-white/50">Складочный сбор</span>
+                  <span class="text-2xl font-semibold text-white">{{ formattedTotalAmount }} ₽</span>
+                  <span class="text-xs text-white/40">= цена места × количество участников</span>
+                </div>
+              </div>
 
-            <DateTimeField
-              v-model="formData.startApplicationsAt"
-              label="Начало приема заявок (ti10)"
-              :disabled="isFormReadOnly"
-              :offset-presets="applicationsStartPresets"
-              :copy-from-value="formData.startAt"
-              copy-from-label="началом мероприятия"
-              :error="fieldErrors.startApplicationsAt"
-            />
+              <DateTimeField
+                v-model="formData.startApplicationsAt"
+                label="Начало приема заявок (ti10)"
+                :disabled="isFormReadOnly"
+                :error="fieldErrors.startApplicationsAt"
+                :show-quick-actions="false"
+                :show-now-button="false"
+              />
 
-            <DateTimeField
-              v-model="formData.endApplicationsAt"
-              label="Окончание приема заявок (ti20)"
-              :disabled="isFormReadOnly"
-              :offset-presets="applicationsEndPresets"
-              :copy-from-value="formData.startApplicationsAt"
-              copy-from-label="началом приема заявок"
-              :error="fieldErrors.endApplicationsAt"
-            />
-            
-            <DateTimeField
-              v-model="formData.startContractsAt"
-              label="Начало оформления договоров (ti30)"
-              :disabled="isFormReadOnly"
-              :offset-presets="contractsStartPresets"
-              :copy-from-value="formData.endApplicationsAt || formData.startApplicationsAt"
-              copy-from-label="окончанием приема заявок"
-              :error="fieldErrors.startContractsAt"
-            />
+              <DateTimeField
+                v-model="formData.endApplicationsAt"
+                label="Окончание приема заявок (ti20)"
+                :disabled="isFormReadOnly"
+                :error="fieldErrors.endApplicationsAt"
+                :show-quick-actions="false"
+                :show-now-button="false"
+              />
+              
+              <DateTimeField
+                v-model="formData.startContractsAt"
+                label="Начало оформления договоров (ti30)"
+                :disabled="isFormReadOnly"
+                :error="fieldErrors.startContractsAt"
+                :show-quick-actions="false"
+                :show-now-button="false"
+              />
           </div>
 
           <!-- Description -->
@@ -821,42 +799,6 @@ onMounted(async () => {
               class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all resize-none"
               :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
             ></textarea>
-          </div>
-
-          <!-- Activities -->
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Программа мероприятия
-            </label>
-            <div class="space-y-2">
-              <div v-for="(activity, index) in formData.activities" :key="index" class="flex gap-2">
-                <input 
-                  v-model="formData.activities[index]"
-                  type="text" 
-                  placeholder="Описание активности"
-                  class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-                  :class="{ 'opacity-70 cursor-not-allowed': isFormReadOnly }"
-                >
-                <button 
-                  v-if="!isFormReadOnly && formData.activities.length > 1"
-                  type="button"
-                  @click="removeActivity(index)"
-                  class="px-4 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-colors"
-                >
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <button 
-                v-if="!isFormReadOnly"
-                type="button"
-                @click="addActivity"
-                class="w-full bg-white/5 border border-white/10 border-dashed rounded-xl px-4 py-3 text-white/60 hover:text-white hover:border-[#007AFF]/50 transition-all"
-              >
-                + Добавить активность
-              </button>
-            </div>
           </div>
 
           <!-- Author Information -->

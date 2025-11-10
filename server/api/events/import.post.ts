@@ -22,6 +22,7 @@ interface ImportedEvent {
   startContractsAt?: string | null
   status?: string | null
   producerName?: string | null
+  producerCode?: string | null
   currentControlPoint?: string | null
   isCancelled?: boolean | null
   createdAt?: string | null
@@ -75,6 +76,7 @@ export default defineEventHandler(async (event) => {
         startContractsAt: toDate(rawEvent.startContractsAt),
         status: rawEvent.status || 'draft',
         producerName: rawEvent.producerName || null,
+        producerCode: rawEvent.producerCode || null,
         currentControlPoint: rawEvent.currentControlPoint || 't0',
         isCancelled: rawEvent.isCancelled ?? false
       }

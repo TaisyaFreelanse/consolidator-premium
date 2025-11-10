@@ -65,6 +65,7 @@ export const useEventsStore = defineStore('events', {
                       startContractsAt: event.startContractsAt || null,
                       status: event.status || 'draft',
                       producerName: event.producerName || null,
+                      producerCode: event.producerCode || null,
                       createdAt: event.createdAt || null,
                       updatedAt: event.updatedAt || null
                     }

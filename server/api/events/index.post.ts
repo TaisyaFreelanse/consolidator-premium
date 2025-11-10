@@ -22,6 +22,7 @@ interface CreateEventBody {
   startContractsAt?: string // ISO string
   status: 'draft' | 'published'
   producerName?: string
+  producerCode?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -32,7 +33,8 @@ export default defineEventHandler(async (event) => {
     id: body.id,
     title: body.title, 
     status: body.status,
-    producerName: body.producerName
+    producerName: body.producerName,
+    producerCode: body.producerCode
   })
 
   // Валидация обязательных полей
@@ -70,6 +72,7 @@ export default defineEventHandler(async (event) => {
       startContractsAt: body.startContractsAt ? new Date(body.startContractsAt) : null,
       status: 'draft',
       producerName: body.producerName || null,
+      producerCode: body.producerCode || null,
       currentControlPoint: 't0', // По умолчанию начальная точка
       isCancelled: false
     }
@@ -94,8 +97,23 @@ export default defineEventHandler(async (event) => {
       }
       
       // Проверка: продюсер может редактировать только свои черновики
-      if (existing.producerName && body.producerName && existing.producerName !== body.producerName) {
+      const incomingProducerCode = body.producerCode || null
+      const existingProducerCode = existing.producerCode || null
+      const existingProducerName = existing.producerName || null
+      const incomingProducerName = body.producerName || null
+
+      const producerMismatch =
+        (existingProducerCode && incomingProducerCode && existingProducerCode !== incomingProducerCode) ||
+        (existingProducerCode && !incomingProducerCode) ||
+        (!existingProducerCode && existingProducerName && incomingProducerName && existingProducerName !== incomingProducerName)
+
+      if (producerMismatch) {
         throw createError({ statusCode: 403, statusMessage: 'You can only edit your own draft events' })
+      }
+
+      // Если ранее не было сохранено producerCode, но есть producerName, запоминаем код текущего продюсера
+      if (!existingProducerCode && incomingProducerCode) {
+        eventData.producerCode = incomingProducerCode
       }
 
       savedEvent = await prisma.event.update({
@@ -151,6 +169,7 @@ export default defineEventHandler(async (event) => {
         startContractsAt: savedEvent.startContractsAt?.toISOString(),
         status: savedEvent.status,
         producerName: savedEvent.producerName,
+        producerCode: savedEvent.producerCode,
         createdAt: savedEvent.createdAt.toISOString(),
         updatedAt: savedEvent.updatedAt.toISOString()
       }

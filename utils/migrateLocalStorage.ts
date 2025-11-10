@@ -98,6 +98,18 @@ export const migrateLocalStorage = () => {
           console.log(`    ⚠️ Added producer: прод1`)
         }
 
+        if (!event.producerCode) {
+          if (event.producerName === 'прод1') {
+            event.producerCode = 'PROD001'
+            eventsUpdated = true
+            console.log(`    ⚠️ Added producerCode: PROD001`)
+          } else if (event.producerName === 'прод2') {
+            event.producerCode = 'PROD002'
+            eventsUpdated = true
+            console.log(`    ⚠️ Added producerCode: PROD002`)
+          }
+        }
+
         // Добавляем createdAt если его нет
         if (!event.createdAt) {
           event.createdAt = new Date('2025-01-01').toISOString()

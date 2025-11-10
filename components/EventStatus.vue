@@ -192,44 +192,36 @@ const controlTimeline = computed(() => {
 // Получить дату следующего ключевого момента и его описание
 const getNextMilestone = computed(() => {
   const interval = timeInterval.value?.currentInterval || ''
-  
-  // В зависимости от текущего интервала определяем, какое событие следующее
-  if (interval === 't0-ti10' && props.event.startApplicationsAt) {
-    return {
-      description: 'Начало приема заявок',
-      date: formatFullDate(props.event.startApplicationsAt)
-    }
+  const message = statusMessage.value
+  if (!message || !message.извещение2) return null
+
+  let date: string | undefined
+  switch (interval) {
+    case 't0-ti10':
+      date = props.event.startApplicationsAt || undefined
+      break
+    case 'ti10-ti20':
+      date = props.event.endApplicationsAt || undefined
+      break
+    case 'ti20-ti30':
+      date = props.event.startContractsAt || undefined
+      break
+    case 'ti30-ti40':
+      date = props.event.startAt
+      break
+    case 'ti40-ti50':
+      date = props.event.endAt || undefined
+      break
+    default:
+      date = undefined
   }
-  
-  if (interval === 'ti10-ti20' && props.event.endApplicationsAt) {
-    return {
-      description: 'Окончание приема заявок',
-      date: formatFullDate(props.event.endApplicationsAt)
-    }
+
+  if (!date) return null
+
+  return {
+    description: message.извещение2,
+    date: formatFullDate(date)
   }
-  
-  if (interval === 'ti20-ti30' && props.event.startContractsAt) {
-    return {
-      description: 'Начало оформления договоров',
-      date: formatFullDate(props.event.startContractsAt)
-    }
-  }
-  
-  if (interval === 'ti30-ti40') {
-    return {
-      description: isCancelled.value ? 'Мероприятие не состоится' : 'Начало мероприятия',
-      date: formatFullDate(props.event.startAt)
-    }
-  }
-  
-  if (interval === 'ti40-ti50' && props.event.endAt) {
-    return {
-      description: isCancelled.value ? 'Мероприятие не состоится' : 'Окончание мероприятия',
-      date: formatFullDate(props.event.endAt)
-    }
-  }
-  
-  return null
 })
 
 // Таймер обратного отсчета (реактивный)
@@ -405,11 +397,10 @@ onUnmounted(() => {
     <div v-if="statusMessage && !compact" class="messages-section">
       <div class="section-header">
         <span class="section-title">Текущий статус</span>
-        <span v-if="statusMessage.status" class="status-badge-small" :class="statusMessage.status">
+        <span v-if="statusMessage.status && statusMessage.status !== 'ongoing'" class="status-badge-small" :class="statusMessage.status">
           {{ statusMessage.status === 'starting' ? 'Подготовка' : 
              statusMessage.status === 'active' ? 'Прием заявок' : 
              statusMessage.status === 'processing' ? 'Обработка' : 
-             statusMessage.status === 'ongoing' ? 'Проводится' : 
              statusMessage.status === 'completed' ? 'Завершено' : 
              statusMessage.status === 'cancelled' ? 'Отменено' : '' }}
         </span>

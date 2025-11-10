@@ -29,6 +29,7 @@ model Event {
   startContractsAt     DateTime? // ti30
   status               String   @default("draft") // draft | published
   producerName         String?
+  producerCode         String?
   
   // Новые поля для контрольных точек
   controlPlan          String   // JSON array: ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]

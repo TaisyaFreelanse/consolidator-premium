@@ -104,16 +104,18 @@ const isActive = (href: string) => {
           <!-- Залогиненный пользователь -->
           <div 
             v-else
-            class="flex items-center gap-2 bg-gradient-to-r from-[#007AFF]/10 to-[#5E5CE6]/10 border border-[#007AFF]/30 px-4 py-2.5 rounded-xl"
+            class="flex items-center gap-3 bg-gradient-to-r from-[#007AFF]/10 to-[#5E5CE6]/10 border border-[#007AFF]/30 px-4 py-2.5 rounded-xl"
           >
             <div class="relative">
               <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#007AFF] to-[#5E5CE6] flex items-center justify-center border border-white/20">
-                <span class="text-white text-xs font-bold">{{ auth.currentUser?.name?.slice(0, 2).toUpperCase() || 'US' }}</span>
+                <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
               </div>
               <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0A0F1E]" title="Авторизован"></div>
             </div>
             <div class="flex flex-col">
-              <span class="text-xs text-white/90 font-semibold">{{ auth.currentUser?.name }} · {{ auth.currentUser?.code }}</span>
+              <span class="text-xs text-white/90 font-mono font-semibold tracking-wide">{{ auth.currentUser?.code }}</span>
               <button 
                 @click="auth.logout()"
                 class="text-xs text-white/50 hover:text-red-400 transition-colors text-left"
@@ -233,13 +235,15 @@ const isActive = (href: string) => {
               <div class="flex items-center gap-3">
                 <div class="relative">
                   <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#007AFF] to-[#5E5CE6] flex items-center justify-center border border-white/20">
-                    <span class="text-white text-sm font-bold">{{ auth.currentUser?.name?.slice(0, 2).toUpperCase() || 'US' }}</span>
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
                   </div>
                   <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0A0F1E]"></div>
                 </div>
                 <div class="text-left">
-                  <div class="text-white font-medium">{{ auth.currentUser?.name }}</div>
-                  <div class="text-white/70 text-xs font-mono">{{ auth.currentUser?.code }}</div>
+                  <div class="text-white/70 text-xs uppercase tracking-wider">Ваш код</div>
+                  <div class="text-white font-mono text-sm">{{ auth.currentUser?.code }}</div>
                 </div>
               </div>
               <button 

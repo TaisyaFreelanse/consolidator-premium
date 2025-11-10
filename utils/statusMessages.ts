@@ -35,13 +35,13 @@ export const statusMessagesTable: Record<string, StatusMessage> = {
   },
   'ti10-ti20': {
     period: 'ti10 - ti20',
-    извещение1: 'Принимаем заявки на участие в мероприятии и обеспечительные платежи',
+    извещение1: 'Принимаем заявки на участие и обеспечительные платежи',
     извещение2: 'Окончание приема заявок на участие, начало калькуляции складочных цен',
     status: 'active'
   },
   'ti20-ti30': {
     period: 'ti20 - ti30',
-    извещение1: 'Подводим итоги сбора средств, готовим документы для расчетов с заявителями.',
+    извещение1: 'Подводим итоги сбора средств, готовим документы для расчетов с заявителями',
     извещение2: 'Объявление результатов калькуляции складочных цен',
     status: 'processing'
   },
@@ -198,16 +198,8 @@ export function controlPointToInterval(controlPoint: ControlPointCode): string {
  * @param isCancelled - признак отмены мероприятия
  */
 export function getStatusMessage(interval: string, isCancelled: boolean = false): StatusMessage | null {
-  if (interval === 'not-started') {
-    return {
-      period: 'Ожидание',
-      извещение1: 'Прием заявок еще не начался',
-      извещение2: 'Следите за объявлением',
-      status: 'starting'
-    }
-  }
-  
-  const message = statusMessagesTable[interval]
+  const normalizedInterval = interval === 'not-started' ? 't0-ti10' : interval
+  const message = statusMessagesTable[normalizedInterval]
   if (!message) return null
   
   // Если мероприятие отменено и есть альтернативные тексты

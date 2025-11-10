@@ -17,6 +17,8 @@ const emit = defineEmits<{
   submit: [paymentData: { amount: number, cardNumber: string, expiry: string, cvc: string }]
 }>()
 
+const overlayRef = ref<HTMLDivElement | null>(null)
+
 // Сумма оплаты (в рублях)
 const paymentAmount = ref(0)
 
@@ -38,6 +40,10 @@ watch(() => props.isOpen, (isOpen) => {
     cardNumber.value = TEST_CARD.number
     expiry.value = TEST_CARD.expiry
     cvc.value = TEST_CARD.cvc
+
+    requestAnimationFrame(() => {
+      overlayRef.value?.focus()
+    })
   }
 })
 
@@ -100,7 +106,14 @@ const quickIncrease = (percent: number) => {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="isOpen" class="modal-overlay" @click.self="close">
+      <div
+        v-if="isOpen"
+        class="modal-overlay"
+        ref="overlayRef"
+        tabindex="-1"
+        @click.self="close"
+        @keydown.esc.prevent.stop="close"
+      >
         <div class="modal-container">
           <div class="modal-header">
             <div class="header-icon">

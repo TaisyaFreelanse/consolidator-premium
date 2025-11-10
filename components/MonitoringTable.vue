@@ -25,7 +25,6 @@ const getLastPaymentTimestamp = (applicant: SnapshotApplicant): number | null =>
 const columns = [
   { key: 'rank', label: 'Место', icon: 'M12 8l1.176 3.618h3.804l-3.078 2.239 1.176 3.618L12 15.236l-3.078 2.237 1.176-3.618-3.078-2.239h3.804L12 8z' },
   { key: 'code', label: 'Код заявителя', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2' },
-  { key: 'seats', label: 'Количество мест', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
   { key: 'lastPayment', label: 'Последний платёж', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
   { key: 'paidAmount', label: 'Внесенная сумма, ₽', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c1.11 0 2.08-.402 2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
 ]
@@ -118,7 +117,6 @@ const enrichedApplicants = computed(() => {
         <h3 class="text-2xl font-bold text-white mb-1" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
           Список заявителей
         </h3>
-        <p class="text-white/60 text-sm">Детальная информация о всех участниках</p>
       </div>
       <div class="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-3">
         <svg class="w-5 h-5 text-[#007AFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,33 +160,14 @@ const enrichedApplicants = computed(() => {
               </div>
             </td>
             <td class="px-6 py-4">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center border"
-                     :class="isCurrentUser(row.code) 
-                       ? 'bg-gradient-to-br from-[#34c759]/30 to-[#30d158]/30 border-[#34c759]' 
-                       : 'bg-gradient-to-br from-[#007AFF]/20 to-[#5E5CE6]/20 border-[#007AFF]/30'">
-                  <span class="font-bold text-sm"
-                        :class="isCurrentUser(row.code) ? 'text-[#34c759]' : 'text-[#007AFF]'">
-                    {{ row.code.slice(0, 2).toUpperCase() }}
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="font-mono font-medium"
-                        :class="isCurrentUser(row.code) ? 'text-[#34c759]' : 'text-white'">
-                    {{ row.code }}
-                  </span>
-                  <span v-if="isCurrentUser(row.code)" class="text-xs bg-[#34c759]/20 text-[#34c759] px-2 py-0.5 rounded-full font-semibold">
-                    ВЫ
-                  </span>
-                </div>
-              </div>
-            </td>
-            <td class="px-6 py-4">
               <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                  <span class="text-white font-semibold text-sm">{{ row.seats }}</span>
-                </div>
-                <span class="text-white/60 text-xs">{{ row.seats === 1 ? 'место' : 'мест' }}</span>
+                <span class="font-mono font-medium"
+                      :class="isCurrentUser(row.code) ? 'text-[#34c759]' : 'text-white'">
+                  {{ row.code }}
+                </span>
+                <span v-if="isCurrentUser(row.code)" class="text-xs bg-[#34c759]/20 text-[#34c759] px-2 py-0.5 rounded-full font-semibold">
+                  ВЫ
+                </span>
               </div>
             </td>
             <td class="px-6 py-4">
@@ -224,8 +203,6 @@ const enrichedApplicants = computed(() => {
 /* Выделение строки текущего пользователя */
 .current-user-row {
   background: linear-gradient(90deg, rgba(52, 199, 89, 0.15) 0%, rgba(48, 209, 88, 0.08) 100%) !important;
-  border-left: 4px solid #34c759;
-  border-right: 4px solid #34c759;
   box-shadow: 0 0 20px rgba(52, 199, 89, 0.2), inset 0 0 30px rgba(52, 199, 89, 0.05);
   position: relative;
 }
@@ -244,13 +221,12 @@ const enrichedApplicants = computed(() => {
   width: 4px;
   background: linear-gradient(180deg, #34c759 0%, #30d158 100%);
   box-shadow: 0 0 10px rgba(52, 199, 89, 0.5);
+  pointer-events: none;
 }
 
 /* Ряд вне лимита мест */
 .overflow-row {
   background: linear-gradient(90deg, rgba(255, 95, 109, 0.1) 0%, rgba(255, 195, 113, 0.05) 100%) !important;
-  border-left: 4px solid rgba(255, 95, 109, 0.6);
-  border-right: 4px solid rgba(255, 195, 113, 0.3);
 }
 
 .overflow-row:hover {

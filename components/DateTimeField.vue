@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
   helpText?: string
   error?: string
   showNowButton?: boolean
+  showQuickActions?: boolean
 }>(), {
   modelValue: '',
   required: false,
@@ -26,7 +27,8 @@ const props = withDefaults(defineProps<{
   offsetPresets: () => [],
   helpText: '',
   error: '',
-  showNowButton: true
+  showNowButton: true,
+  showQuickActions: true
 })
 
 const emit = defineEmits<{
@@ -175,7 +177,7 @@ const setNow = () => {
       </div>
     </div>
 
-    <div v-if="!disabled" class="flex flex-wrap gap-2 text-sm">
+    <div v-if="!disabled && showQuickActions" class="flex flex-wrap gap-2 text-sm">
       <button
         v-if="showNowButton"
         type="button"

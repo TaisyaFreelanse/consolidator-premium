@@ -33,6 +33,7 @@ export interface EventItem {
   startContractsAt?: string // ti30 - начало оформления договоров
   status?: EventStatus // draft (черновик) | published (опубликовано)
   producerName?: string // Имя продюсера, создавшего мероприятие
+  producerCode?: string // Идентификатор продюсера (для проверки прав)
   createdAt?: string // Дата создания мероприятия
   updatedAt?: string // Дата последнего обновления
 }

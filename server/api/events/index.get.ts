@@ -72,7 +72,8 @@ export default defineEventHandler(async (event) => {
           endApplicationsAt: e.endApplicationsAt?.toISOString(),
           startContractsAt: e.startContractsAt?.toISOString(),
           status: e.status || 'draft',
-          producerName: e.producerName,
+        producerName: e.producerName,
+        producerCode: e.producerCode,
           createdAt: e.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: e.updatedAt?.toISOString() || new Date().toISOString()
         }
@@ -99,6 +100,7 @@ export default defineEventHandler(async (event) => {
           startContractsAt: e.startContractsAt?.toISOString(),
           status: e.status || 'draft',
           producerName: e.producerName,
+          producerCode: e.producerCode,
           createdAt: e.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: e.updatedAt?.toISOString() || new Date().toISOString()
         }

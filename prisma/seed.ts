@@ -33,6 +33,7 @@ async function main() {
       startContractsAt: new Date('2025-12-11T10:00:00Z'),
       status: 'published',
       producerName: 'прод1',
+      producerCode: 'PROD001',
       controlPlan: JSON.stringify(['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']),
       currentControlPoint: 'ti10',
       isCancelled: false
@@ -59,6 +60,7 @@ async function main() {
       startContractsAt: new Date('2025-12-16T10:00:00Z'),
       status: 'published',
       producerName: 'прод1',
+      producerCode: 'PROD001',
       controlPlan: JSON.stringify(['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']),
       currentControlPoint: 't0',
       isCancelled: false
@@ -85,6 +87,7 @@ async function main() {
       startContractsAt: new Date('2025-11-21T10:00:00Z'),
       status: 'published',
       producerName: 'прод2',
+      producerCode: 'PROD002',
       controlPlan: JSON.stringify(['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']),
       currentControlPoint: 'ti20',
       isCancelled: false
