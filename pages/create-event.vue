@@ -86,9 +86,9 @@ const existingActivities = ref<string[]>([])
 const createdAt = ref<string>('')
 const updatedAt = ref<string>('')
 
-const parseMoneyInput = (value: string): number => {
-  if (!value) return 0
-  const normalized = value.replace(',', '.')
+const parseMoneyInput = (value: string | number | null | undefined): number => {
+  if (value === null || value === undefined || value === '') return 0
+  const normalized = String(value).replace(',', '.')
   const parsed = parseFloat(normalized)
   return Number.isFinite(parsed) ? parsed : 0
 }
