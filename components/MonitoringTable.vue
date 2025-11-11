@@ -203,25 +203,18 @@ const enrichedApplicants = computed(() => {
 /* Выделение строки текущего пользователя */
 .current-user-row {
   background: linear-gradient(90deg, rgba(52, 199, 89, 0.15) 0%, rgba(48, 209, 88, 0.08) 100%) !important;
-  box-shadow: 0 0 20px rgba(52, 199, 89, 0.2), inset 0 0 30px rgba(52, 199, 89, 0.05);
-  position: relative;
+  box-shadow:
+    inset 4px 0 0 rgba(52, 199, 89, 0.6),
+    0 0 20px rgba(52, 199, 89, 0.2),
+    inset 0 0 30px rgba(52, 199, 89, 0.05);
 }
 
 .current-user-row:hover {
   background: linear-gradient(90deg, rgba(52, 199, 89, 0.2) 0%, rgba(48, 209, 88, 0.12) 100%) !important;
-  box-shadow: 0 0 25px rgba(52, 199, 89, 0.3), inset 0 0 35px rgba(52, 199, 89, 0.08);
-}
-
-.current-user-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(180deg, #34c759 0%, #30d158 100%);
-  box-shadow: 0 0 10px rgba(52, 199, 89, 0.5);
-  pointer-events: none;
+  box-shadow:
+    inset 4px 0 0 rgba(52, 199, 89, 0.75),
+    0 0 25px rgba(52, 199, 89, 0.3),
+    inset 0 0 35px rgba(52, 199, 89, 0.08);
 }
 
 /* Ряд вне лимита мест */
