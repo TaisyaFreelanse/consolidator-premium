@@ -11,6 +11,31 @@ const prisma = getPrismaClient()
  * Для публикации используйте отдельный эндпоинт /api/external/events/publish.
  */
 export default defineEventHandler(async (event) => {
+  // CORS заголовки для внешнего API
+  const origin = getRequestHeader(event, 'origin')
+  
+  // Разрешенные origins
+  const allowedOrigins = [
+    'https://external-demo.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001'
+  ]
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    setResponseHeader(event, 'Access-Control-Allow-Origin', origin)
+    setResponseHeader(event, 'Access-Control-Allow-Methods', 'POST, OPTIONS')
+    setResponseHeader(event, 'Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    setResponseHeader(event, 'Access-Control-Allow-Credentials', 'true')
+  }
+  
+  // Обработка preflight запросов
+  if (event.node.req.method === 'OPTIONS') {
+    setResponseStatus(event, 204)
+    return ''
+  }
+  
   console.log('📥 POST /api/external/events - External API request received')
   
   const body = await readBody<Partial<ExternalEventData>>(event)
