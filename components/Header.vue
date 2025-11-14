@@ -115,7 +115,7 @@ const isActive = (href: string) => {
               <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0A0F1E]" title="Авторизован"></div>
             </div>
             <div class="flex flex-col">
-              <span class="text-xs text-white/90 font-mono font-semibold tracking-wide">{{ auth.currentUser?.code }}</span>
+              <span class="text-xs text-white/90 font-semibold">{{ auth.currentUser?.name }}</span>
               <button 
                 @click="auth.logout()"
                 class="text-xs text-white/50 hover:text-red-400 transition-colors text-left"
@@ -242,8 +242,7 @@ const isActive = (href: string) => {
                   <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0A0F1E]"></div>
                 </div>
                 <div class="text-left">
-                  <div class="text-white/70 text-xs uppercase tracking-wider">Ваш код</div>
-                  <div class="text-white font-mono text-sm">{{ auth.currentUser?.code }}</div>
+                  <div class="text-white font-medium">{{ auth.currentUser?.name }}</div>
                 </div>
               </div>
               <button 
