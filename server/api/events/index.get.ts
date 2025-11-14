@@ -6,16 +6,22 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('📥 GET /api/events - Request received')
     
-    // Получаем producerCode из query-параметров (опционально)
+    // Получаем параметры из query
     const query = getQuery(event)
     const producerCode = query.producerCode as string | undefined
+    const allDrafts = query.allDrafts === 'true' || query.allDrafts === true // Для модератора
     
     // Фильтрация событий:
+    // - Если передан allDrafts=true (модератор): показываем все события (опубликованные + все черновики)
     // - Если передан producerCode: показываем опубликованные + черновики этого продюсера
     // - Если не передан: показываем только опубликованные (публичный доступ)
     const whereClause: any = {}
     
-    if (producerCode) {
+    if (allDrafts) {
+      // Модератор: показываем все события (опубликованные + все черновики)
+      // Не применяем фильтр по status - показываем все
+      console.log('👮 Moderator access: showing all events (published + all drafts)')
+    } else if (producerCode) {
       // Показываем опубликованные ИЛИ черновики указанного продюсера
       whereClause.OR = [
         { status: 'published' },
@@ -24,9 +30,11 @@ export default defineEventHandler(async (event) => {
           producerCode: producerCode.trim()
         }
       ]
+      console.log('🔑 Producer access: showing published + own drafts for:', producerCode)
     } else {
       // Публичный доступ: только опубликованные
       whereClause.status = 'published'
+      console.log('🌐 Public access: showing only published events')
     }
     
     const events = await prisma.event.findMany({

@@ -18,10 +18,15 @@ export const useEventsStore = defineStore('events', {
       try {
         // Получаем producerCode из auth store, если пользователь - продюсер
         // producerCode в событиях соответствует name продюсера в auth
+        // Модератор должен видеть все черновики всех продюсеров
         let producerCode: string | undefined = undefined
+        let isModerator: boolean = false
         if (process.client) {
           const auth = useAuthStore()
-          if (auth.isProducer && auth.currentUser) {
+          if (auth.isModerator) {
+            isModerator = true
+            console.log('👮 Fetching events for moderator (all drafts visible)')
+          } else if (auth.isProducer && auth.currentUser) {
             producerCode = auth.currentUser.name
             console.log('🔑 Fetching events for producer:', producerCode)
           }
@@ -29,9 +34,14 @@ export const useEventsStore = defineStore('events', {
         
         // Load events from backend API
         // Если producerCode указан, API вернет опубликованные + черновики этого продюсера
-        const apiUrl = producerCode 
-          ? `/api/events?producerCode=${encodeURIComponent(producerCode)}`
-          : '/api/events'
+        // Если isModerator=true, API вернет все события (опубликованные + все черновики)
+        // Иначе - только опубликованные (публичный доступ)
+        let apiUrl = '/api/events'
+        if (isModerator) {
+          apiUrl = '/api/events?allDrafts=true'
+        } else if (producerCode) {
+          apiUrl = `/api/events?producerCode=${encodeURIComponent(producerCode)}`
+        }
         
         const res = await fetch(apiUrl)
         const response = await res.json()

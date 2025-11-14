@@ -48,7 +48,12 @@ const isProducerOwner = computed(() => {
   return true
 })
 const isFormReadOnly = computed(() => {
-  if (isModeratorReview.value) return true
+  // Модератор может редактировать черновики (но не опубликованные события)
+  if (isModerator.value && editMode.value) {
+    // Модератор может редактировать только черновики, не опубликованные события
+    return isPublished.value
+  }
+  // Для продюсеров: только владелец может редактировать свои черновики
   if (!editMode.value) return false
   if (isPublished.value) return true
   return !isProducerOwner.value
@@ -408,7 +413,7 @@ const saveEvent = async (status: EventStatus) => {
   }
 
   if (isFormReadOnly.value) {
-    alert('ℹ️ Режим просмотра для модератора.\n\nРедактирование данных недоступно в этом режиме.')
+    alert('ℹ️ Редактирование недоступно.\n\nЭто опубликованное мероприятие или у вас нет прав на редактирование.')
     return
   }
 
@@ -493,10 +498,10 @@ const saveEvent = async (status: EventStatus) => {
   }
 }
 
-// Submit form - проверка доступа продюсера
+// Submit form - проверка доступа продюсера или модератора
 const submitForm = async (status: EventStatus = 'draft') => {
   if (isFormReadOnly.value) {
-    alert('ℹ️ Режим просмотра для модератора.\n\nИспользуйте кнопку «Опубликовать», чтобы подтвердить черновик.')
+    alert('ℹ️ Редактирование недоступно.\n\nЭто опубликованное мероприятие или у вас нет прав на редактирование.')
     return
   }
 
@@ -504,17 +509,20 @@ const submitForm = async (status: EventStatus = 'draft') => {
 
   if (!auth.isAuthenticated) {
     showAuthModal.value = true
-    alert('🔒 Создание мероприятий доступно только авторизованным продюсерам.\n\nПожалуйста, войдите или зарегистрируйтесь и повторите попытку.')
+    alert('🔒 Создание мероприятий доступно только авторизованным пользователям.\n\nПожалуйста, войдите или зарегистрируйтесь и повторите попытку.')
     return
   }
 
-  if (!auth.isProducer) {
+  // Модератор может редактировать и публиковать черновики всех продюсеров
+  if (!auth.isProducer && !auth.isModerator) {
     showAuthModal.value = true
-    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам.\n\nВойдите под учетной записью продюсера (прод1/пар1).')
+    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам или модераторам.\n\nВойдите под учетной записью продюсера (прод1/пар1) или модератора (мод1/пар0).')
     return
   }
 
-  if (editMode.value && !isProducerOwner.value) {
+  // Для продюсеров: проверяем владельца черновика
+  // Модератор может редактировать любые черновики
+  if (editMode.value && auth.isProducer && !isProducerOwner.value) {
     alert('❌ Вы не являетесь автором этого черновика.\n\nРедактирование доступно только продюсеру, который создал мероприятие.')
     return
   }
@@ -524,7 +532,9 @@ const submitForm = async (status: EventStatus = 'draft') => {
     return
   }
 
-  if (!currentProducerName.value || !currentProducerCode.value) {
+  // Для продюсеров: проверяем наличие producerCode
+  // Для модераторов: используем producerCode из события (если редактируем) или оставляем пустым
+  if (auth.isProducer && (!currentProducerName.value || !currentProducerCode.value)) {
     alert('❌ Не удалось определить учетную запись продюсера. Попробуйте выйти и войти снова.')
     return
   }
@@ -537,7 +547,7 @@ const closeAuthModal = () => {
 }
 
 const publishAsModerator = async () => {
-  if (!isModeratorReview.value || !auth.isModerator) return
+  if (!auth.isModerator) return
   if (!eventId.value) {
     alert('❌ Не удалось определить идентификатор мероприятия. Попробуйте открыть черновик заново.')
     return
@@ -646,10 +656,10 @@ onMounted(async () => {
         </div>
 
         <form @submit.prevent @keydown.enter.prevent>
-          <div 
-            v-if="isModeratorReview" 
-            class="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3"
-          >
+        <div 
+          v-if="isModerator && editMode" 
+          class="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3"
+        >
             <svg class="w-6 h-6 text-blue-300 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -658,7 +668,7 @@ onMounted(async () => {
                 Режим модератора
               </h3>
               <p class="text-white/80 text-sm">
-                Поля заблокированы для защиты данных. Ознакомьтесь с информацией и нажмите кнопку «Сохранить» внизу, чтобы утвердить черновик.
+                Вы можете редактировать и публиковать черновики всех продюсеров. После публикации редактирование будет заблокировано.
               </p>
             </div>
           </div>
@@ -907,25 +917,7 @@ onMounted(async () => {
           </fieldset>
 
           <!-- Submit Buttons -->
-          <div v-if="isModeratorReview" class="flex flex-col sm:flex-row gap-4 pt-6">
-            <button
-              type="button"
-              @click="publishAsModerator"
-              :disabled="isPublishing || eventStatus !== 'draft'"
-              class="flex-1 bg-gradient-to-r from-[#0a84ff] to-[#5e5ce6] text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:shadow-lg hover:shadow-[#0a84ff]/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {{ isPublishing ? 'Сохраняем…' : '💾 Сохранить' }}
-            </button>
-
-            <NuxtLink
-              to="/catalog"
-              class="px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-medium hover:bg-white/10 transition-all text-center"
-            >
-              Вернуться в каталог
-            </NuxtLink>
-          </div>
-
-          <div v-else class="flex flex-col sm:flex-row gap-4 pt-6">
+          <div class="flex flex-col sm:flex-row gap-4 pt-6">
             <button 
               v-if="!isPublished"
               type="button"
