@@ -1768,3 +1768,73 @@ const publishEvent = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Стили для выпадающего списка часовых поясов */
+/* Убираем белые пробелы и отступы в выпадающем списке */
+select {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Стили для option элементов - темный фон без белых пробелов */
+select option {
+  background-color: #1A1F2E !important;
+  color: #ffffff !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* Стили для optgroup (группы часовых поясов) */
+select optgroup {
+  background-color: #0A0F1E !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* Hover эффект для option */
+select option:hover,
+select option:focus {
+  background-color: #007AFF !important;
+  color: #ffffff !important;
+}
+
+/* Выбранный option */
+select option:checked {
+  background-color: #007AFF !important;
+  color: #ffffff !important;
+}
+
+/* Для выпадающего списка в разных браузерах */
+select::-ms-expand {
+  display: none;
+}
+
+/* Для Firefox */
+select {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Стили для select-arrow (уже существующий класс) */
+.select-arrow {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  padding-right: 40px;
+}
+
+/* Дополнительные стили для устранения белых пробелов */
+select option:not(:first-child) {
+  margin-top: 0 !important;
+}
+
+select optgroup option {
+  padding-left: 24px !important;
+}
+</style>

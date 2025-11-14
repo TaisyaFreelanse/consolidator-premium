@@ -123,7 +123,7 @@ export default defineEventHandler(async (event) => {
       endApplicationsAt: new Date(data.endApplicationsAt),
       startContractsAt: new Date(data.startContractsAt),
       status: 'draft' as const,
-      producerName: data.producerName.trim(),
+      producerName: data.producerName?.trim() || data.producerCode.trim() || null, // Используем producerName если есть, иначе producerCode, иначе null
       producerCode: data.producerCode.trim(),
       timezone: data.timezone.trim(),
       createdAtClient: new Date(data.createdAtClient),
