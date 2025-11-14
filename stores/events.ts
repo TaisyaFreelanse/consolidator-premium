@@ -1,6 +1,7 @@
 
 import { defineStore } from 'pinia'
 import type { EventItem } from '~/types'
+import { useAuthStore } from './auth'
 
 export const useEventsStore = defineStore('events', {
   state: () => ({ list: [] as EventItem[], loaded: false }),
@@ -15,8 +16,24 @@ export const useEventsStore = defineStore('events', {
       console.log('🔄 Fetching events from API...')
       
       try {
+        // Получаем producerCode из auth store, если пользователь - продюсер
+        // producerCode в событиях соответствует name продюсера в auth
+        let producerCode: string | undefined = undefined
+        if (process.client) {
+          const auth = useAuthStore()
+          if (auth.isProducer && auth.currentUser) {
+            producerCode = auth.currentUser.name
+            console.log('🔑 Fetching events for producer:', producerCode)
+          }
+        }
+        
         // Load events from backend API
-        const res = await fetch('/api/events')
+        // Если producerCode указан, API вернет опубликованные + черновики этого продюсера
+        const apiUrl = producerCode 
+          ? `/api/events?producerCode=${encodeURIComponent(producerCode)}`
+          : '/api/events'
+        
+        const res = await fetch(apiUrl)
         const response = await res.json()
         
         if (!response.success) {

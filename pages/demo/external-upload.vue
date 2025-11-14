@@ -726,6 +726,8 @@ interface SavedEvent {
   lastUploadAttempt?: string // Дата/время последней попытки загрузки
   serverId?: string // ID на сервере (если успешно загружен)
   uploadError?: string // Код/сообщение об ошибке (если неуспешно)
+  isPublished?: boolean // Флаг публикации
+  publishedAt?: string // Дата/время публикации
 }
 
 // Форма создания события (с раздельными полями даты и времени)
@@ -1743,6 +1745,13 @@ const publishEvent = async () => {
     return
   }
 
+  if (!publishForm.value.id) {
+    error.value = { message: 'ID мероприятия не указан. Сначала загрузите черновик на платформу.' }
+    return
+  }
+
+  console.log('📤 Publishing event:', publishForm.value.id)
+
   isPublishing.value = true
   error.value = null
   response.value = null
@@ -1753,11 +1762,36 @@ const publishEvent = async () => {
       headers: getHeaders(),
       body: JSON.stringify(publishForm.value)
     })
+    
+    console.log('📥 Publish response status:', res.status)
 
     const data = await res.json()
     
     if (res.ok && data.success) {
       response.value = data
+      
+      // Обновляем статус события в локальном списке после успешной публикации
+      if (data.data?.id) {
+        const events = getSavedEvents()
+        const eventIndex = events.findIndex(e => e.id === data.data.id || e.serverId === data.data.id)
+        
+        if (eventIndex >= 0) {
+          events[eventIndex].uploadStatus = 'upload_success'
+          events[eventIndex].lastUploadAttempt = new Date().toISOString()
+          events[eventIndex].uploadError = undefined
+          events[eventIndex].isPublished = true
+          events[eventIndex].publishedAt = data.data.publishedAt || new Date().toISOString()
+          
+          // Обновляем serverId если его еще нет
+          if (!events[eventIndex].serverId) {
+            events[eventIndex].serverId = data.data.id
+          }
+          
+          saveEventsList(events)
+          
+          console.log('✅ Event status updated in local list after publication')
+        }
+      }
     } else {
       error.value = data
     }
