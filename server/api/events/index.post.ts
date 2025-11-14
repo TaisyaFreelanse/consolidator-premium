@@ -23,6 +23,8 @@ interface CreateEventBody {
   status: 'draft' | 'published'
   producerName?: string
   producerCode?: string
+  timezone?: string // IANA timezone identifier
+  createdAtClient?: string // ISO string - время создания на клиенте
 }
 
 export default defineEventHandler(async (event) => {
@@ -73,6 +75,8 @@ export default defineEventHandler(async (event) => {
       status: 'draft',
       producerName: body.producerName || null,
       producerCode: body.producerCode || null,
+      timezone: body.timezone || null,
+      createdAtClient: body.createdAtClient ? new Date(body.createdAtClient) : null,
       currentControlPoint: 't0', // По умолчанию начальная точка
       isCancelled: false
     }
@@ -170,6 +174,8 @@ export default defineEventHandler(async (event) => {
         status: savedEvent.status,
         producerName: savedEvent.producerName,
         producerCode: savedEvent.producerCode,
+        timezone: savedEvent.timezone,
+        authorName: savedEvent.author, // Для совместимости с внешним API
         createdAt: savedEvent.createdAt.toISOString(),
         updatedAt: savedEvent.updatedAt.toISOString()
       }

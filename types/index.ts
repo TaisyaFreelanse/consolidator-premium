@@ -15,8 +15,9 @@ export interface Author {
 
 export interface EventItem {
   id: string
+  author: string // ID автора из справочника авторов (для внутреннего использования)
+  authorName?: string // Имя автора в свободной форме (для внешнего API)
   title: string
-  author: string // ID автора из справочника авторов
   location: string
   startAt: string // ti40 - начало проведения мероприятия
   endAt?: string // ti50 - окончание проведения мероприятия
@@ -34,6 +35,7 @@ export interface EventItem {
   status?: EventStatus // draft (черновик) | published (опубликовано)
   producerName?: string // Имя продюсера, создавшего мероприятие
   producerCode?: string // Идентификатор продюсера (для проверки прав)
+  timezone?: string // IANA timezone identifier (например, "Europe/Moscow", "Asia/Sakhalin")
   createdAt?: string // Дата создания мероприятия
   updatedAt?: string // Дата последнего обновления
 }

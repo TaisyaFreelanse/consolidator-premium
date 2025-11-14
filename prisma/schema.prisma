@@ -30,6 +30,9 @@ model Event {
   status               String   @default("draft") // draft | published
   producerName         String?
   producerCode         String?
+  timezone             String?   @db.Text // IANA timezone identifier (например, "Europe/Moscow", "Asia/Sakhalin")
+  createdAtClient      DateTime? // Время создания события на клиентском сайте (t0)
+  publishedAt          DateTime? // Время публикации события
   
   // Новые поля для контрольных точек
   controlPlan          String   // JSON array: ["t0", "ti10", "ti20", "ti30", "ti40", "ti50", "t999"]
@@ -43,6 +46,8 @@ model Event {
   statusHistory        EventStatusHistory[]
   payments             Payment[]
   
+  @@index([publishedAt])
+  @@index([timezone])
   @@map("events")
 }
 

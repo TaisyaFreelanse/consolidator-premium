@@ -41,6 +41,7 @@ export default defineEventHandler(async (event) => {
         id: eventData.id,
         title: eventData.title,
         author: eventData.author,
+        authorName: eventData.author, // Для внешнего API authorName = author (свободный текст)
         location: eventData.location,
         startAt: eventData.startAt.toISOString(),
         endAt: eventData.endAt?.toISOString(),
@@ -58,6 +59,7 @@ export default defineEventHandler(async (event) => {
         status: eventData.status,
         producerName: eventData.producerName,
         producerCode: eventData.producerCode,
+        timezone: eventData.timezone,
         createdAt: eventData.createdAt.toISOString(),
         updatedAt: eventData.updatedAt.toISOString()
       }

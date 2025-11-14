@@ -6,9 +6,31 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('📥 GET /api/events - Request received')
     
-    // Возвращаем все события (и draft, и published)
-    // Фронтенд может фильтровать по необходимости
+    // Получаем producerCode из query-параметров (опционально)
+    const query = getQuery(event)
+    const producerCode = query.producerCode as string | undefined
+    
+    // Фильтрация событий:
+    // - Если передан producerCode: показываем опубликованные + черновики этого продюсера
+    // - Если не передан: показываем только опубликованные (публичный доступ)
+    const whereClause: any = {}
+    
+    if (producerCode) {
+      // Показываем опубликованные ИЛИ черновики указанного продюсера
+      whereClause.OR = [
+        { status: 'published' },
+        { 
+          status: 'draft',
+          producerCode: producerCode.trim()
+        }
+      ]
+    } else {
+      // Публичный доступ: только опубликованные
+      whereClause.status = 'published'
+    }
+    
     const events = await prisma.event.findMany({
+      where: whereClause,
       orderBy: {
         createdAt: 'desc'
       }
@@ -72,8 +94,9 @@ export default defineEventHandler(async (event) => {
           endApplicationsAt: e.endApplicationsAt?.toISOString(),
           startContractsAt: e.startContractsAt?.toISOString(),
           status: e.status || 'draft',
-        producerName: e.producerName,
-        producerCode: e.producerCode,
+          producerName: e.producerName,
+          producerCode: e.producerCode,
+          timezone: e.timezone,
           createdAt: e.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: e.updatedAt?.toISOString() || new Date().toISOString()
         }
@@ -101,6 +124,7 @@ export default defineEventHandler(async (event) => {
           status: e.status || 'draft',
           producerName: e.producerName,
           producerCode: e.producerCode,
+          timezone: e.timezone,
           createdAt: e.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: e.updatedAt?.toISOString() || new Date().toISOString()
         }
