@@ -21,7 +21,7 @@ export interface ExternalEventData {
   endAt: string // ISO datetime
   createdAtClient: string // ISO datetime
   timezone: string // IANA timezone identifier
-  producerCode: string
+  producerCode?: string // Опционально, так как берется из API ключа
   producerName: string
   description: string
 }
@@ -45,7 +45,10 @@ function isValidIANATimezone(timezone: string): boolean {
 /**
  * Валидация всех обязательных полей и правил
  */
-export function validateExternalEvent(data: Partial<ExternalEventData>): ValidationError[] {
+export function validateExternalEvent(
+  data: Partial<ExternalEventData>,
+  options?: { skipProducerCode?: boolean }
+): ValidationError[] {
   const errors: ValidationError[] = []
 
   // 1. Проверка обязательных полей
@@ -62,10 +65,14 @@ export function validateExternalEvent(data: Partial<ExternalEventData>): Validat
     'endAt',
     'createdAtClient',
     'timezone',
-    'producerCode',
     'producerName',
     'description'
   ]
+
+  // producerCode теперь опционально (берется из API ключа)
+  if (!options?.skipProducerCode && data.producerCode === undefined) {
+    // Это поле больше не требуется, но оставляем для обратной совместимости
+  }
 
   for (const field of requiredFields) {
     const value = data[field]

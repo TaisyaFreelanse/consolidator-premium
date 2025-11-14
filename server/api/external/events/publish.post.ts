@@ -1,5 +1,6 @@
 import { getPrismaClient } from '../../../utils/prisma'
 import { isTi20Passed } from '../../../utils/externalEventValidation'
+import { extractApiKeyFromHeader, getProducerByApiKey } from '../../../utils/apiKey'
 
 const prisma = getPrismaClient()
 
@@ -37,17 +38,48 @@ export default defineEventHandler(async (event) => {
   
   console.log('📥 POST /api/external/events/publish - Publish request received')
   
-  const body = await readBody<{ id: string; producerCode: string }>(event)
-  console.log('📦 Request body:', { id: body.id, producerCode: body.producerCode })
+  // Получаем API ключ из заголовка Authorization
+  const authHeader = getRequestHeader(event, 'authorization')
+  const apiKey = extractApiKeyFromHeader(authHeader)
+  
+  if (!apiKey) {
+    setResponseStatus(event, 401)
+    return {
+      success: false,
+      errors: [{
+        field: 'authorization',
+        message: 'API ключ не предоставлен. Используйте заголовок Authorization: Bearer <api_key>'
+      }]
+    }
+  }
+
+  // Получаем информацию о продюсере по API ключу
+  const producerInfo = await getProducerByApiKey(apiKey)
+  if (!producerInfo) {
+    setResponseStatus(event, 401)
+    return {
+      success: false,
+      errors: [{
+        field: 'authorization',
+        message: 'Неверный или неактивный API ключ'
+      }]
+    }
+  }
+
+  const producerCode = producerInfo.producerCode
+  console.log('🔑 API key validated for producer:', producerCode)
+  
+  const body = await readBody<{ id: string }>(event)
+  console.log('📦 Request body:', { id: body.id })
 
   // Валидация обязательных полей
-  if (!body.id || !body.producerCode) {
+  if (!body.id || typeof body.id !== 'string' || !body.id.trim()) {
     setResponseStatus(event, 400)
     return {
       success: false,
       errors: [{
-        field: body.id ? 'producerCode' : 'id',
-        message: 'Поля "id" и "producerCode" обязательны для публикации'
+        field: 'id',
+        message: 'Поле "id" обязательно для публикации'
       }]
     }
   }
@@ -76,13 +108,13 @@ export default defineEventHandler(async (event) => {
     }
 
     // Проверка прав: только владелец может публиковать
-    if (existing.producerCode && existing.producerCode !== body.producerCode.trim()) {
+    if (existing.producerCode && existing.producerCode !== producerCode) {
       console.warn('🚫 Producer code mismatch for publish')
       setResponseStatus(event, 403)
       return {
         success: false,
         errors: [{
-          field: 'producerCode',
+          field: 'authorization',
           message: 'Недостаточно прав для публикации этого мероприятия'
         }]
       }

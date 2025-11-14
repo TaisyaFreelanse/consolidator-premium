@@ -10,36 +10,72 @@
         </p>
       </div>
 
+      <!-- Форма регистрации для получения API ключа -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+        <h2 class="text-2xl font-semibold mb-4">Регистрация и получение API ключа</h2>
+        
+        <form @submit.prevent="registerClient" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-white/80 mb-2">
+              Producer Code <span class="text-red-400">*</span>
+            </label>
+            <input 
+              v-model="registerForm.producerCode"
+              type="text" 
+              required
+              placeholder="PROD001"
+              class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+            >
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-white/80 mb-2">
+              Название клиентского сайта (опционально)
+            </label>
+            <input 
+              v-model="registerForm.clientName"
+              type="text" 
+              placeholder="Мой сайт"
+              class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+            >
+          </div>
+
+          <button
+            type="submit"
+            :disabled="isRegistering"
+            class="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ isRegistering ? 'Регистрация...' : 'Получить API ключ' }}
+          </button>
+        </form>
+
+        <!-- Отображение API ключа -->
+        <div v-if="apiKey" class="mt-4 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+          <p class="text-green-300 text-sm mb-2 font-semibold">✅ API ключ получен:</p>
+          <code class="block bg-black/30 rounded px-3 py-2 text-green-200 text-sm break-all">{{ apiKey }}</code>
+          <p class="text-green-300/70 text-xs mt-2">Сохраните этот ключ! Он будет использоваться для всех запросов к API.</p>
+        </div>
+      </div>
+
       <!-- Форма создания/обновления -->
       <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
         <h2 class="text-2xl font-semibold mb-4">Создание/обновление черновика</h2>
         
         <form @submit.prevent="submitEvent" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                ID мероприятия (для обновления)
-              </label>
-              <input 
-                v-model="formData.id"
-                type="text" 
-                placeholder="Оставьте пустым для создания нового"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
+          <div v-if="!apiKey" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-4">
+            <p class="text-amber-300 text-sm">⚠️ Сначала получите API ключ через форму регистрации выше</p>
+          </div>
 
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Producer Code <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="formData.producerCode"
-                type="text" 
-                required
-                placeholder="PROD001"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
+          <div>
+            <label class="block text-sm font-medium text-white/80 mb-2">
+              ID мероприятия (для обновления)
+            </label>
+            <input 
+              v-model="formData.id"
+              type="text" 
+              placeholder="Оставьте пустым для создания нового"
+              class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+            >
           </div>
 
           <div>
@@ -233,7 +269,7 @@
           <div class="flex gap-4">
             <button
               type="submit"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || !apiKey"
               class="flex-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {{ isSubmitting ? 'Отправка...' : (formData.id ? 'Обновить черновик' : 'Создать черновик') }}
@@ -243,36 +279,21 @@
       </div>
 
       <!-- Форма публикации -->
-      <div v-if="lastEventId" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+      <div v-if="lastEventId && apiKey" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
         <h2 class="text-2xl font-semibold mb-4">Публикация черновика</h2>
         
         <form @submit.prevent="publishEvent" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                ID мероприятия <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="publishForm.id"
-                type="text" 
-                required
-                :placeholder="lastEventId"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Producer Code <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="publishForm.producerCode"
-                type="text" 
-                required
-                :placeholder="formData.producerCode"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-            </div>
+          <div>
+            <label class="block text-sm font-medium text-white/80 mb-2">
+              ID мероприятия <span class="text-red-400">*</span>
+            </label>
+            <input 
+              v-model="publishForm.id"
+              type="text" 
+              required
+              :placeholder="lastEventId"
+              class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+            >
           </div>
 
           <button
@@ -307,6 +328,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 
+const apiKey = ref<string>('')
+const registerForm = ref({
+  producerCode: 'PROD001',
+  clientName: ''
+})
+const isRegistering = ref(false)
+
 const formData = ref({
   id: '',
   title: 'Кулинарный интенсив',
@@ -316,7 +344,6 @@ const formData = ref({
   pricePerSeat: 7500,
   description: 'Погружаемся в гастрономию с шефом Ивановым',
   timezone: 'Europe/Moscow',
-  producerCode: 'PROD001',
   producerName: 'прод1',
   createdAtClient: '',
   startApplicationsAt: '',
@@ -327,8 +354,7 @@ const formData = ref({
 })
 
 const publishForm = ref({
-  id: '',
-  producerCode: ''
+  id: ''
 })
 
 const lastEventId = ref('')
@@ -406,7 +432,41 @@ const toISOString = (localDateTime: string, timezone: string): string => {
   return date.toISOString()
 }
 
+const registerClient = async () => {
+  isRegistering.value = true
+  error.value = null
+  response.value = null
+
+  try {
+    const res = await fetch('/api/external/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(registerForm.value)
+    })
+
+    const data = await res.json()
+    
+    if (res.ok && data.success) {
+      apiKey.value = data.data.apiKey
+      response.value = data
+    } else {
+      error.value = data
+    }
+  } catch (err: any) {
+    error.value = { message: err.message || 'Неизвестная ошибка' }
+  } finally {
+    isRegistering.value = false
+  }
+}
+
 const submitEvent = async () => {
+  if (!apiKey.value) {
+    error.value = { message: 'Сначала получите API ключ через форму регистрации' }
+    return
+  }
+
   isSubmitting.value = true
   error.value = null
   response.value = null
@@ -427,7 +487,8 @@ const submitEvent = async () => {
     const res = await fetch('/api/external/events', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.value}`
       },
       body: JSON.stringify(payload)
     })
@@ -438,7 +499,6 @@ const submitEvent = async () => {
       response.value = data
       lastEventId.value = data.data.id
       publishForm.value.id = data.data.id
-      publishForm.value.producerCode = formData.value.producerCode
     } else {
       error.value = data
     }
@@ -450,6 +510,11 @@ const submitEvent = async () => {
 }
 
 const publishEvent = async () => {
+  if (!apiKey.value) {
+    error.value = { message: 'Сначала получите API ключ через форму регистрации' }
+    return
+  }
+
   isPublishing.value = true
   error.value = null
   response.value = null
@@ -458,7 +523,8 @@ const publishEvent = async () => {
     const res = await fetch('/api/external/events/publish', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.value}`
       },
       body: JSON.stringify(publishForm.value)
     })

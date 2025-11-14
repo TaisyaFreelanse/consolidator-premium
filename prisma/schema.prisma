@@ -82,3 +82,18 @@ model Payment {
   @@index([userId])
 }
 
+model ApiKey {
+  id           String   @id @default(uuid())
+  key          String   @unique // API ключ (например, "sk_live_...")
+  producerCode String   // Внутренний код продюсера
+  clientName   String?  // Название клиентского сайта (для удобства)
+  clientUrl    String?  // URL клиентского сайта (опционально)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime? // Последнее использование ключа
+  
+  @@index([key])
+  @@index([producerCode])
+  @@map("api_keys")
+}
+

@@ -1,5 +1,6 @@
 import { getPrismaClient } from '../../../utils/prisma'
 import { validateExternalEvent, isTi20Passed, type ExternalEventData } from '../../../utils/externalEventValidation'
+import { extractApiKeyFromHeader, getProducerByApiKey } from '../../../utils/apiKey'
 
 const prisma = getPrismaClient()
 
@@ -38,15 +39,45 @@ export default defineEventHandler(async (event) => {
   
   console.log('📥 POST /api/external/events - External API request received')
   
+  // Получаем API ключ из заголовка Authorization
+  const authHeader = getRequestHeader(event, 'authorization')
+  const apiKey = extractApiKeyFromHeader(authHeader)
+  
+  if (!apiKey) {
+    setResponseStatus(event, 401)
+    return {
+      success: false,
+      errors: [{
+        field: 'authorization',
+        message: 'API ключ не предоставлен. Используйте заголовок Authorization: Bearer <api_key>'
+      }]
+    }
+  }
+
+  // Получаем информацию о продюсере по API ключу
+  const producerInfo = await getProducerByApiKey(apiKey)
+  if (!producerInfo) {
+    setResponseStatus(event, 401)
+    return {
+      success: false,
+      errors: [{
+        field: 'authorization',
+        message: 'Неверный или неактивный API ключ'
+      }]
+    }
+  }
+
+  const producerCode = producerInfo.producerCode
+  console.log('🔑 API key validated for producer:', producerCode)
+  
   const body = await readBody<Partial<ExternalEventData>>(event)
   console.log('📦 Request body:', { 
     id: body.id,
-    title: body.title, 
-    producerCode: body.producerCode
+    title: body.title
   })
 
-  // Валидация входных данных
-  const validationErrors = validateExternalEvent(body)
+  // Валидация входных данных (без producerCode, так как он берется из API ключа)
+  const validationErrors = validateExternalEvent(body, { skipProducerCode: true })
   if (validationErrors.length > 0) {
     console.error('❌ Validation errors:', validationErrors)
     setResponseStatus(event, 400)
@@ -57,6 +88,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const data = body as ExternalEventData
+  // Добавляем producerCode из API ключа
+  data.producerCode = producerCode
 
   // Проверка ti20: после окончания приема заявок нельзя создавать/обновлять черновики
   if (isTi20Passed({ endApplicationsAt: data.endApplicationsAt })) {
@@ -123,13 +156,13 @@ export default defineEventHandler(async (event) => {
       }
 
       // Проверка прав: только владелец может обновлять черновик
-      if (existing.producerCode && existing.producerCode !== data.producerCode.trim()) {
+      if (existing.producerCode && existing.producerCode !== producerCode) {
         console.warn('🚫 Producer code mismatch')
         setResponseStatus(event, 403)
         return {
           success: false,
           errors: [{
-            field: 'producerCode',
+            field: 'authorization',
             message: 'Недостаточно прав для обновления этого мероприятия'
           }]
         }
