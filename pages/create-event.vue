@@ -118,6 +118,20 @@ const formattedTotalAmount = computed(() => {
   })
 })
 
+// Безопасное отображение имени автора (поддерживает как ID из справочника, так и строку из внешнего API)
+const displayAuthorName = computed(() => {
+  if (!formData.value.author) return ''
+  const author = getAuthorById(formData.value.author)
+  return author ? getAuthorFullName(author) : formData.value.author
+})
+
+// Безопасное получение title автора
+const displayAuthorTitle = computed(() => {
+  if (!formData.value.author) return ''
+  const author = getAuthorById(formData.value.author)
+  return author?.title || ''
+})
+
 // Полный набор контрольных точек - обязателен для ВСЕХ событий
 const FULL_CONTROL_PLAN: ControlPointCode[] = ['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']
 
@@ -839,8 +853,8 @@ onMounted(async () => {
               <!-- Preview selected author -->
               <div v-if="formData.author" class="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl">
                 <div class="text-sm text-white/60 mb-1">Выбранный автор:</div>
-                <div class="text-white font-semibold">{{ getAuthorFullName(getAuthorById(formData.author)!) }}</div>
-                <div class="text-white/70 text-sm mt-1">{{ getAuthorById(formData.author)?.title }}</div>
+                <div class="text-white font-semibold">{{ displayAuthorName }}</div>
+                <div v-if="displayAuthorTitle" class="text-white/70 text-sm mt-1">{{ displayAuthorTitle }}</div>
               </div>
             </div>
           </div>

@@ -63,11 +63,20 @@ const publishEvent = async (eventId: string) => {
 }
 
 // Получить отображаемое имя автора
-const getDisplayAuthorName = (authorId: string) => {
+const getDisplayAuthorName = (authorId: string | null | undefined) => {
+  // Если authorId не передан или пустой, возвращаем пустую строку
+  if (!authorId) {
+    return 'Не указан'
+  }
+  
+  // Пытаемся найти автора в справочнике по ID
   const author = getAuthorById(authorId)
   if (author) {
     return getAuthorShortName(author)
   }
+  
+  // Если не найден в справочнике, значит это строка из внешнего API (например, "Шеф Иванов")
+  // Возвращаем как есть
   return authorId
 }
 
