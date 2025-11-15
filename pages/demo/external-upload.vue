@@ -253,10 +253,8 @@
               <!-- Календарь -->
               <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                 <div class="text-center">
-                  <div class="text-3xl font-bold text-white mb-2">{{ producerDateTime.day }}</div>
-                  <div class="text-lg font-semibold text-white/90 mb-1">{{ producerDateTime.monthName }}</div>
-                  <div class="text-sm text-white/70">{{ producerDateTime.year }} год</div>
-                  <div class="text-xs text-white/50 mt-2">{{ producerDateTime.weekday }}</div>
+                  <div class="text-xl font-bold text-white mb-2">{{ producerDateTime.fullDate }}</div>
+                  <div class="text-sm text-white/70">{{ producerDateTime.weekday }}</div>
                 </div>
               </div>
               
@@ -518,11 +516,9 @@
                     selectedEventId === event.id 
                       ? 'bg-[#007AFF]/20 border-[#007AFF]/50' 
                       : 'bg-white/5 border-white/10 hover:bg-white/10',
-                    !canEditEvent(event) && event.uploadStatus === 'upload_success'
-                      ? 'opacity-75 cursor-not-allowed'
-                      : 'cursor-pointer'
+                    'cursor-pointer'
                   ]"
-                  @click="canEditEvent(event) || event.uploadStatus !== 'upload_success' ? loadEventForEditing(event.id) : null"
+                  @click="loadEventForEditing(event.id)"
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex-1 min-w-0">
@@ -868,6 +864,55 @@ const loadApiKey = () => {
   }
 }
 
+// Функция для сброса формы к начальным значениям
+const resetForm = () => {
+  const now = new Date()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const nextWeek = new Date(now)
+  nextWeek.setDate(nextWeek.getDate() + 7)
+  const twoWeeks = new Date(now)
+  twoWeeks.setDate(twoWeeks.getDate() + 14)
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const formatTime = (date: Date) => {
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
+  // Полностью очищаем форму и устанавливаем значения по умолчанию
+  formData.value = {
+    id: '',
+    title: '',
+    authorName: '',
+    location: '',
+    seatLimit: 12,
+    pricePerSeat: 7500,
+    description: '',
+    timezone: 'Europe/Moscow',
+    // createdAtClient НЕ заполняется автоматически - только при сохранении
+    createdAtClientDate: '',
+    createdAtClientTime: '',
+    startApplicationsAtDate: formatDate(tomorrow),
+    startApplicationsAtTime: formatTime(tomorrow),
+    endApplicationsAtDate: formatDate(nextWeek),
+    endApplicationsAtTime: formatTime(nextWeek),
+    startContractsAtDate: formatDate(nextWeek),
+    startContractsAtTime: formatTime(nextWeek),
+    startAtDate: formatDate(twoWeeks),
+    startAtTime: formatTime(twoWeeks),
+    endAtDate: formatDate(twoWeeks),
+    endAtTime: formatTime(twoWeeks)
+  }
+}
+
 // Загрузка API ключа и списка Ивентов при монтировании
 onMounted(() => {
   loadApiKey()
@@ -880,51 +925,12 @@ onMounted(() => {
     currentTime.value = Date.now()
   }, 1000)
   
-  // Пытаемся загрузить последний выбранный Ивент (если есть)
-  const lastSelectedId = localStorage.getItem('last_selected_event_id')
-  if (lastSelectedId) {
-    const event = savedEvents.value.find(e => e.id === lastSelectedId)
-    if (event) {
-      loadEventForEditing(event.id)
-    }
-  }
+  // НЕ загружаем последний выбранный Ивент автоматически
+  // Форма должна быть пустой при загрузке страницы
+  // Пользователь должен явно выбрать Ивент из картотеки для редактирования
   
-  // Если нет выбранного Ивента, устанавливаем значения по умолчанию
-  if (!selectedEventId.value) {
-    const now = new Date()
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const nextWeek = new Date(now)
-    nextWeek.setDate(nextWeek.getDate() + 7)
-    const twoWeeks = new Date(now)
-    twoWeeks.setDate(twoWeeks.getDate() + 14)
-
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-
-    const formatTime = (date: Date) => {
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-      return `${hours}:${minutes}`
-    }
-
-    // createdAtClient НЕ заполняется автоматически при открытии формы
-    // Оно заполняется только при сохранении эскиза
-    formData.value.startApplicationsAtDate = formatDate(tomorrow)
-    formData.value.startApplicationsAtTime = formatTime(tomorrow)
-    formData.value.endApplicationsAtDate = formatDate(nextWeek)
-    formData.value.endApplicationsAtTime = formatTime(nextWeek)
-    formData.value.startContractsAtDate = formatDate(nextWeek)
-    formData.value.startContractsAtTime = formatTime(nextWeek)
-    formData.value.startAtDate = formatDate(twoWeeks)
-    formData.value.startAtTime = formatTime(twoWeeks)
-    formData.value.endAtDate = formatDate(twoWeeks)
-    formData.value.endAtTime = formatTime(twoWeeks)
-  }
+  // Устанавливаем значения по умолчанию для пустой формы
+  resetForm()
 })
 
 
@@ -976,10 +982,18 @@ const hasUnsavedChangesComputed = computed(() => {
 
 // Обработчик создания нового Ивента
 const handleNewEventClick = () => {
+  // Сбрасываем выбранный Ивент
   selectedEventId.value = null
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem('last_selected_event_id')
   }
+  
+  // Полностью очищаем форму и устанавливаем значения по умолчанию
+  resetForm()
+  
+  // Очищаем сообщения об ошибках и ответах
+  error.value = null
+  response.value = null
 }
 
 // Сохранение текущего Ивента
@@ -1483,6 +1497,7 @@ const producerDateTime = computed(() => {
       day: '--',
       monthName: '--',
       year: '----',
+      fullDate: '-- -- ----',
       weekday: '--',
       time: '--:--:--',
       timezoneOffset: ''
@@ -1497,6 +1512,7 @@ const producerDateTime = computed(() => {
         day: '--',
         monthName: '--',
         year: '----',
+        fullDate: '-- -- ----',
         weekday: '--',
         time: '--:--:--',
         timezoneOffset: ''
@@ -1521,10 +1537,14 @@ const producerDateTime = computed(() => {
     const offsetSign = offset >= 0 ? '+' : '-'
     const offsetString = `UTC${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
 
+    // Форматируем полную дату в одну строку: "15 ноября 2025"
+    const fullDate = `${dt.day} ${months[dt.month - 1]} ${dt.year}`
+    
     return {
       day: String(dt.day).padStart(2, '0'),
       monthName: months[dt.month - 1],
       year: dt.year,
+      fullDate: fullDate,
       weekday: weekdays[dt.weekday % 7],
       time: dt.toFormat('HH:mm:ss'),
       timezoneOffset: offsetString
@@ -1535,6 +1555,7 @@ const producerDateTime = computed(() => {
       day: '--',
       monthName: '--',
       year: '----',
+      fullDate: '-- -- ----',
       weekday: '--',
       time: '--:--:--',
       timezoneOffset: ''

@@ -104,6 +104,14 @@ const seatsStatus = computed(() => {
   return getSeatsStatus(applicantsCount, seatLimit)
 })
 
+// Количество оплаченных мест
+const paidSeatsCount = computed(() => {
+  if (!props.snapshot?.applicants) return 0
+  return props.snapshot.applicants
+    .filter(applicant => applicant.paidAmount > 0)
+    .reduce((sum, applicant) => sum + (applicant.seats || 1), 0)
+})
+
 // Процент собранных средств
 const collectedPercent = computed(() => {
   const requiredAmount = props.event.priceTotal || 0
@@ -388,23 +396,30 @@ onUnmounted(() => {
             <template v-else-if="seatsStatus.type === 'full'">Заполнено</template>
             <template v-else>Перебор +{{ seatsStatus.overflowCount }}</template>
           </span>
+          <span v-if="paidSeatsCount > 0" class="pill-extra">Оплачено: {{ paidSeatsCount }}</span>
         </div>
         <div class="stat-pill">
           <span class="pill-label">Собрано</span>
           <span class="pill-value">{{ formatMoney(effectiveCollected) }} ₽</span>
         </div>
+      </div>
+      <div class="stats-line">
         <div class="stat-pill">
           <span class="pill-label">Требуется</span>
           <span class="pill-value">{{ formatMoney(props.event.priceTotal) }} ₽</span>
         </div>
-      </div>
-
-      <div class="status-flags">
-        <span class="flag" :class="moneyStatus.type">
-          <template v-if="moneyStatus.type === 'deficit'">Недобор {{ formatMoney(moneyStatus.amount) }} ₽</template>
-          <template v-else-if="moneyStatus.type === 'surplus'">Профицит {{ formatMoney(moneyStatus.amount) }} ₽</template>
-          <template v-else>Баланс достигнут</template>
-        </span>
+        <div class="stat-pill" :class="moneyStatus.type">
+          <span class="pill-label">
+            <template v-if="moneyStatus.type === 'deficit'">Недобор</template>
+            <template v-else-if="moneyStatus.type === 'surplus'">Профицит</template>
+            <template v-else>Баланс</template>
+          </span>
+          <span class="pill-value">
+            <template v-if="moneyStatus.type === 'deficit'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
+            <template v-else-if="moneyStatus.type === 'surplus'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
+            <template v-else>Достигнут</template>
+          </span>
+        </div>
       </div>
     </div>
 
@@ -766,10 +781,48 @@ onUnmounted(() => {
   color: #0f172a;
 }
 
-.status-flags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.stat-pill .pill-extra {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.stat-pill .pill-extra.deficit {
+  color: #b91c1c;
+}
+
+.stat-pill .pill-extra.surplus {
+  color: #059669;
+}
+
+.stat-pill.deficit {
+  background: rgba(252, 165, 165, 0.15);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.stat-pill.deficit .pill-label {
+  color: #b91c1c;
+}
+
+.stat-pill.deficit .pill-value {
+  color: #b91c1c;
+}
+
+.stat-pill.surplus {
+  background: rgba(134, 239, 172, 0.15);
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+.stat-pill.surplus .pill-label {
+  color: #059669;
+}
+
+.stat-pill.surplus .pill-value {
+  color: #059669;
 }
 
 .flag {

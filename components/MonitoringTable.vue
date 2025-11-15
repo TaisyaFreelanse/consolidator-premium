@@ -6,6 +6,7 @@ import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
 const props = defineProps<{ data: MonitoringSnapshot; seatLimit?: number }>()
+const emit = defineEmits<{ openPersonalCalc: [] }>()
 
 type SnapshotApplicant = MonitoringSnapshot['applicants'][number]
 type LastPaymentInfo = {
@@ -112,21 +113,10 @@ const enrichedApplicants = computed(() => {
 <template>
   <div class="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
     <!-- Заголовок таблицы -->
-    <div class="flex items-center justify-between p-8 border-b border-white/10">
-      <div>
-        <h3 class="text-2xl font-bold text-white mb-1" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
-          Список заявителей
-        </h3>
-      </div>
-      <div class="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-3">
-        <svg class="w-5 h-5 text-[#007AFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-        </svg>
-        <div>
-          <div class="text-xs text-white/60 uppercase tracking-wider font-medium">Всего</div>
-          <div class="text-xl font-bold text-white">{{ data.applicants.length }}</div>
-        </div>
-      </div>
+    <div class="p-8 border-b border-white/10">
+      <h3 class="text-2xl font-bold text-white mb-1" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+        Список заявителей
+      </h3>
     </div>
 
     <!-- Таблица -->
@@ -178,11 +168,24 @@ const enrichedApplicants = computed(() => {
               <span v-else class="text-white/30 text-sm italic">Нет оплат</span>
             </td>
             <td class="px-6 py-4">
-              <div class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-2">
-                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span class="font-semibold text-green-400">{{ (row.paidAmount/100).toLocaleString('ru-RU') }} ₽</span>
+              <div class="flex items-center gap-3">
+                <div class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-2">
+                  <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span class="font-semibold text-green-400">{{ (row.paidAmount/100).toLocaleString('ru-RU') }} ₽</span>
+                </div>
+                <button
+                  v-if="isCurrentUser(row.code)"
+                  @click="emit('openPersonalCalc')"
+                  class="inline-flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-3 py-2 transition-all text-blue-400 hover:text-blue-300"
+                  title="Персональная калькуляция"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span class="text-sm font-medium">Персональные результаты</span>
+                </button>
               </div>
             </td>
           </tr>
