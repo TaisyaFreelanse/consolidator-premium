@@ -1183,15 +1183,10 @@ const loadEventForEditing = (eventId: string) => {
     selectedEventId.value = eventId
     localStorage.setItem('last_selected_event_id', eventId)
     
-    response.value = { 
-      success: true, 
-      message: `Ивент "${event.title}" загружен для редактирования`
-    }
-    setTimeout(() => {
-      if (response.value?.message?.includes('загружен для редактирования')) {
-        response.value = null
-      }
-    }, 3000)
+    // НЕ устанавливаем response.value, так как это локальная операция, не ответ сервера
+    // Очищаем предыдущие сообщения от сервера при переключении между эскизами
+    response.value = null
+    error.value = null
   } catch (err: any) {
     error.value = { message: 'Ошибка при загрузке Ивента: ' + (err.message || 'Неизвестная ошибка') }
   }

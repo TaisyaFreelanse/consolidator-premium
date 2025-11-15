@@ -402,8 +402,6 @@ onUnmounted(() => {
           <span class="pill-label">Собрано</span>
           <span class="pill-value">{{ formatMoney(effectiveCollected) }} ₽</span>
         </div>
-      </div>
-      <div class="stats-line">
         <div class="stat-pill">
           <span class="pill-label">Требуется</span>
           <span class="pill-value">{{ formatMoney(props.event.priceTotal) }} ₽</span>
@@ -751,7 +749,6 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
 .stat-pill {
