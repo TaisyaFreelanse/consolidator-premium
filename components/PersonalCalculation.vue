@@ -88,12 +88,9 @@ const extrasMap = computed(() => {
 
 const totalExtras = computed(() => {
   let sum = 0
-  withinLimitApplicants.value.forEach((applicant) => {
-    const data = extrasMap.value.get(applicant.code)
-    if (data) {
-      sum += data.extra
-    }
-  })
+  for (const data of extrasMap.value.values()) {
+    sum += data.extra
+  }
   return sum
 })
 
@@ -216,10 +213,15 @@ const computeResult = (applicant: Applicant | null) => {
 
   let share = 0
   if (surplusForDistribution.value > 0) {
-    if (totalExtras.value > 0) {
+    const count = withinLimitApplicants.value.length || 1
+    if (count === 1) {
+      // Для одного участника весь профицит возвращается ему
+      share = 1
+    } else if (totalExtras.value > 0) {
+      // Распределяем пропорционально переплатам
       share = extraContribution / totalExtras.value
     } else {
-      const count = withinLimitApplicants.value.length || 1
+      // Нет переплат - распределяем поровну
       share = 1 / count
     }
   }
@@ -253,7 +255,7 @@ const computeResult = (applicant: Applicant | null) => {
   >
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
       @click.self="closeModal"
     >
       <Transition
@@ -266,7 +268,7 @@ const computeResult = (applicant: Applicant | null) => {
       >
         <div
           v-if="isOpen"
-          class="w-full max-w-2xl bg-gradient-to-br from-[#1a1a1a] to-[#0f0f1a] border border-white/15 rounded-3xl shadow-2xl overflow-hidden"
+          class="w-full max-w-2xl bg-gradient-to-br from-[#1a1a1a] to-[#0f0f1a] border border-white/15 rounded-3xl shadow-2xl overflow-hidden my-8 relative z-[10000]"
         >
           <div class="relative bg-gradient-to-r from-[#007AFF]/20 to-[#5E5CE6]/20 border-b border-white/10 p-6">
             <div class="flex items-center justify-between">

@@ -97,10 +97,6 @@ const handleSubmit = () => {
   })
 }
 
-// Быстрые кнопки увеличения суммы
-const quickIncrease = (percent: number) => {
-  paymentAmount.value = Math.round(paymentAmount.value * (1 + percent / 100))
-}
 </script>
 
 <template>
@@ -175,31 +171,6 @@ const quickIncrease = (percent: number) => {
               <p v-if="!isValid && paymentAmount > 0" class="error-text">
                 {{ mode === 'application' ? `Сумма не может быть меньше ${formatMoney(initialAmount)} ₽` : 'Сумма доплаты должна быть больше 0 ₽' }}
               </p>
-            </div>
-
-            <!-- Быстрые кнопки увеличения -->
-            <div v-if="mode === 'application'" class="quick-buttons">
-              <button 
-                type="button"
-                class="quick-btn" 
-                @click="quickIncrease(10)"
-              >
-                +10%
-              </button>
-              <button 
-                type="button"
-                class="quick-btn" 
-                @click="quickIncrease(25)"
-              >
-                +25%
-              </button>
-              <button 
-                type="button"
-                class="quick-btn" 
-                @click="quickIncrease(50)"
-              >
-                +50%
-              </button>
             </div>
 
             <!-- Данные карты -->
@@ -304,9 +275,9 @@ const quickIncrease = (percent: number) => {
 .modal-container {
   position: relative;
   width: 100%;
-  max-width: 560px;
+  max-width: 480px;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  border-radius: 24px;
+  border-radius: 20px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
@@ -314,7 +285,7 @@ const quickIncrease = (percent: number) => {
 /* Header */
 .modal-header {
   position: relative;
-  padding: 32px 32px 24px;
+  padding: 20px 24px 16px;
   background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
   text-align: center;
 }
@@ -323,26 +294,26 @@ const quickIncrease = (percent: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 16px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px);
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .header-icon .icon {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   color: #fff;
 }
 
 .modal-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
   color: #fff;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   letter-spacing: -0.5px;
 }
 
@@ -383,18 +354,18 @@ const quickIncrease = (percent: number) => {
 
 /* Body */
 .modal-body {
-  padding: 32px;
+  padding: 20px 24px;
 }
 
 /* Info Block */
 .info-block {
   display: flex;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 12px;
   background: rgba(0, 122, 255, 0.1);
   border: 2px solid rgba(0, 122, 255, 0.3);
-  border-radius: 12px;
-  margin-bottom: 24px;
+  border-radius: 10px;
+  margin-bottom: 16px;
 }
 
 .info-icon {
@@ -407,8 +378,8 @@ const quickIncrease = (percent: number) => {
 
 .info-text {
   flex: 1;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -419,7 +390,7 @@ const quickIncrease = (percent: number) => {
 
 /* Amount Input */
 .amount-input-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .input-label {
@@ -439,13 +410,13 @@ const quickIncrease = (percent: number) => {
 .amount-input {
   flex: 1;
   width: 100%;
-  padding: 16px 50px 16px 20px;
-  font-size: 24px;
+  padding: 12px 45px 12px 16px;
+  font-size: 20px;
   font-weight: 700;
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 10px;
   outline: none;
   transition: all 0.2s;
 }
@@ -466,8 +437,8 @@ const quickIncrease = (percent: number) => {
 
 .currency {
   position: absolute;
-  right: 20px;
-  font-size: 24px;
+  right: 16px;
+  font-size: 20px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.6);
   pointer-events: none;
@@ -480,41 +451,15 @@ const quickIncrease = (percent: number) => {
   font-weight: 500;
 }
 
-/* Quick Buttons */
-.quick-buttons {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-
-.quick-btn {
-  flex: 1;
-  padding: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.quick-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #007AFF;
-  transform: translateY(-2px);
-}
-
 /* Total Block */
 .total-block {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 14px 16px;
   background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-  border-radius: 12px;
-  margin-bottom: 20px;
+  border-radius: 10px;
+  margin-bottom: 16px;
 }
 
 .total-label {
@@ -524,7 +469,7 @@ const quickIncrease = (percent: number) => {
 }
 
 .total-amount {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   color: #fff;
   letter-spacing: -1px;
@@ -533,11 +478,12 @@ const quickIncrease = (percent: number) => {
 /* Warning Block */
 .warning-block {
   display: flex;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
   background: rgba(255, 149, 0, 0.1);
   border: 2px solid rgba(255, 149, 0, 0.3);
-  border-radius: 10px;
+  border-radius: 8px;
+  margin-bottom: 0;
 }
 
 .warning-icon {
@@ -562,18 +508,18 @@ const quickIncrease = (percent: number) => {
 
 /* Card Details */
 .card-details {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .form-row {
@@ -592,13 +538,13 @@ const quickIncrease = (percent: number) => {
 
 .form-input {
   width: 100%;
-  padding: 12px 16px;
-  font-size: 16px;
+  padding: 10px 14px;
+  font-size: 15px;
   font-weight: 500;
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+  border-radius: 8px;
   outline: none;
   transition: all 0.2s;
 }
@@ -616,8 +562,8 @@ const quickIncrease = (percent: number) => {
 /* Footer */
 .modal-footer {
   display: flex;
-  gap: 12px;
-  padding: 24px 32px 32px;
+  gap: 10px;
+  padding: 16px 24px 20px;
 }
 
 .cancel-btn,
@@ -626,11 +572,11 @@ const quickIncrease = (percent: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 24px;
-  font-size: 16px;
+  gap: 6px;
+  padding: 12px 20px;
+  font-size: 15px;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }

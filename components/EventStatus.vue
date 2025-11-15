@@ -140,6 +140,17 @@ const formatFullDate = (dateStr: string) => {
   })
 }
 
+// Форматирование даты загрузки на сервер
+const formatUploadDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleString('ru-RU', { 
+    day: '2-digit', 
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+}
+
 const controlPointLabels: Record<Exclude<ControlPointCode, 't999'>, string> = {
   t0: 'Публикация',
   ti10: 'Старт заявок',
@@ -282,7 +293,15 @@ onUnmounted(() => {
   <div :class="['event-status-widget', compact ? 'compact' : 'detailed']">
     <!-- Заголовок с названием мероприятия (только для detailed) -->
     <div v-if="!compact" class="status-header">
-      <h3 class="event-title">{{ event.title }}</h3>
+      <div class="event-title-row">
+        <h3 class="event-title">{{ event.title }}</h3>
+        <span v-if="event.createdAt" class="upload-date">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          Загружено: {{ formatUploadDate(event.createdAt) }}
+        </span>
+      </div>
       <div class="event-meta">
         <span class="meta-item">
           <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -378,10 +397,6 @@ onUnmounted(() => {
           <span class="pill-label">Требуется</span>
           <span class="pill-value">{{ formatMoney(props.event.priceTotal) }} ₽</span>
         </div>
-        <div class="stat-pill">
-          <span class="pill-label">Прогресс</span>
-          <span class="pill-value">{{ collectedPercent }}%</span>
-        </div>
       </div>
 
       <div class="status-flags">
@@ -397,13 +412,6 @@ onUnmounted(() => {
     <div v-if="statusMessage && !compact" class="messages-section">
       <div class="section-header">
         <span class="section-title">Текущий статус</span>
-        <span v-if="statusMessage.status && statusMessage.status !== 'ongoing'" class="status-badge-small" :class="statusMessage.status">
-          {{ statusMessage.status === 'starting' ? 'Подготовка' : 
-             statusMessage.status === 'active' ? 'Прием заявок' : 
-             statusMessage.status === 'processing' ? 'Обработка' : 
-             statusMessage.status === 'completed' ? 'Завершено' : 
-             statusMessage.status === 'cancelled' ? 'Отменено' : '' }}
-        </span>
       </div>
       
       <div class="message-card primary">
@@ -453,11 +461,38 @@ onUnmounted(() => {
   border-bottom: 1px solid #e0e0e0;
 }
 
+.event-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
 .event-title {
   font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 12px 0;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.upload-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.upload-date .icon {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
 }
 
 .event-meta {

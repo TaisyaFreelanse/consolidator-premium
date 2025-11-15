@@ -33,56 +33,17 @@
         </div>
         
         <div v-else class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
-          <p class="text-yellow-300 text-sm">
-            Для работы с API необходимо получить API ключ через форму регистрации ниже
-          </p>
-        </div>
-      </div>
-
-      <!-- Форма регистрации -->
-      <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <h2 class="text-2xl font-semibold mb-4">Регистрация и получение API ключа</h2>
-        <p class="text-white/60 text-sm mb-4">
-          Зарегистрируйтесь и получите уникальный API ключ для работы с API. Producer Name будет автоматически привязан к вашему ключу.
-        </p>
-        
-        <form @submit.prevent="register" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Producer Name <span class="text-red-400">*</span>
-            </label>
-            <input 
-              v-model="registerForm.producerCode"
-              type="text" 
-              required
-              placeholder="прод1"
-              class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+          <div class="flex items-center justify-between">
+            <p class="text-yellow-300 text-sm">
+              Для работы с API необходимо получить API ключ
+            </p>
+            <NuxtLink
+              to="/demo/api-register"
+              class="ml-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap"
             >
-            <p class="text-xs text-white/50 mt-1">Отображаемое имя продюсера (будет привязано к API ключу)</p>
+              Получить API ключ
+            </NuxtLink>
           </div>
-
-          <button
-            type="submit"
-            :disabled="isRegistering"
-            class="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {{ isRegistering ? 'Регистрация...' : 'Зарегистрироваться и получить API ключ' }}
-          </button>
-        </form>
-
-        <div v-if="registerResponse" class="mt-4 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-          <p class="text-green-300 text-sm font-medium mb-2">Регистрация успешна!</p>
-          <p class="text-green-200/70 text-xs mb-2">Ваш API ключ (сохранен автоматически):</p>
-          <pre class="text-green-200 text-xs font-mono break-all bg-black/30 p-2 rounded">{{ registerResponse.data?.apiKey || registerResponse.apiKey }}</pre>
-        </div>
-
-        <div v-if="registerError" class="mt-4 bg-red-500/20 border border-red-500/50 rounded-xl p-4">
-          <p class="text-red-300 text-sm font-medium mb-2">Ошибка регистрации</p>
-          <ul class="space-y-1">
-            <li v-for="(errorMessage, index) in formattedRegisterErrors" :key="index" class="text-red-300 text-xs">
-              {{ errorMessage }}
-            </li>
-          </ul>
         </div>
       </div>
 
@@ -102,22 +63,15 @@
         </div>
         
         <form @submit.prevent="submitEvent" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                ID мероприятия (для обновления)
-              </label>
-            <input 
-              v-model="formData.id"
-              type="text" 
-              placeholder="Оставьте пустым для создания нового"
-              :disabled="!!(selectedEventId && !canEditCurrentEvent)"
-              :class="[
-                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all',
-                selectedEventId && !canEditCurrentEvent
-                  ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                  : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
-              ]"
-            >
+          <!-- ID мероприятия (только для чтения, показывается только если есть ID от сервера) -->
+          <div v-if="formData.id" class="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+            <label class="block text-sm font-medium text-green-300 mb-1">
+              ID мероприятия на платформе
+            </label>
+            <div class="text-green-200 font-mono text-sm break-all">
+              {{ formData.id }}
+            </div>
+            <p class="text-xs text-green-200/70 mt-1">Присвоено автоматически после успешной загрузки на платформу</p>
           </div>
 
           <div>
@@ -282,6 +236,40 @@
             <p class="text-xs text-white/50 mt-1">Все часовые пояса мира (включая с 30-минутным и 45-минутным смещением)</p>
           </div>
 
+          <!-- Календарь и часы в часовом поясе Продюсера -->
+          <div v-if="formData.timezone" class="bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-white mb-1">📅 Календарь и часы Продюсера</h3>
+                <p class="text-xs text-white/60">Текущая дата и время в выбранном часовом поясе</p>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-white/50 mb-1">Часовой пояс:</div>
+                <div class="text-sm font-mono text-blue-300">{{ formData.timezone }}</div>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Календарь -->
+              <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div class="text-center">
+                  <div class="text-3xl font-bold text-white mb-2">{{ producerDateTime.day }}</div>
+                  <div class="text-lg font-semibold text-white/90 mb-1">{{ producerDateTime.monthName }}</div>
+                  <div class="text-sm text-white/70">{{ producerDateTime.year }} год</div>
+                  <div class="text-xs text-white/50 mt-2">{{ producerDateTime.weekday }}</div>
+                </div>
+              </div>
+              
+              <!-- Часы -->
+              <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div class="text-center">
+                  <div class="text-4xl font-bold text-white mb-2 font-mono">{{ producerDateTime.time }}</div>
+                  <div class="text-sm text-white/70 mt-2">{{ producerDateTime.timezoneOffset }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Дата/время создания на клиенте (t0) -->
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
@@ -298,7 +286,7 @@
                 :value="formData.createdAtClientTime"
                 type="time" 
                 readonly
-                step="1"
+                step="60"
                 class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed"
               >
             </div>
@@ -328,7 +316,7 @@
                   v-model="formData.startApplicationsAtTime"
                   type="time" 
                 required
-                  step="1"
+                  step="60"
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
                     'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
@@ -361,7 +349,7 @@
                   v-model="formData.endApplicationsAtTime"
                   type="time" 
                 required
-                  step="1"
+                  step="60"
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
                     'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
@@ -396,7 +384,7 @@
                 v-model="formData.startContractsAtTime"
                 type="time" 
                 required
-                step="1"
+                step="60"
                 :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                 :class="[
                   'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
@@ -431,7 +419,7 @@
                   v-model="formData.startAtTime"
                   type="time" 
                 required
-                  step="1"
+                  step="60"
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
                     'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
@@ -464,7 +452,7 @@
                   v-model="formData.endAtTime"
                   type="time" 
                   required
-                  step="1"
+                  step="60"
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
                     'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
@@ -477,16 +465,51 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-4">
-            <!-- Картотека Ивентов -->
-            <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-              <h3 class="text-lg font-semibold mb-3 text-white/90">📋 Картотека Ивентов</h3>
+          <!-- Разделение функций: Создание нового и Редактирование существующего -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Секция: Создание нового Ивента -->
+            <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+              <h3 class="text-lg font-semibold mb-3 text-blue-300">➕ Создание нового Ивента</h3>
+              <p class="text-white/60 text-sm mb-4">
+                Создайте новый Ивент с нуля. После заполнения формы сохраните его на демо-сайте.
+              </p>
+              <button
+                type="button"
+                @click="handleNewEventClick"
+                :disabled="isSubmitting"
+                class="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ selectedEventId ? '🔄 Сбросить и создать новый' : '➕ Создать новый Ивент' }}
+              </button>
+              <p class="text-xs text-white/50 mt-2 text-center">
+                Очистит форму и подготовит для создания нового Ивента
+              </p>
+            </div>
+
+            <!-- Секция: Выбор Ивента для редактирования -->
+            <div class="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+              <h3 class="text-lg font-semibold mb-3 text-purple-300">✏️ Редактирование Ивента</h3>
+              <p class="text-white/60 text-sm mb-4">
+                Выберите сохраненный Ивент из картотеки для редактирования или удаления.
+              </p>
               
-              <div v-if="savedEvents.length === 0" class="text-white/50 text-sm py-4 text-center">
-                Нет сохраненных Ивентов. Сохраните текущий Ивент, чтобы начать работу.
+              <!-- Информация о картотеке -->
+              <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 mb-4">
+                <div class="text-xs text-blue-300">
+                  <div class="font-medium mb-1">📋 Картотека Ивентов</div>
+                  <div class="text-blue-200/70">
+                    Хранилище на демо-сайте (localStorage). Здесь сохраняются все созданные Ивенты. 
+                    Для получения актуального статуса с платформы используйте кнопку "🔄 Обновить статус".
+                  </div>
+                </div>
               </div>
               
-              <div v-else class="space-y-2 max-h-60 overflow-y-auto">
+              <!-- Картотека Ивентов -->
+              <div v-if="savedEvents.length === 0" class="text-white/50 text-sm py-4 text-center bg-white/5 rounded-lg">
+                Нет сохраненных Ивентов
+              </div>
+              
+              <div v-else class="space-y-2 max-h-48 overflow-y-auto mb-4">
                 <div 
                   v-for="event in savedEvents" 
                   :key="event.id"
@@ -507,6 +530,7 @@
                       <div class="text-xs text-white/50 mt-1">Создан: {{ formatEventDate(event.createdAt) }}</div>
                     </div>
                     <button
+                      v-if="selectedEventId === event.id"
                       @click.stop="deleteEvent(event.id)"
                       class="ml-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm rounded-lg transition-colors flex-shrink-0"
                       title="Удалить Ивент"
@@ -526,93 +550,100 @@
                       <div class="flex-1 min-w-0">
                         <div v-if="event.uploadStatus === 'upload_success'" class="text-xs">
                           <div class="flex items-center gap-2">
-                            <span class="text-green-300 font-medium">Успешно загружен на платформу</span>
+                            <span class="text-green-300 font-medium">Успешно загружен</span>
                             <span v-if="!canEditEvent(event)" class="text-yellow-400 text-xs" title="Редактирование заблокировано">🔒</span>
                           </div>
                           <div class="text-green-200/70 mt-0.5">{{ formatEventDate(event.lastUploadAttempt || '') }}</div>
-                          <div v-if="event.serverId" class="text-green-200/50 mt-0.5">ID: {{ event.serverId }}</div>
-                          <div v-if="!canEditEvent(event)" class="text-yellow-300/70 mt-1 text-xs italic">
-                            Редактирование заблокировано (время Ти-20 прошло)
-                          </div>
+                          <div v-if="event.serverId" class="text-green-200/50 mt-0.5">ID на платформе: {{ event.serverId }}</div>
+                          <div v-if="event.isPublished" class="text-green-200/50 mt-0.5">📢 Опубликован</div>
                         </div>
                         <div v-else-if="event.uploadStatus === 'upload_failed'" class="text-xs">
-                          <div class="text-red-300 font-medium">Неуспешно загружен на платформу</div>
+                          <div class="text-red-300 font-medium">Ошибка загрузки</div>
                           <div class="text-red-200/70 mt-0.5">{{ formatEventDate(event.lastUploadAttempt || '') }}</div>
-                          <div v-if="event.uploadError" class="text-red-200/50 mt-0.5 truncate" :title="event.uploadError">
-                            Ошибка: {{ event.uploadError }}
-                          </div>
+                          <div v-if="event.uploadError" class="text-red-200/50 mt-0.5">Ошибка: {{ event.uploadError }}</div>
                         </div>
                         <div v-else class="text-xs text-gray-400">
-                          Загрузка не выполнялась
+                          Не загружен на платформу
                         </div>
                       </div>
+                    </div>
+                    <!-- Кнопка обновления статуса с сервера (только если есть serverId) -->
+                    <div v-if="event.serverId" class="mt-2">
+                      <button
+                        @click.stop="refreshEventStatus(event.id)"
+                        :disabled="isRefreshingStatus === event.id"
+                        class="w-full px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Запросить актуальный статус с платформы"
+                      >
+                        {{ isRefreshingStatus === event.id ? '⏳ Загрузка...' : '🔄 Обновить статус с платформы' }}
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Сохранение текущего Ивента -->
-            <div class="flex gap-4">
-              <button
-                type="button"
-                @click="saveEvent"
-                :disabled="!!(selectedEventId && !canEditCurrentEvent)"
-                :class="[
-                  'flex-1 text-white font-semibold py-3 px-6 rounded-xl transition-opacity',
-                  selectedEventId && !canEditCurrentEvent
-                    ? 'bg-gray-500/30 opacity-50 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90'
-                ]"
-              >
-                {{ selectedEventId && !canEditCurrentEvent ? '🔒 Редактирование заблокировано' : (selectedEventId ? '💾 Обновить текущий Ивент' : '💾 Сохранить новый Ивент') }}
-              </button>
-              
-              <button
-                v-if="selectedEventId"
-                type="button"
-                @click="handleNewEventClick"
-                class="px-4 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 font-semibold py-3 rounded-xl transition-opacity"
-                title="Создать новый Ивент"
-              >
-                ➕ Новый
-              </button>
-            </div>
-
-            <!-- Индикатор текущего Ивента -->
-            <div v-if="currentEvent" :class="[
-              'rounded-xl px-4 py-2 text-sm',
-              canEditCurrentEvent
-                ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
-                : 'bg-red-500/10 border border-red-500/30 text-red-300'
-            ]">
-              <span class="font-medium">
-                {{ canEditCurrentEvent ? '✏️ Редактируется:' : '🔒 Редактирование заблокировано:' }}
-              </span> 
-              {{ currentEvent.title }} (обновлено: {{ formatEventDate(currentEvent.createdAt) }})
-              <div v-if="!canEditCurrentEvent" class="text-xs mt-1 text-red-200/70">
-                Время Ти-20 (окончание приема заявок) прошло. Редактирование невозможно.
-              </div>
-            </div>
-
-            <!-- Загрузка на сервер -->
-            <div class="border-t border-white/10 pt-4">
-              <button
-                type="button"
-                @click="submitEvent"
-                :disabled="isSubmitting"
-                class="w-full bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ isSubmitting ? 'Загрузка на платформу...' : (formData.id ? 'Обновить черновик на платформе' : 'Загрузить на платформу (создать черновик)') }}
-              </button>
-              <p class="text-xs text-white/50 mt-2 text-center">
-                Загружает текущий Ивент на платформу и создает/обновляет черновик
-              </p>
-            </div>
           </div>
 
-          <!-- Диалог сохранения нового Ивента -->
-          <Teleport to="body">
+          <!-- Сохранение текущего Ивента -->
+          <div class="flex gap-4">
+            <button
+              type="button"
+              @click="saveEvent"
+              :disabled="!!(selectedEventId && !canEditCurrentEvent)"
+              :class="[
+                'flex-1 text-white font-semibold py-3 px-6 rounded-xl transition-opacity',
+                selectedEventId && !canEditCurrentEvent
+                  ? 'bg-gray-500/30 opacity-50 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90'
+              ]"
+            >
+              {{ selectedEventId && !canEditCurrentEvent ? '🔒 Редактирование заблокировано' : (selectedEventId ? '💾 Сохранить изменения' : '💾 Сохранить новый Ивент') }}
+            </button>
+          </div>
+        </form>
+
+        <!-- Индикатор текущего Ивента -->
+        <div v-if="currentEvent" :class="[
+          'rounded-xl px-4 py-2 text-sm mb-4',
+          canEditCurrentEvent
+            ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+            : 'bg-red-500/10 border border-red-500/30 text-red-300'
+        ]">
+          <span class="font-medium">
+            {{ canEditCurrentEvent ? '✏️ Редактируется:' : '🔒 Редактирование заблокировано:' }}
+          </span> 
+          {{ currentEvent.title }} (обновлено: {{ formatEventDate(currentEvent.createdAt) }})
+          <div v-if="!canEditCurrentEvent" class="text-xs mt-1 text-red-200/70">
+            Время Ти-20 (окончание приема заявок) прошло. Редактирование невозможно.
+          </div>
+        </div>
+
+        <!-- Загрузка на сервер -->
+        <div class="border-t border-white/10 pt-4">
+          <!-- Предупреждение о несохраненных изменениях -->
+          <div v-if="hasUnsavedChangesComputed && selectedEventId" class="mb-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2 text-sm text-yellow-300">
+            <div class="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Есть несохраненные изменения. Они будут автоматически сохранены перед загрузкой на платформу.</span>
+            </div>
+          </div>
+          
+          <button
+            type="button"
+            @click="submitEvent"
+            :disabled="isSubmitting"
+            class="w-full bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ isSubmitting ? 'Загрузка на платформу...' : (formData.id ? 'Обновить черновик на платформе' : 'Загрузить на платформу (создать черновик)') }}
+          </button>
+          <p class="text-xs text-white/50 mt-2 text-center">
+            Загружает текущий Ивент на платформу и создает/обновляет черновик. Несохраненные изменения будут автоматически сохранены перед загрузкой.
+          </p>
+        </div>
+      </div>
+
+      <!-- Диалог сохранения нового Ивента -->
+      <Teleport to="body">
             <div 
               v-if="showSaveDialog"
               class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -652,8 +683,6 @@
               </div>
             </div>
           </Teleport>
-        </form>
-      </div>
 
       <!-- Форма публикации -->
       <div v-if="apiKey && lastEventId" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
@@ -703,7 +732,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { DateTime } from 'luxon'
 
 const config = useRuntimeConfig()
@@ -829,15 +858,27 @@ const saveEventsList = (events: SavedEvent[]) => {
   loadEventsList()
 }
 
+// Функция для загрузки API ключа из localStorage
+const loadApiKey = () => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('external_api_key')
+    if (stored) {
+      apiKey.value = stored
+    }
+  }
+}
+
 // Загрузка API ключа и списка Ивентов при монтировании
 onMounted(() => {
-  const stored = localStorage.getItem('external_api_key')
-  if (stored) {
-    apiKey.value = stored
-  }
+  loadApiKey()
   
   // Загружаем список Ивентов
   loadEventsList()
+  
+  // Запускаем обновление времени каждую секунду
+  timeUpdateInterval = setInterval(() => {
+    currentTime.value = Date.now()
+  }, 1000)
   
   // Пытаемся загрузить последний выбранный Ивент (если есть)
   const lastSelectedId = localStorage.getItem('last_selected_event_id')
@@ -871,7 +912,8 @@ onMounted(() => {
       return `${hours}:${minutes}`
     }
 
-    updateCreatedAtClient()
+    // createdAtClient НЕ заполняется автоматически при открытии формы
+    // Оно заполняется только при сохранении эскиза
     formData.value.startApplicationsAtDate = formatDate(tomorrow)
     formData.value.startApplicationsAtTime = formatTime(tomorrow)
     formData.value.endApplicationsAtDate = formatDate(nextWeek)
@@ -884,6 +926,7 @@ onMounted(() => {
     formData.value.endAtTime = formatTime(twoWeeks)
   }
 })
+
 
 // Сохранение API ключа
 const saveApiKey = (key: string) => {
@@ -915,64 +958,6 @@ const copyApiKey = async () => {
   }
 }
 
-// Форма регистрации
-// Примечание: в UI показываем "Producer Name", но отправляем как producerCode (требование бекенда)
-const registerForm = ref({
-  producerCode: '' // Внутренне используем producerCode для соответствия API
-})
-
-const isRegistering = ref(false)
-const registerResponse = ref<any>(null)
-const registerError = ref<any>(null)
-
-const formattedRegisterErrors = computed(() => {
-  if (!registerError.value) return []
-  
-  if (registerError.value.errors && Array.isArray(registerError.value.errors)) {
-    return registerError.value.errors.map((err: any) => err.message || err)
-  }
-  
-  if (registerError.value.message) {
-    return [registerError.value.message]
-  }
-  
-  if (typeof registerError.value === 'string') {
-    return [registerError.value]
-  }
-  
-  return ['Произошла ошибка при регистрации']
-})
-
-const register = async () => {
-  isRegistering.value = true
-  registerError.value = null
-  registerResponse.value = null
-
-  try {
-    const res = await fetch(`${apiBaseUrl}/api/external/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(registerForm.value)
-    })
-
-    const data = await res.json()
-    
-    if (res.ok && data.success) {
-      registerResponse.value = data
-      if (data.data?.apiKey) {
-        saveApiKey(data.data.apiKey)
-      }
-    } else {
-      registerError.value = data
-    }
-  } catch (err: any) {
-    registerError.value = { message: err.message || 'Неизвестная ошибка' }
-  } finally {
-    isRegistering.value = false
-  }
-}
 
 // Состояние для диалога сохранения Ивента
 const showSaveDialog = ref(false)
@@ -982,6 +967,11 @@ const eventSaveName = ref('')
 const currentEvent = computed(() => {
   if (!selectedEventId.value) return null
   return savedEvents.value.find(e => e.id === selectedEventId.value)
+})
+
+// Computed свойство для отслеживания несохраненных изменений
+const hasUnsavedChangesComputed = computed(() => {
+  return hasUnsavedChanges()
 })
 
 // Обработчик создания нового Ивента
@@ -1042,6 +1032,54 @@ const confirmSaveEvent = () => {
     }, 3000)
   } catch (err: any) {
     error.value = { message: 'Ошибка при сохранении Ивента: ' + (err.message || 'Неизвестная ошибка') }
+  }
+}
+
+// Проверка наличия несохраненных изменений
+const hasUnsavedChanges = (): boolean => {
+  if (!selectedEventId.value) {
+    // Если нет выбранного Ивента, но форма заполнена - есть несохраненные изменения
+    return !!(formData.value.title || formData.value.authorName || formData.value.location)
+  }
+  
+  try {
+    const event = savedEvents.value.find(e => e.id === selectedEventId.value)
+    if (!event) return true
+    
+    // Сравниваем текущие данные формы с сохраненными данными
+    const savedData = event.data
+    const currentData = formData.value
+    
+    // Сравниваем основные поля
+    if (savedData.title !== currentData.title) return true
+    if (savedData.authorName !== currentData.authorName) return true
+    if (savedData.location !== currentData.location) return true
+    if (savedData.seatLimit !== currentData.seatLimit) return true
+    if (savedData.pricePerSeat !== currentData.pricePerSeat) return true
+    if (savedData.description !== currentData.description) return true
+    if (savedData.timezone !== currentData.timezone) return true
+    
+    // Сравниваем даты и времена
+    const dateTimeFields = [
+      'createdAtClient', 'startApplicationsAt', 'endApplicationsAt', 
+      'startContractsAt', 'startAt', 'endAt'
+    ]
+    
+    for (const field of dateTimeFields) {
+      const savedDate = (savedData as any)[`${field}Date`]
+      const savedTime = (savedData as any)[`${field}Time`]
+      const currentDate = (currentData as any)[`${field}Date`]
+      const currentTime = (currentData as any)[`${field}Time`]
+      
+      if (savedDate !== currentDate || savedTime !== currentTime) {
+        return true
+      }
+    }
+    
+    return false
+  } catch (err) {
+    console.error('Error checking unsaved changes:', err)
+    return true // В случае ошибки считаем, что есть изменения
   }
 }
 
@@ -1142,6 +1180,83 @@ const loadEventForEditing = (eventId: string) => {
   }
 }
 
+// Обновление статуса Ивента с сервера
+const refreshEventStatus = async (eventId: string) => {
+  const event = savedEvents.value.find(e => e.id === eventId)
+  if (!event || !event.serverId) {
+    error.value = { message: 'Ивент не найден или не загружен на платформу' }
+    return
+  }
+
+  if (!apiKey.value) {
+    error.value = { message: 'API ключ не установлен. Пожалуйста, зарегистрируйтесь и получите API ключ.' }
+    return
+  }
+
+  isRefreshingStatus.value = eventId
+  error.value = null
+
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/external/events/${event.serverId}`, {
+      method: 'GET',
+      headers: getHeaders()
+    })
+
+    const data = await res.json()
+
+    if (res.ok && data.success) {
+      // Обновляем статус Ивента в локальном хранилище
+      const events = getSavedEvents()
+      const eventIndex = events.findIndex(e => e.id === eventId)
+
+      if (eventIndex >= 0) {
+        events[eventIndex].uploadStatus = 'upload_success'
+        events[eventIndex].isPublished = data.data.isPublished || false
+        events[eventIndex].serverId = data.data.id
+        events[eventIndex].lastUploadAttempt = new Date().toISOString()
+        events[eventIndex].uploadError = undefined
+
+        // Обновляем данные формы, если это текущий выбранный Ивент
+        if (selectedEventId.value === eventId && data.data.id) {
+          formData.value.id = data.data.id
+        }
+
+        saveEventsList(events)
+
+        response.value = {
+          success: true,
+          message: `Статус Ивента "${event.title}" обновлен с платформы`,
+          data: data.data
+        }
+        setTimeout(() => {
+          if (response.value?.message?.includes('обновлен с платформы')) {
+            response.value = null
+          }
+        }, 3000)
+      }
+    } else {
+      // Если Ивент не найден на сервере, обновляем статус
+      if (res.status === 404) {
+        const events = getSavedEvents()
+        const eventIndex = events.findIndex(e => e.id === eventId)
+
+        if (eventIndex >= 0) {
+          events[eventIndex].uploadStatus = 'not_uploaded'
+          events[eventIndex].serverId = undefined
+          events[eventIndex].uploadError = 'Ивент не найден на платформе'
+          saveEventsList(events)
+        }
+      }
+
+      error.value = data
+    }
+  } catch (err: any) {
+    error.value = { message: err.message || 'Неизвестная ошибка при запросе статуса' }
+  } finally {
+    isRefreshingStatus.value = null
+  }
+}
+
 // Удаление Ивента
 const deleteEvent = (eventId: string) => {
   const event = savedEvents.value.find(e => e.id === eventId)
@@ -1204,7 +1319,8 @@ const deleteEvent = (eventId: string) => {
         return `${hours}:${minutes}`
       }
 
-      updateCreatedAtClient()
+      // createdAtClient НЕ заполняется автоматически при создании нового события
+      // Оно заполняется только при сохранении эскиза
       formData.value.startApplicationsAtDate = formatDate(tomorrow)
       formData.value.startApplicationsAtTime = formatTime(tomorrow)
       formData.value.endApplicationsAtDate = formatDate(nextWeek)
@@ -1342,12 +1458,88 @@ const response = ref<any>(null)
 const error = ref<any>(null)
 const isSubmitting = ref(false)
 const isPublishing = ref(false)
+const isRefreshingStatus = ref<string | null>(null)
+
+// Текущее время для обновления календаря и часов
+const currentTime = ref(Date.now())
+
+// Интервал для обновления времени
+let timeUpdateInterval: NodeJS.Timeout | null = null
 
 // Вычисление общей стоимости мероприятия
 const totalPrice = computed(() => {
   const seats = formData.value.seatLimit || 0
   const price = formData.value.pricePerSeat || 0
   return seats * price
+})
+
+// Дата и время в часовом поясе Продюсера
+const producerDateTime = computed(() => {
+  // Используем currentTime для реактивности
+  const _ = currentTime.value
+  
+  if (!formData.value.timezone) {
+    return {
+      day: '--',
+      monthName: '--',
+      year: '----',
+      weekday: '--',
+      time: '--:--:--',
+      timezoneOffset: ''
+    }
+  }
+
+  try {
+    const dt = DateTime.now().setZone(formData.value.timezone)
+    
+    if (!dt.isValid) {
+      return {
+        day: '--',
+        monthName: '--',
+        year: '----',
+        weekday: '--',
+        time: '--:--:--',
+        timezoneOffset: ''
+      }
+    }
+
+    // Названия месяцев на русском
+    const months = [
+      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ]
+
+    // Названия дней недели на русском
+    const weekdays = [
+      'Воскресенье', 'Понедельник', 'Вторник', 'Среда',
+      'Четверг', 'Пятница', 'Суббота'
+    ]
+
+    const offset = dt.offset
+    const offsetHours = Math.floor(Math.abs(offset) / 60)
+    const offsetMinutes = Math.abs(offset) % 60
+    const offsetSign = offset >= 0 ? '+' : '-'
+    const offsetString = `UTC${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
+
+    return {
+      day: String(dt.day).padStart(2, '0'),
+      monthName: months[dt.month - 1],
+      year: dt.year,
+      weekday: weekdays[dt.weekday % 7],
+      time: dt.toFormat('HH:mm:ss'),
+      timezoneOffset: offsetString
+    }
+  } catch (error) {
+    console.error('Error formatting producer date/time:', error)
+    return {
+      day: '--',
+      monthName: '--',
+      year: '----',
+      weekday: '--',
+      time: '--:--:--',
+      timezoneOffset: ''
+    }
+  }
 })
 
 // Форматирование цены
@@ -1657,6 +1849,32 @@ const submitEvent = async () => {
     return
   }
 
+  // Проверяем наличие несохраненных изменений и автоматически сохраняем их
+  if (hasUnsavedChanges()) {
+    // Проверяем, что редактирование не заблокировано
+    if (!canEditCurrentEvent.value) {
+      error.value = { message: 'Есть несохраненные изменения, но редактирование заблокировано. Сохраните изменения вручную перед загрузкой на платформу.' }
+      return
+    }
+    
+    try {
+      // Сохраняем изменения перед загрузкой
+      updateCurrentEvent()
+      
+      // Проверяем, что сохранение прошло успешно (если error.value установлен, значит была ошибка)
+      if (error.value && error.value.message && error.value.message.includes('Редактирование заблокировано')) {
+        return // Ошибка уже установлена в updateCurrentEvent
+      }
+      
+      // Небольшая задержка для обновления состояния и перезагрузки списка событий
+      await new Promise(resolve => setTimeout(resolve, 100))
+      loadEventsList() // Перезагружаем список, чтобы обновить savedEvents
+    } catch (err: any) {
+      error.value = { message: 'Не удалось сохранить изменения перед загрузкой: ' + (err.message || 'Неизвестная ошибка') }
+      return
+    }
+  }
+
   isSubmitting.value = true
   error.value = null
   response.value = null
@@ -1700,6 +1918,7 @@ const submitEvent = async () => {
         events[eventIndex].lastUploadAttempt = uploadTimestamp
         events[eventIndex].serverId = data.data?.id || formData.value.id
         events[eventIndex].uploadError = undefined
+        events[eventIndex].isPublished = data.data?.status === 'published' || false
         
         // Обновляем ID в данных формы
         if (data.data?.id) {
@@ -1801,6 +2020,14 @@ const publishEvent = async () => {
     isPublishing.value = false
   }
 }
+
+// Очистка интервала при размонтировании
+onUnmounted(() => {
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval)
+    timeUpdateInterval = null
+  }
+})
 </script>
 
 <style scoped>

@@ -443,24 +443,9 @@ const handlePayment = async (paymentData: any) => {
           </p>
         </div>
 
-        <!-- СТАТУС УЧАСТНИКА (если уже участвует) -->
-        <div v-else class="user-status-compact">
-          <div class="user-mini-stats">
-            <div class="mini-stat">
-              <span class="mini-label">Код:</span>
-              <span class="mini-value">{{ auth.userCode }}</span>
-            </div>
-            <div class="mini-stat">
-              <span class="mini-label">Ставка:</span>
-              <span class="mini-value">{{ formatMoney(userRanking?.currentBid || 0) }} ₽</span>
-            </div>
-            <div class="mini-stat highlight">
-              <span class="mini-label">Позиция:</span>
-              <span class="mini-value">{{ userRanking?.position }} / {{ userRanking?.total }}</span>
-            </div>
-          </div>
+        <!-- Кнопка персональной калькуляции (если уже участвует) -->
+        <div v-else-if="applicationsFinished" class="user-status-compact">
           <button
-            v-if="applicationsFinished"
             class="personal-calc-btn"
             @click="openPersonalCalculation"
           >
