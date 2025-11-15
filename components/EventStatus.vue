@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { DateTime } from 'luxon'
 import type { EventItem, MonitoringSnapshot } from '~/types'
 import { 
   getCurrentTimeInterval, 
@@ -282,10 +283,85 @@ const countdown = computed(() => {
 
 // Обновление таймера каждую секунду
 let countdownInterval: NodeJS.Timeout | null = null
+let timeUpdateInterval: NodeJS.Timeout | null = null
+
+// Текущее время для обновления календаря и часов Продюсера
+const currentTime = ref(Date.now())
+
+// Дата и время в часовом поясе Продюсера
+const producerDateTime = computed(() => {
+  const _ = currentTime.value // Make computed reactive to currentTime updates
+  
+  const timezone = props.event.timezone || 'Europe/Moscow'
+  
+  if (!timezone) {
+    return {
+      fullDate: '-- -- ----',
+      weekday: '--',
+      time: '--:--:--',
+      timezoneOffset: ''
+    }
+  }
+
+  try {
+    const dt = DateTime.now().setZone(timezone)
+    
+    if (!dt.isValid) {
+      return {
+        fullDate: '-- -- ----',
+        weekday: '--',
+        time: '--:--:--',
+        timezoneOffset: ''
+      }
+    }
+
+    // Названия месяцев на русском
+    const months = [
+      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ]
+
+    // Названия дней недели на русском
+    const weekdays = [
+      'Воскресенье', 'Понедельник', 'Вторник', 'Среда',
+      'Четверг', 'Пятница', 'Суббота'
+    ]
+
+    const offset = dt.offset
+    const offsetHours = Math.floor(Math.abs(offset) / 60)
+    const offsetMinutes = Math.abs(offset) % 60
+    const offsetSign = offset >= 0 ? '+' : '-'
+    const offsetString = `UTC${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
+
+    // Форматируем полную дату в одну строку: "15 ноября 2025"
+    const fullDate = `${dt.day} ${months[dt.month - 1]} ${dt.year}`
+    
+    return {
+      fullDate: fullDate,
+      weekday: weekdays[dt.weekday % 7],
+      time: dt.toFormat('HH:mm:ss'),
+      timezoneOffset: offsetString
+    }
+  } catch (error) {
+    console.error('Error formatting producer date/time:', error)
+    return {
+      fullDate: '-- -- ----',
+      weekday: '--',
+      time: '--:--:--',
+      timezoneOffset: ''
+    }
+  }
+})
+
 onMounted(() => {
   if (process.client) {
     countdownInterval = setInterval(() => {
       countdownTick.value++
+    }, 1000)
+    
+    // Обновляем время для календаря Продюсера каждую секунду
+    timeUpdateInterval = setInterval(() => {
+      currentTime.value = Date.now()
     }, 1000)
   }
 })
@@ -293,6 +369,12 @@ onMounted(() => {
 onUnmounted(() => {
   if (countdownInterval) {
     clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+  
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval)
+    timeUpdateInterval = null
   }
 })
 </script>
@@ -326,42 +408,66 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ТАЙМЕР ОБРАТНОГО ОТСЧЕТА до следующей контрольной точки -->
-    <div v-if="!compact && countdown && getNextMilestone" 
-         class="countdown-timer" 
-         :class="{ urgent: countdown.urgent, zero: countdown.isZero }">
-      <div class="countdown-header">
-        <svg class="timer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <span class="countdown-label">Обратный отсчет до следующей контрольной точки:</span>
+    <!-- ТАЙМЕР ОБРАТНОГО ОТСЧЕТА и КАЛЕНДАРЬ ПРОДЮСЕРА -->
+    <div v-if="!compact && countdown && getNextMilestone" class="timer-and-calendar-container">
+      <!-- ТАЙМЕР ОБРАТНОГО ОТСЧЕТА -->
+      <div class="countdown-timer" 
+           :class="{ urgent: countdown.urgent, zero: countdown.isZero }">
+        <div class="countdown-header">
+          <svg class="timer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="countdown-label">Обратный отсчет до следующей контрольной точки:</span>
+        </div>
+        
+        <div class="countdown-display">
+          <div class="countdown-unit">
+            <div class="countdown-number">{{ countdown.days.toString().padStart(2, '0') }}</div>
+            <div class="countdown-unit-label">дней</div>
+          </div>
+          <div class="countdown-separator">:</div>
+          <div class="countdown-unit">
+            <div class="countdown-number">{{ countdown.hours.toString().padStart(2, '0') }}</div>
+            <div class="countdown-unit-label">часов</div>
+          </div>
+          <div class="countdown-separator">:</div>
+          <div class="countdown-unit">
+            <div class="countdown-number">{{ countdown.minutes.toString().padStart(2, '0') }}</div>
+            <div class="countdown-unit-label">минут</div>
+          </div>
+          <div class="countdown-separator">:</div>
+          <div class="countdown-unit">
+            <div class="countdown-number">{{ countdown.seconds.toString().padStart(2, '0') }}</div>
+            <div class="countdown-unit-label">секунд</div>
+          </div>
+        </div>
+        
+        <div class="countdown-milestone">
+          <span class="milestone-icon">📅</span>
+          <span class="milestone-text">{{ getNextMilestone.description }}</span>
+        </div>
       </div>
-      
-      <div class="countdown-display">
-        <div class="countdown-unit">
-          <div class="countdown-number">{{ countdown.days.toString().padStart(2, '0') }}</div>
-          <div class="countdown-unit-label">дней</div>
+
+      <!-- КАЛЕНДАРЬ И ЧАСЫ ПРОДЮСЕРА -->
+      <div v-if="event.timezone" class="producer-calendar">
+        <div class="producer-calendar-header">
+          <svg class="calendar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span class="producer-calendar-label">Календарь и часы Продюсера</span>
         </div>
-        <div class="countdown-separator">:</div>
-        <div class="countdown-unit">
-          <div class="countdown-number">{{ countdown.hours.toString().padStart(2, '0') }}</div>
-          <div class="countdown-unit-label">часов</div>
+        
+        <div class="producer-calendar-content">
+          <div class="producer-date-section">
+            <div class="producer-full-date">{{ producerDateTime.fullDate }}</div>
+            <div class="producer-weekday">{{ producerDateTime.weekday }}</div>
+          </div>
+          
+          <div class="producer-time-section">
+            <div class="producer-time">{{ producerDateTime.time }}</div>
+            <div class="producer-timezone">{{ producerDateTime.timezoneOffset }}</div>
+          </div>
         </div>
-        <div class="countdown-separator">:</div>
-        <div class="countdown-unit">
-          <div class="countdown-number">{{ countdown.minutes.toString().padStart(2, '0') }}</div>
-          <div class="countdown-unit-label">минут</div>
-        </div>
-        <div class="countdown-separator">:</div>
-        <div class="countdown-unit">
-          <div class="countdown-number">{{ countdown.seconds.toString().padStart(2, '0') }}</div>
-          <div class="countdown-unit-label">секунд</div>
-        </div>
-      </div>
-      
-      <div class="countdown-milestone">
-        <span class="milestone-icon">📅</span>
-        <span class="milestone-text">{{ getNextMilestone.description }}</span>
       </div>
     </div>
 
@@ -522,13 +628,26 @@ onUnmounted(() => {
   color: #666;
 }
 
+/* КОНТЕЙНЕР ДЛЯ ТАЙМЕРА И КАЛЕНДАРЯ */
+.timer-and-calendar-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .timer-and-calendar-container {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ТАЙМЕР ОБРАТНОГО ОТСЧЕТА */
 .countdown-timer {
   background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
   border: 3px solid #007AFF;
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 20px;
   box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3);
   transition: all 0.3s ease;
 }
@@ -1163,6 +1282,113 @@ onUnmounted(() => {
   
   .milestone-text {
     font-size: 13px;
+  }
+}
+
+/* КАЛЕНДАРЬ И ЧАСЫ ПРОДЮСЕРА */
+.producer-calendar {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  border: 3px solid #10b981;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+}
+
+.producer-calendar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.calendar-icon {
+  width: 24px;
+  height: 24px;
+  color: #fff;
+}
+
+.producer-calendar-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.producer-calendar-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.producer-date-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.producer-full-date {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.producer-weekday {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.producer-time-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.producer-time {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.producer-timezone {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+}
+
+@media (max-width: 768px) {
+  .producer-calendar-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .producer-time {
+    font-size: 28px;
+  }
+  
+  .producer-full-date {
+    font-size: 18px;
   }
 }
 </style>

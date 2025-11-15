@@ -268,7 +268,7 @@ const computeResult = (applicant: Applicant | null) => {
       >
         <div
           v-if="isOpen"
-          class="w-full max-w-2xl bg-gradient-to-br from-[#1a1a1a] to-[#0f0f1a] border border-white/15 rounded-3xl shadow-2xl overflow-hidden my-8 relative z-[10000]"
+          class="w-full max-w-[520px] bg-gradient-to-br from-[#1a1a1a] to-[#0f0f1a] border border-white/15 rounded-3xl shadow-2xl overflow-hidden my-8 relative z-[10000]"
         >
           <div class="relative bg-gradient-to-r from-[#007AFF]/20 to-[#5E5CE6]/20 border-b border-white/10 p-6">
             <div class="flex items-center justify-between">

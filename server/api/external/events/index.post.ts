@@ -8,7 +8,11 @@ const prisma = getPrismaClient()
  * POST /api/external/events
  * 
  * Создание или обновление черновика мероприятия через внешний API.
- * Все мероприятия создаются в статусе 'draft'.
+ * 
+ * Если автомодерация включена (AUTO_MODERATION_ENABLED=true), мероприятия автоматически
+ * публикуются при создании/обновлении (статус 'published').
+ * 
+ * Если автомодерация отключена, мероприятия создаются в статусе 'draft'.
  * Для публикации используйте отдельный эндпоинт /api/external/events/publish.
  */
 export default defineEventHandler(async (event) => {
@@ -133,6 +137,19 @@ export default defineEventHandler(async (event) => {
       isCancelled: false
     }
 
+    // Проверяем, включена ли автомодерация
+    const config = useRuntimeConfig()
+    const autoModerationEnabled = String(config.autoModerationEnabled) === 'true' || process.env.AUTO_MODERATION_ENABLED === 'true'
+
+    // Если автомодерация включена, сразу публикуем черновик
+    if (autoModerationEnabled) {
+      // @ts-ignore // Тип eventData.status изначально 'draft', но здесь нужно присвоить 'published'
+      eventData.status = 'published'
+      // Добавляем поле publishedAt только если автомодерация включена
+      (eventData as any).publishedAt = new Date()
+      console.log('🤖 Auto-moderation enabled: event will be published immediately')
+    }
+
     let savedEvent
 
     if (data.id) {
@@ -141,7 +158,7 @@ export default defineEventHandler(async (event) => {
       
       const existing = await prisma.event.findUnique({ 
         where: { id: data.id },
-        select: { id: true, status: true, producerCode: true }
+        select: { id: true, status: true, producerCode: true, endApplicationsAt: true }
       })
 
       if (!existing) {
@@ -168,8 +185,8 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Опубликованные события нельзя обновлять через внешний API
-      if (existing.status === 'published') {
+      // Опубликованные события нельзя обновлять через внешний API (если автомодерация отключена)
+      if (!autoModerationEnabled && existing.status === 'published') {
         console.warn('🚫 Attempt to update published event via external API')
         setResponseStatus(event, 409)
         return {
@@ -181,14 +198,31 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Обновляем черновик
+      // Если автомодерация включена и событие уже опубликовано, разрешаем обновление
+      // (но только если это тот же продюсер и не прошло ti20)
+      if (autoModerationEnabled && existing.status === 'published') {
+        // Проверяем, что не прошло ti20
+        if (existing.endApplicationsAt && isTi20Passed({ endApplicationsAt: existing.endApplicationsAt })) {
+          console.warn('🚫 Attempt to update published event after ti20')
+          setResponseStatus(event, 409)
+          return {
+            success: false,
+            errors: [{
+              field: 'id',
+              message: 'Нельзя обновлять опубликованные мероприятия после окончания приема заявок (ti20)'
+            }]
+          }
+        }
+      }
+      
+      // Обновляем событие (единый вызов после всех проверок)
       savedEvent = await prisma.event.update({
         where: { id: data.id },
         data: eventData
       })
     } else {
-      // Создание нового черновика
-      console.log('✨ Creating new draft event')
+      // Создание нового черновика (или опубликованного, если автомодерация включена)
+      console.log(`✨ Creating new ${autoModerationEnabled ? 'published' : 'draft'} event`)
       savedEvent = await prisma.event.create({
         data: eventData
       })
@@ -201,7 +235,8 @@ export default defineEventHandler(async (event) => {
       data: {
         id: savedEvent.id,
         status: savedEvent.status,
-        uploadedAtServer: savedEvent.createdAt.toISOString()
+        uploadedAtServer: savedEvent.createdAt.toISOString(),
+        ...(savedEvent.publishedAt && { publishedAt: savedEvent.publishedAt.toISOString() })
       }
     }
   } catch (error: any) {

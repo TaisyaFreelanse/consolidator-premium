@@ -19,6 +19,12 @@ export default defineNuxtConfig({
   tailwindcss: {
     cssPath: '~/assets/css/tailwind.css'
   },
+  postcss: {
+    plugins: {
+      tailwindcss: {},
+      autoprefixer: {}
+    }
+  },
   typescript: {
     strict: true,
     typeCheck: false
@@ -26,6 +32,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   // Настройка CORS для внешнего API
   nitro: {
+    compatibilityDate: '2025-11-15',
     routeRules: {
       '/api/external/**': {
         cors: true,
@@ -35,6 +42,15 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Credentials': 'true'
         }
       }
+    }
+  },
+  // Настройка автомодерации для тестирования
+  // Установите AUTO_MODERATION_ENABLED=true в переменных окружения для включения автомодерации
+  // При включенной автомодерации черновики автоматически публикуются при загрузке на платформу
+  runtimeConfig: {
+    autoModerationEnabled: process.env.AUTO_MODERATION_ENABLED === 'true' || false,
+    public: {
+      apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000'
     }
   }
 })

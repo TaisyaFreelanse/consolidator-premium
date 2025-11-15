@@ -599,7 +599,7 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F3E] to-[#0A0F1E] text-white py-12">
-    <div class="container mx-auto px-4 max-w-4xl">
+    <div class="container mx-auto px-4 max-w-[800px]">
       <!-- Header -->
       <div class="mb-8">
         <NuxtLink 

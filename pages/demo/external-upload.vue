@@ -1,14 +1,22 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="container mx-auto px-4 py-8 max-w-[800px]">
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
           External API Playground
         </h1>
-        <p class="text-white/60 text-sm mb-4">
-          Тестовая площадка для проверки работы внешнего API создания и публикации мероприятий
-        </p>
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-white/60 text-sm">
+            Создание и редактирование эскизов мероприятий на демо-сайте
+          </p>
+          <NuxtLink
+            to="/demo/platform-interaction"
+            class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            Взаимодействие с платформой →
+          </NuxtLink>
+        </div>
         
         <!-- API Key Info -->
         <div v-if="apiKey" class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
@@ -62,7 +70,7 @@
           </div>
         </div>
         
-        <form @submit.prevent="submitEvent" class="space-y-4">
+        <form @submit.prevent="saveEvent" class="space-y-4">
           <!-- ID мероприятия (только для чтения, показывается только если есть ID от сервера) -->
           <div v-if="formData.id" class="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
             <label class="block text-sm font-medium text-green-300 mb-1">
@@ -474,8 +482,7 @@
               <button
                 type="button"
                 @click="handleNewEventClick"
-                :disabled="isSubmitting"
-                class="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity"
               >
                 {{ selectedEventId ? '🔄 Сбросить и создать новый' : '➕ Создать новый Ивент' }}
               </button>
@@ -493,11 +500,12 @@
               
               <!-- Информация о картотеке -->
               <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 mb-4">
-                <div class="text-xs text-blue-300">
+                  <div class="text-xs text-blue-300">
                   <div class="font-medium mb-1">📋 Картотека Ивентов</div>
                   <div class="text-blue-200/70">
                     Хранилище на демо-сайте (localStorage). Здесь сохраняются все созданные Ивенты. 
-                    Для получения актуального статуса с платформы используйте кнопку "🔄 Обновить статус".
+                    Для загрузки на платформу и получения актуального статуса перейдите на страницу 
+                    <NuxtLink to="/demo/platform-interaction" class="text-blue-400 hover:text-blue-300 underline">Взаимодействие с платформой</NuxtLink>.
                   </div>
                 </div>
               </div>
@@ -563,17 +571,6 @@
                         </div>
                       </div>
                     </div>
-                    <!-- Кнопка обновления статуса с сервера (только если есть serverId) -->
-                    <div v-if="event.serverId" class="mt-2">
-                      <button
-                        @click.stop="refreshEventStatus(event.id)"
-                        :disabled="isRefreshingStatus === event.id"
-                        class="w-full px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Запросить актуальный статус с платформы"
-                      >
-                        {{ isRefreshingStatus === event.id ? '⏳ Загрузка...' : '🔄 Обновить статус с платформы' }}
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -614,27 +611,20 @@
           </div>
         </div>
 
-        <!-- Загрузка на сервер -->
+        <!-- Информация о загрузке на платформу -->
         <div class="border-t border-white/10 pt-4">
-          <!-- Предупреждение о несохраненных изменениях -->
-          <div v-if="hasUnsavedChangesComputed && selectedEventId" class="mb-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2 text-sm text-yellow-300">
-            <div class="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>Есть несохраненные изменения. Они будут автоматически сохранены перед загрузкой на платформу.</span>
+          <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3">
+            <div class="flex items-start gap-3">
+              <span class="text-blue-400 text-xl">ℹ️</span>
+              <div class="flex-1">
+                <div class="text-blue-300 font-medium mb-1">Загрузка на платформу</div>
+                <div class="text-blue-200/70 text-sm">
+                  Для загрузки Ивента на платформу, обновления статуса и публикации перейдите на страницу 
+                  <NuxtLink to="/demo/platform-interaction" class="text-blue-400 hover:text-blue-300 underline font-medium">Взаимодействие с платформой</NuxtLink>.
+                </div>
+              </div>
             </div>
           </div>
-          
-          <button
-            type="button"
-            @click="submitEvent"
-            :disabled="isSubmitting"
-            class="w-full bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {{ isSubmitting ? 'Загрузка на платформу...' : (formData.id ? 'Обновить черновик на платформе' : 'Загрузить на платформу (создать черновик)') }}
-          </button>
-          <p class="text-xs text-white/50 mt-2 text-center">
-            Загружает текущий Ивент на платформу и создает/обновляет черновик. Несохраненные изменения будут автоматически сохранены перед загрузкой.
-          </p>
         </div>
       </div>
 
@@ -679,34 +669,6 @@
               </div>
             </div>
           </Teleport>
-
-      <!-- Форма публикации -->
-      <div v-if="apiKey && lastEventId" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <h2 class="text-2xl font-semibold mb-4">Публикация черновика</h2>
-        
-        <form @submit.prevent="publishEvent" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                ID мероприятия <span class="text-red-400">*</span>
-              </label>
-              <input 
-                v-model="publishForm.id"
-                type="text" 
-                required
-                :placeholder="lastEventId"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-          </div>
-
-          <button
-            type="submit"
-            :disabled="isPublishing"
-            class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {{ isPublishing ? 'Публикация...' : 'Опубликовать мероприятие' }}
-          </button>
-        </form>
-      </div>
 
       <!-- Результаты -->
       <div v-if="response" class="bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -946,7 +908,6 @@ const clearApiKey = () => {
   localStorage.removeItem('external_api_key')
   response.value = null
   error.value = null
-  lastEventId.value = ''
 }
 
 // Копирование API ключа
@@ -1192,83 +1153,6 @@ const loadEventForEditing = (eventId: string) => {
   }
 }
 
-// Обновление статуса Ивента с сервера
-const refreshEventStatus = async (eventId: string) => {
-  const event = savedEvents.value.find(e => e.id === eventId)
-  if (!event || !event.serverId) {
-    error.value = { message: 'Ивент не найден или не загружен на платформу' }
-    return
-  }
-
-  if (!apiKey.value) {
-    error.value = { message: 'API ключ не установлен. Пожалуйста, зарегистрируйтесь и получите API ключ.' }
-    return
-  }
-
-  isRefreshingStatus.value = eventId
-  error.value = null
-
-  try {
-    const res = await fetch(`${apiBaseUrl}/api/external/events/${event.serverId}`, {
-      method: 'GET',
-      headers: getHeaders()
-    })
-
-    const data = await res.json()
-
-    if (res.ok && data.success) {
-      // Обновляем статус Ивента в локальном хранилище
-      const events = getSavedEvents()
-      const eventIndex = events.findIndex(e => e.id === eventId)
-
-      if (eventIndex >= 0) {
-        events[eventIndex].uploadStatus = 'upload_success'
-        events[eventIndex].isPublished = data.data.isPublished || false
-        events[eventIndex].serverId = data.data.id
-        events[eventIndex].lastUploadAttempt = new Date().toISOString()
-        events[eventIndex].uploadError = undefined
-
-        // Обновляем данные формы, если это текущий выбранный Ивент
-        if (selectedEventId.value === eventId && data.data.id) {
-          formData.value.id = data.data.id
-        }
-
-        saveEventsList(events)
-
-        response.value = {
-          success: true,
-          message: `Статус Ивента "${event.title}" обновлен с платформы`,
-          data: data.data
-        }
-        setTimeout(() => {
-          if (response.value?.message?.includes('обновлен с платформы')) {
-            response.value = null
-          }
-        }, 3000)
-      }
-    } else {
-      // Если Ивент не найден на сервере, обновляем статус
-      if (res.status === 404) {
-        const events = getSavedEvents()
-        const eventIndex = events.findIndex(e => e.id === eventId)
-
-        if (eventIndex >= 0) {
-          events[eventIndex].uploadStatus = 'not_uploaded'
-          events[eventIndex].serverId = undefined
-          events[eventIndex].uploadError = 'Ивент не найден на платформе'
-          saveEventsList(events)
-        }
-      }
-
-      error.value = data
-    }
-  } catch (err: any) {
-    error.value = { message: err.message || 'Неизвестная ошибка при запросе статуса' }
-  } finally {
-    isRefreshingStatus.value = null
-  }
-}
-
 // Удаление Ивента
 const deleteEvent = (eventId: string) => {
   const event = savedEvents.value.find(e => e.id === eventId)
@@ -1406,16 +1290,8 @@ const canEditCurrentEvent = computed(() => {
   return canEditEvent(currentEvent.value)
 })
 
-const publishForm = ref({
-  id: ''
-})
-
-const lastEventId = ref('')
 const response = ref<any>(null)
 const error = ref<any>(null)
-const isSubmitting = ref(false)
-const isPublishing = ref(false)
-const isRefreshingStatus = ref<string | null>(null)
 
 // Текущее время для обновления календаря и часов
 const currentTime = ref(Date.now())
@@ -1794,195 +1670,6 @@ const getHeaders = () => {
   }
   
   return headers
-}
-
-const submitEvent = async () => {
-  if (!apiKey.value) {
-    error.value = { message: 'API ключ не установлен. Пожалуйста, зарегистрируйтесь и получите API ключ.' }
-    return
-  }
-
-  if (!selectedEventId.value) {
-    error.value = { message: 'Пожалуйста, сохраните Ивент перед загрузкой на платформу.' }
-    return
-  }
-
-  // Проверяем возможность редактирования
-  if (!canEditCurrentEvent.value) {
-    error.value = { message: 'Редактирование заблокировано. Время Ти-20 (окончание приема заявок) прошло. Загрузка на платформу невозможна.' }
-    return
-  }
-
-  // Проверяем наличие несохраненных изменений и автоматически сохраняем их
-  if (hasUnsavedChanges()) {
-    // Проверяем, что редактирование не заблокировано
-    if (!canEditCurrentEvent.value) {
-      error.value = { message: 'Есть несохраненные изменения, но редактирование заблокировано. Сохраните изменения вручную перед загрузкой на платформу.' }
-      return
-    }
-    
-    try {
-      // Сохраняем изменения перед загрузкой
-      updateCurrentEvent()
-      
-      // Проверяем, что сохранение прошло успешно (если error.value установлен, значит была ошибка)
-      if (error.value && error.value.message && error.value.message.includes('Редактирование заблокировано')) {
-        return // Ошибка уже установлена в updateCurrentEvent
-      }
-      
-      // Небольшая задержка для обновления состояния и перезагрузки списка событий
-      await new Promise(resolve => setTimeout(resolve, 100))
-      loadEventsList() // Перезагружаем список, чтобы обновить savedEvents
-    } catch (err: any) {
-      error.value = { message: 'Не удалось сохранить изменения перед загрузкой: ' + (err.message || 'Неизвестная ошибка') }
-      return
-    }
-  }
-
-  isSubmitting.value = true
-  error.value = null
-  response.value = null
-
-  const uploadTimestamp = new Date().toISOString()
-
-  try {
-    const payload = {
-      id: formData.value.id || undefined,
-      title: formData.value.title,
-      authorName: formData.value.authorName,
-      location: formData.value.location,
-      seatLimit: formData.value.seatLimit,
-      pricePerSeat: formData.value.pricePerSeat,
-      description: formData.value.description,
-      timezone: formData.value.timezone,
-      createdAtClient: toISOString(formData.value.createdAtClientDate, formData.value.createdAtClientTime, formData.value.timezone),
-      startApplicationsAt: toISOString(formData.value.startApplicationsAtDate, formData.value.startApplicationsAtTime, formData.value.timezone),
-      endApplicationsAt: toISOString(formData.value.endApplicationsAtDate, formData.value.endApplicationsAtTime, formData.value.timezone),
-      startContractsAt: toISOString(formData.value.startContractsAtDate, formData.value.startContractsAtTime, formData.value.timezone),
-      startAt: toISOString(formData.value.startAtDate, formData.value.startAtTime, formData.value.timezone),
-      endAt: toISOString(formData.value.endAtDate, formData.value.endAtTime, formData.value.timezone)
-    }
-
-    const res = await fetch(`${apiBaseUrl}/api/external/events`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(payload)
-    })
-
-    const data = await res.json()
-    
-    // Обновляем статус Ивента
-    const events = getSavedEvents()
-    const eventIndex = events.findIndex(e => e.id === selectedEventId.value)
-    
-    if (eventIndex >= 0) {
-      if (res.ok && data.success) {
-        // Успешная загрузка
-        events[eventIndex].uploadStatus = 'upload_success'
-        events[eventIndex].lastUploadAttempt = uploadTimestamp
-        events[eventIndex].serverId = data.data?.id || formData.value.id
-        events[eventIndex].uploadError = undefined
-        events[eventIndex].isPublished = data.data?.status === 'published' || false
-        
-        // Обновляем ID в данных формы
-        if (data.data?.id) {
-          formData.value.id = data.data.id
-          events[eventIndex].data.id = data.data.id
-        }
-        
-        response.value = data
-        lastEventId.value = data.data.id
-        publishForm.value.id = data.data.id
-      } else {
-        // Неуспешная загрузка
-        events[eventIndex].uploadStatus = 'upload_failed'
-        events[eventIndex].lastUploadAttempt = uploadTimestamp
-        events[eventIndex].uploadError = data.message || data.errors?.[0]?.message || `HTTP ${res.status}` || 'Неизвестная ошибка'
-        
-        error.value = data
-      }
-      
-      saveEventsList(events)
-    }
-  } catch (err: any) {
-    // Ошибка сети или другая ошибка
-    const events = getSavedEvents()
-    const eventIndex = events.findIndex(e => e.id === selectedEventId.value)
-    
-    if (eventIndex >= 0) {
-      events[eventIndex].uploadStatus = 'upload_failed'
-      events[eventIndex].lastUploadAttempt = uploadTimestamp
-      events[eventIndex].uploadError = err.message || 'Ошибка сети'
-      saveEventsList(events)
-    }
-    
-    error.value = { message: err.message || 'Неизвестная ошибка' }
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-const publishEvent = async () => {
-  if (!apiKey.value) {
-    error.value = { message: 'API ключ не установлен. Пожалуйста, зарегистрируйтесь и получите API ключ.' }
-    return
-  }
-
-  if (!publishForm.value.id) {
-    error.value = { message: 'ID мероприятия не указан. Сначала загрузите черновик на платформу.' }
-    return
-  }
-
-  console.log('📤 Publishing event:', publishForm.value.id)
-
-  isPublishing.value = true
-  error.value = null
-  response.value = null
-
-  try {
-    const res = await fetch(`${apiBaseUrl}/api/external/events/publish`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(publishForm.value)
-    })
-    
-    console.log('📥 Publish response status:', res.status)
-
-    const data = await res.json()
-    
-    if (res.ok && data.success) {
-      response.value = data
-      
-      // Обновляем статус события в локальном списке после успешной публикации
-      if (data.data?.id) {
-        const events = getSavedEvents()
-        const eventIndex = events.findIndex(e => e.id === data.data.id || e.serverId === data.data.id)
-        
-        if (eventIndex >= 0) {
-          events[eventIndex].uploadStatus = 'upload_success'
-          events[eventIndex].lastUploadAttempt = new Date().toISOString()
-          events[eventIndex].uploadError = undefined
-          events[eventIndex].isPublished = true
-          events[eventIndex].publishedAt = data.data.publishedAt || new Date().toISOString()
-          
-          // Обновляем serverId если его еще нет
-          if (!events[eventIndex].serverId) {
-            events[eventIndex].serverId = data.data.id
-          }
-          
-          saveEventsList(events)
-          
-          console.log('✅ Event status updated in local list after publication')
-        }
-      }
-    } else {
-      error.value = data
-    }
-  } catch (err: any) {
-    error.value = { message: err.message || 'Неизвестная ошибка' }
-  } finally {
-    isPublishing.value = false
-  }
 }
 
 // Очистка интервала при размонтировании

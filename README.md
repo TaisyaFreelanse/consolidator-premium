@@ -35,6 +35,11 @@ npm install
 ```env
 DATABASE_URL="file:./prisma/dev.db"
 NODE_ENV=development
+
+# Автомодерация для тестирования внешнего API
+# При AUTO_MODERATION_ENABLED=true черновики автоматически публикуются при загрузке на платформу
+# При AUTO_MODERATION_ENABLED=false (или не установлено) черновики требуют ручной публикации модератором платформы
+AUTO_MODERATION_ENABLED=true
 ```
 
 ### 3. Инициализация Prisma

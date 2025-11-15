@@ -275,7 +275,7 @@ const handleSubmit = () => {
 .modal-container {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   border-radius: 20px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);

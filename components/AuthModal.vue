@@ -128,7 +128,7 @@ const closeModal = () => {
       >
         <div 
           v-if="isOpen"
-          class="relative w-full max-w-md bg-gradient-to-br from-[#1A1F3E] to-[#0A0F1E] border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
+          class="relative w-full max-w-[520px] bg-gradient-to-br from-[#1A1F3E] to-[#0A0F1E] border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
           @click.stop
         >
           <!-- Декоративный фон -->
