@@ -758,12 +758,12 @@ interface SavedEvent {
 // Форма создания события (с раздельными полями даты и времени)
 const formData = ref({
   id: '',
-  title: 'Кулинарный интенсив',
-  authorName: 'Шеф Иванов',
-  location: 'Москва, ул. Поварская, 12',
+  title: '',
+  authorName: '',
+  location: '',
   seatLimit: 12,
   pricePerSeat: 7500,
-  description: 'Погружаемся в гастрономию с шефом Ивановым',
+  description: '',
   timezone: 'Europe/Moscow',
   // Раздельные поля для даты и времени
   createdAtClientDate: '',
@@ -981,6 +981,8 @@ const hasUnsavedChangesComputed = computed(() => {
 })
 
 // Обработчик создания нового Ивента
+// ВАЖНО: Эта функция НЕ сохраняет текущие данные перед очисткой формы
+// Она просто очищает форму без записи, чтобы пользователь мог начать создавать новый Ивент
 const handleNewEventClick = () => {
   // Сбрасываем выбранный Ивент
   selectedEventId.value = null
@@ -989,6 +991,7 @@ const handleNewEventClick = () => {
   }
   
   // Полностью очищаем форму и устанавливаем значения по умолчанию
+  // БЕЗ сохранения текущих данных
   resetForm()
   
   // Очищаем сообщения об ошибках и ответах
@@ -1288,63 +1291,8 @@ const deleteEvent = (eventId: string) => {
     if (selectedEventId.value === eventId) {
       selectedEventId.value = null
       localStorage.removeItem('last_selected_event_id')
-      // Сбрасываем форму на значения по умолчанию
-      formData.value = {
-        id: '',
-        title: 'Кулинарный интенсив',
-        authorName: 'Шеф Иванов',
-        location: 'Москва, ул. Поварская, 12',
-        seatLimit: 12,
-        pricePerSeat: 7500,
-        description: 'Погружаемся в гастрономию с шефом Ивановым',
-        timezone: 'Europe/Moscow',
-        createdAtClientDate: '',
-        createdAtClientTime: '',
-        startApplicationsAtDate: '',
-        startApplicationsAtTime: '',
-        endApplicationsAtDate: '',
-        endApplicationsAtTime: '',
-        startContractsAtDate: '',
-        startContractsAtTime: '',
-        startAtDate: '',
-        startAtTime: '',
-        endAtDate: '',
-        endAtTime: ''
-      }
-      // Перезагружаем значения по умолчанию (вызываем логику из onMounted)
-      const now = new Date()
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const nextWeek = new Date(now)
-      nextWeek.setDate(nextWeek.getDate() + 7)
-      const twoWeeks = new Date(now)
-      twoWeeks.setDate(twoWeeks.getDate() + 14)
-
-      const formatDate = (date: Date) => {
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      }
-
-      const formatTime = (date: Date) => {
-        const hours = String(date.getHours()).padStart(2, '0')
-        const minutes = String(date.getMinutes()).padStart(2, '0')
-        return `${hours}:${minutes}`
-      }
-
-      // createdAtClient НЕ заполняется автоматически при создании нового события
-      // Оно заполняется только при сохранении эскиза
-      formData.value.startApplicationsAtDate = formatDate(tomorrow)
-      formData.value.startApplicationsAtTime = formatTime(tomorrow)
-      formData.value.endApplicationsAtDate = formatDate(nextWeek)
-      formData.value.endApplicationsAtTime = formatTime(nextWeek)
-      formData.value.startContractsAtDate = formatDate(nextWeek)
-      formData.value.startContractsAtTime = formatTime(nextWeek)
-      formData.value.startAtDate = formatDate(twoWeeks)
-      formData.value.startAtTime = formatTime(twoWeeks)
-      formData.value.endAtDate = formatDate(twoWeeks)
-      formData.value.endAtTime = formatTime(twoWeeks)
+      // Сбрасываем форму на значения по умолчанию (используем единую функцию)
+      resetForm()
     }
     
     response.value = { success: true, message: `Ивент "${eventName}" удален` }
