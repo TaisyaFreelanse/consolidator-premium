@@ -3,22 +3,16 @@
     <div class="container mx-auto px-4 py-8 max-w-[800px]">
       <!-- Header -->
       <div class="mb-8">
-        <NuxtLink 
-          to="/demo/external-upload" 
-          class="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-4"
-        >
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Вернуться к созданию событий</span>
-        </NuxtLink>
-        
-        <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-          Регистрация API ключа
-        </h1>
-        <p class="text-white/60 text-sm mb-4">
-          Зарегистрируйтесь и получите уникальный API ключ для работы с внешним API создания и публикации мероприятий
-        </p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
+              Получить API-ключ
+            </h1>
+            <p class="text-white/60 text-sm">Зарегистрируйтесь и получите уникальный API ключ для работы с внешним API</p>
+          </div>
+          <!-- Навигация -->
+          <DemoNavigation />
+        </div>
       </div>
 
       <!-- Форма регистрации -->

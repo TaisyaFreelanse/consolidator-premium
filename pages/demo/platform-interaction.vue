@@ -6,159 +6,113 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-              Взаимодействие с платформой
+              Взаимодействовать с платформой
             </h1>
             <p class="text-white/60 text-sm">Загрузка эскизов на платформу, обновление статуса и публикация мероприятий</p>
           </div>
-          <!-- Компактное меню -->
-          <div class="relative">
-            <button
-              @click="menuOpen = !menuOpen"
-              class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
-              title="Меню"
-            >
-              ⋮
-            </button>
-            <div
-              v-if="menuOpen"
-              @click.outside="menuOpen = false"
-              class="absolute right-0 mt-2 w-56 bg-[#0f1428] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20"
-            >
-              <NuxtLink
-                to="/demo/external-upload"
-                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
-                @click="menuOpen = false"
-              >
-                ✏️ Создание/редактирование
-              </NuxtLink>
-              <NuxtLink
-                to="/demo/platform-interaction"
-                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
-                @click="menuOpen = false"
-              >
-                🔗 Взаимодействие с платформой
-              </NuxtLink>
-              <NuxtLink
-                to="/demo/api-register"
-                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
-                @click="menuOpen = false"
-              >
-                🔑 API ключ
-              </NuxtLink>
-            </div>
-          </div>
+          <!-- Навигация -->
+          <DemoNavigation />
         </div>
       </div>
 
-      <!-- Картотека Ивентов -->
-      <div class="mb-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-semibold">Картотека Ивентов</h2>
-          <button
-            @click="loadEventsList"
-            class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-xl text-blue-300 text-sm transition-colors"
+      <!-- Выбранный Ивент для взаимодействия с платформой -->
+      <div v-if="!selectedEventId" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center mb-6">
+        <p class="text-white/50 text-lg mb-2">Ивент не выбран</p>
+        <p class="text-white/40 text-sm mb-4">
+          Выберите Ивент на странице <NuxtLink to="/demo/select" class="text-blue-400 hover:text-blue-300 underline">Выбрать</NuxtLink> для взаимодействия с платформой
+        </p>
+      </div>
+      
+      <div v-else-if="!currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center mb-6">
+        <p class="text-white/50 text-lg mb-2">Ивент не найден</p>
+        <p class="text-white/40 text-sm">
+          Выбранный Ивент был удален. Выберите другой Ивент на странице <NuxtLink to="/demo/select" class="text-blue-400 hover:text-blue-300 underline">Выбрать</NuxtLink>
+        </p>
+      </div>
+      
+      <!-- Карточка выбранного Ивента -->
+      <div v-else class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-semibold break-words">Ивент: {{ currentEvent.title }}</h2>
+          </div>
+          <NuxtLink
+            to="/demo/select"
+            class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-xl text-blue-300 text-sm transition-colors flex-shrink-0"
           >
-            🔄 Обновить список
-          </button>
+            🔄 Выбрать другой Ивент
+          </NuxtLink>
         </div>
         
-        <div v-if="savedEvents.length === 0" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
-          <p class="text-white/50 text-lg mb-2">Нет сохраненных Ивентов</p>
-          <p class="text-white/40 text-sm">
-            Создайте Ивент на странице <NuxtLink to="/demo/external-upload" class="text-blue-400 hover:text-blue-300 underline">Создание/редактирование</NuxtLink>
-          </p>
-        </div>
-        
-        <!-- Grid с карточками Ивентов -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <div
-            v-for="event in savedEvents"
-            :key="event.id"
-            :class="[
-              'bg-white/5 border rounded-2xl p-5 transition-all',
-              selectedEventId === event.id
-                ? 'border-[#007AFF] bg-[#007AFF]/10 shadow-lg shadow-[#007AFF]/20'
-                : 'border-white/10 hover:border-white/20 hover:bg-white/10'
-            ]"
-          >
-            <!-- Заголовок карточки -->
-            <div class="flex items-start justify-between mb-3">
-              <h3 class="text-lg font-semibold text-white/90 flex-1 pr-2 line-clamp-2">
-                {{ event.title }}
-              </h3>
-              <button
-                v-if="selectedEventId === event.id"
-                @click="selectedEventId = null"
-                class="text-white/50 hover:text-white/80 transition-colors flex-shrink-0"
-                title="Снять выделение"
-              >
-                ✕
-              </button>
+        <!-- Информация о выбранном Ивенте -->
+        <div class="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+          <div class="text-xs text-white/50 mb-2 space-y-1">
+            <div>Создан: {{ formatEventDate(currentEvent.createdAt) }}</div>
+            <div v-if="currentEvent.lastUploadAttempt">
+              Последняя загрузка: {{ formatEventDate(currentEvent.lastUploadAttempt) }}
+            </div>
+          </div>
+          
+          <!-- Статус загрузки на платформу -->
+          <div class="mb-4">
+            <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 text-sm font-medium mb-2">
+              <span>✅</span>
+              <span>Успешно загружен</span>
+            </div>
+            <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
+              <span>❌</span>
+              <span>Ошибка загрузки</span>
+            </div>
+            <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
+              <span>⏸️</span>
+              <span>Не загружен</span>
             </div>
             
-            <!-- Метаинформация -->
-            <div class="text-xs text-white/50 mb-4 space-y-1">
-              <div>Создан: {{ formatEventDate(event.createdAt) }}</div>
-              <div v-if="event.lastUploadAttempt">
-                Последняя загрузка: {{ formatEventDate(event.lastUploadAttempt) }}
+            <!-- Дополнительная информация о статусе -->
+            <div v-if="currentEvent.uploadStatus === 'upload_success'" class="text-xs text-green-300/70 space-y-1">
+              <div v-if="currentEvent.serverId">ID на платформе: <span class="font-mono">{{ currentEvent.serverId }}</span></div>
+              <div v-if="currentEvent.isPublished" class="flex items-center gap-1">
+                <span>📢</span>
+                <span>Опубликован</span>
+              </div>
+              <div v-else class="flex items-center gap-1">
+                <span>📝</span>
+                <span>Черновик</span>
               </div>
             </div>
             
-            <!-- Статус загрузки на платформу -->
-            <div class="mb-4">
-              <div v-if="event.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 text-sm font-medium mb-2">
-                <span>✅</span>
-                <span>Успешно загружен</span>
-              </div>
-              <div v-else-if="event.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
-                <span>❌</span>
-                <span>Ошибка загрузки</span>
-              </div>
-              <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
-                <span>⏸️</span>
-                <span>Не загружен</span>
-              </div>
-              
-              <!-- Дополнительная информация о статусе -->
-              <div v-if="event.uploadStatus === 'upload_success'" class="text-xs text-green-300/70 space-y-1">
-                <div v-if="event.serverId">ID на платформе: <span class="font-mono">{{ event.serverId }}</span></div>
-                <div v-if="event.isPublished" class="flex items-center gap-1">
-                  <span>📢</span>
-                  <span>Опубликован</span>
+            <!-- Отображение ошибок загрузки -->
+            <div v-if="currentEvent.uploadStatus === 'upload_failed' && currentEvent.uploadError" class="mt-2">
+              <div class="text-xs text-red-300/70 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1">
+                    <!-- Если одна ошибка или массив с одной ошибкой -->
+                    <div v-if="getErrorCount(currentEvent.uploadError) === 1" class="break-words">
+                      {{ getFirstError(currentEvent.uploadError) }}
+                    </div>
+                    <!-- Если несколько ошибок -->
+                    <div v-else>
+                      <div class="font-medium mb-1">
+                        Обнаружено {{ getErrorCount(currentEvent.uploadError) }} ошибок:
+                      </div>
+                      <button
+                        @click.stop="toggleErrorList(currentEvent.id)"
+                        class="text-red-300/80 hover:text-red-300 text-xs underline mb-1"
+                      >
+                        {{ expandedErrors.has(currentEvent.id) ? 'Скрыть список' : 'Показать все ошибки' }}
+                      </button>
+                      <ul v-if="expandedErrors.has(currentEvent.id)" class="list-disc pl-4 space-y-1 mt-1">
+                        <li v-for="(err, idx) in getErrorArray(currentEvent.uploadError)" :key="idx" class="break-words">
+                          {{ err }}
+                        </li>
+                      </ul>
+                      <div v-else class="text-red-300/60 italic">
+                        {{ getFirstError(currentEvent.uploadError) }}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div v-else class="flex items-center gap-1">
-                  <span>📝</span>
-                  <span>Черновик</span>
-                </div>
               </div>
-              
-              <div v-if="event.uploadStatus === 'upload_failed' && event.uploadError" class="text-xs text-red-300/70 mt-1 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-                {{ event.uploadError }}
-              </div>
-            </div>
-            
-            <!-- Кнопки действий -->
-            <div class="flex flex-col gap-2">
-              <button
-                @click="selectEvent(event.id)"
-                :class="[
-                  'w-full px-4 py-2 rounded-xl font-medium text-sm transition-colors',
-                  selectedEventId === event.id
-                    ? 'bg-[#007AFF] text-white'
-                    : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30'
-                ]"
-              >
-                {{ selectedEventId === event.id ? '✓ Выбран' : 'Выбрать для действий' }}
-              </button>
-              
-              <button
-                v-if="selectedEventId === event.id"
-                @click="refreshEventStatus(event.id)"
-                :disabled="isRefreshingStatus === event.id"
-                class="w-full px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-xl text-purple-300 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ isRefreshingStatus === event.id ? '⏳ Обновление...' : '🔄 Обновить статус' }}
-              </button>
             </div>
           </div>
         </div>
@@ -166,7 +120,7 @@
 
       <!-- Действия с выбранным Ивентом -->
       <div v-if="apiKey && selectedEventId && currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <h2 class="text-2xl font-semibold mb-4">Действия с Ивентом: {{ currentEvent.title }}</h2>
+        <h2 class="text-2xl font-semibold mb-4 break-words">Действия с Ивентом: {{ currentEvent.title }}</h2>
         
         <!-- Предупреждение о блокировке -->
         <div v-if="!canEditCurrentEvent" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
@@ -276,7 +230,6 @@ const apiBaseUrl = config.public.apiBaseUrl
 // API Key management
 const apiKey = ref<string>('')
 const copied = ref(false)
-const menuOpen = ref(false)
 
 // Прогресс длительных операций
 const progressMessage = ref<string>('')
@@ -318,7 +271,7 @@ interface SavedEvent {
   uploadStatus?: 'not_uploaded' | 'upload_success' | 'upload_failed'
   serverId?: string
   lastUploadAttempt?: string
-  uploadError?: string
+  uploadError?: string | string[] // Может быть строкой (для обратной совместимости) или массивом ошибок
   isPublished?: boolean
   publishedAt?: string
 }
@@ -327,6 +280,7 @@ const savedEvents = ref<SavedEvent[]>([])
 const selectedEventId = ref<string | null>(null)
 const isSubmitting = ref(false)
 const isRefreshingStatus = ref<string | null>(null)
+const expandedErrors = ref<Set<string>>(new Set()) // Отслеживание раскрытых списков ошибок
 const response = ref<any>(null)
 const error = ref<any>(null)
 
@@ -391,20 +345,6 @@ const formatEventDate = (dateString: string): string => {
     })
   } catch {
     return ''
-  }
-}
-
-// Выбор Ивента
-const selectEvent = (eventId: string) => {
-  selectedEventId.value = selectedEventId.value === eventId ? null : eventId
-  error.value = null
-  response.value = null
-  if (typeof window !== 'undefined') {
-    if (selectedEventId.value) {
-      localStorage.setItem(LAST_SELECTED_EVENT_KEY, selectedEventId.value)
-    } else {
-      localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
-    }
   }
 }
 
@@ -484,6 +424,30 @@ const formattedErrors = computed(() => {
   }
   return []
 })
+
+// Функции для работы с ошибками в карточках Ивентов
+const getErrorArray = (uploadError: string | string[] | undefined): string[] => {
+  if (!uploadError) return []
+  if (Array.isArray(uploadError)) return uploadError
+  return [uploadError]
+}
+
+const getErrorCount = (uploadError: string | string[] | undefined): number => {
+  return getErrorArray(uploadError).length
+}
+
+const getFirstError = (uploadError: string | string[] | undefined): string => {
+  const errors = getErrorArray(uploadError)
+  return errors[0] || 'Неизвестная ошибка'
+}
+
+const toggleErrorList = (eventId: string) => {
+  if (expandedErrors.value.has(eventId)) {
+    expandedErrors.value.delete(eventId)
+  } else {
+    expandedErrors.value.add(eventId)
+  }
+}
 
 // Загрузка Ивента для получения данных формы
 const loadEventData = (eventId: string) => {
@@ -620,7 +584,8 @@ const uploadEventToPlatform = async () => {
     if (eventIndex >= 0) {
       if (res.ok && data.success) {
         events[eventIndex].uploadStatus = 'upload_success'
-        events[eventIndex].lastUploadAttempt = uploadTimestamp
+        // Используем время загрузки с сервера, если оно есть, иначе локальное время
+        events[eventIndex].lastUploadAttempt = data.data?.uploadedAtServer || uploadTimestamp
         events[eventIndex].serverId = data.data?.id || eventData.id
         events[eventIndex].uploadError = undefined
         events[eventIndex].isPublished = data.data?.status === 'published' || false
@@ -633,7 +598,16 @@ const uploadEventToPlatform = async () => {
       } else {
         events[eventIndex].uploadStatus = 'upload_failed'
         events[eventIndex].lastUploadAttempt = uploadTimestamp
-        events[eventIndex].uploadError = data.message || data.errors?.[0]?.message || `HTTP ${res.status}` || 'Неизвестная ошибка'
+        // Сохраняем все ошибки из массива data.errors, если они есть
+        if (data.errors && Array.isArray(data.errors)) {
+          // Извлекаем сообщения из массива ошибок
+          const errorMessages = data.errors.map((e: any) => e.message || String(e))
+          events[eventIndex].uploadError = errorMessages.length > 0 ? errorMessages : [data.message || `HTTP ${res.status}` || 'Неизвестная ошибка']
+        } else if (data.message) {
+          events[eventIndex].uploadError = data.message
+        } else {
+          events[eventIndex].uploadError = `HTTP ${res.status}` || 'Неизвестная ошибка'
+        }
         error.value = data
       }
       
@@ -691,7 +665,7 @@ const refreshEventStatus = async (eventId: string) => {
         events[eventIndex].uploadStatus = 'upload_success'
         events[eventIndex].isPublished = data.data.isPublished || false
         events[eventIndex].serverId = data.data.id
-        events[eventIndex].lastUploadAttempt = new Date().toISOString()
+        // Не обновляем lastUploadAttempt при проверке статуса - это поле только для реальных загрузок
         events[eventIndex].uploadError = undefined
 
         saveEventsList(events)
@@ -754,12 +728,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+/* Стили для переноса длинных названий обрабатываются через break-words в классах */
 </style>
 

@@ -1,0 +1,367 @@
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
+    <div class="container mx-auto px-4 py-8 max-w-[1200px]">
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
+              Выбрать Ивент
+            </h1>
+            <p class="text-white/60 text-sm">Выберите Ивент для работы на демо-сайте</p>
+          </div>
+          <!-- Навигация -->
+          <DemoNavigation />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Левая колонка: Картотека Ивентов -->
+        <div class="lg:col-span-2">
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-2xl font-semibold">Картотека Ивентов</h2>
+              <button
+                @click="loadEventsList"
+                class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-xl text-blue-300 text-sm transition-colors"
+              >
+                🔄 Обновить список
+              </button>
+            </div>
+            
+            <div v-if="savedEvents.length === 0" class="text-white/50 text-sm py-8 text-center bg-white/5 rounded-lg">
+              Нет сохраненных Ивентов. Создайте Ивент на странице "Редактировать / Создать".
+            </div>
+            
+            <!-- Grid с карточками Ивентов -->
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                v-for="event in sortedEvents"
+                :key="event.id"
+                :class="[
+                  'bg-white/5 border rounded-2xl p-5 transition-all cursor-pointer',
+                  selectedEventId === event.id
+                    ? 'border-[#007AFF] bg-[#007AFF]/10 shadow-lg shadow-[#007AFF]/20'
+                    : 'border-white/10 hover:border-white/20 hover:bg-white/10'
+                ]"
+                @click="selectEvent(event.id)"
+              >
+                <!-- Заголовок карточки -->
+                <div class="flex items-start justify-between mb-3 gap-2">
+                  <h3 class="text-lg font-semibold text-white/90 flex-1 break-words">
+                    {{ event.title }}
+                  </h3>
+                  <div v-if="selectedEventId === event.id" class="text-[#007AFF] text-xl font-bold flex-shrink-0">
+                    ✓
+                  </div>
+                </div>
+                
+                <!-- Метаинформация -->
+                <div class="text-xs text-white/50 mb-4 space-y-1">
+                  <div>Создан: {{ formatEventDate(event.createdAt) }}</div>
+                  <div v-if="event.lastUploadAttempt">
+                    Последняя загрузка: {{ formatEventDate(event.lastUploadAttempt) }}
+                  </div>
+                </div>
+                
+                <!-- Статус загрузки на платформу -->
+                <div class="mb-4">
+                  <div v-if="event.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 text-sm font-medium mb-2">
+                    <span>✅</span>
+                    <span>Успешно загружен</span>
+                  </div>
+                  <div v-else-if="event.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
+                    <span>❌</span>
+                    <span>Ошибка загрузки</span>
+                  </div>
+                  <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
+                    <span>⏸️</span>
+                    <span>Не загружен</span>
+                  </div>
+                  
+                  <!-- Дополнительная информация о статусе -->
+                  <div v-if="event.uploadStatus === 'upload_success'" class="text-xs text-green-300/70 space-y-1">
+                    <div v-if="event.serverId">ID на платформе: <span class="font-mono">{{ event.serverId }}</span></div>
+                    <div v-if="event.isPublished" class="flex items-center gap-1">
+                      <span>📢</span>
+                      <span>Опубликован</span>
+                    </div>
+                    <div v-else class="flex items-center gap-1">
+                      <span>📝</span>
+                      <span>Черновик</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Отображение ошибок загрузки -->
+                  <div v-if="event.uploadStatus === 'upload_failed' && event.uploadError" class="mt-2">
+                    <div class="text-xs text-red-300/70 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1">
+                          <!-- Если одна ошибка или массив с одной ошибкой -->
+                          <div v-if="getErrorCount(event.uploadError) === 1" class="break-words">
+                            {{ getFirstError(event.uploadError) }}
+                          </div>
+                          <!-- Если несколько ошибок -->
+                          <div v-else>
+                            <div class="font-medium mb-1">
+                              Обнаружено {{ getErrorCount(event.uploadError) }} ошибок:
+                            </div>
+                            <button
+                              @click.stop="toggleErrorList(event.id)"
+                              class="text-red-300/80 hover:text-red-300 text-xs underline mb-1"
+                            >
+                              {{ expandedErrors.has(event.id) ? 'Скрыть список' : 'Показать все ошибки' }}
+                            </button>
+                            <ul v-if="expandedErrors.has(event.id)" class="list-disc pl-4 space-y-1 mt-1">
+                              <li v-for="(err, idx) in getErrorArray(event.uploadError)" :key="idx" class="break-words">
+                                {{ err }}
+                              </li>
+                            </ul>
+                            <div v-else class="text-red-300/60 italic">
+                              {{ getFirstError(event.uploadError) }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Правая колонка: Активный Ивент -->
+        <div class="lg:col-span-1">
+          <div v-if="currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
+            <h2 class="text-2xl font-semibold mb-4">Активный Ивент</h2>
+            
+            <div class="space-y-4">
+              <!-- Название -->
+              <div>
+                <div class="text-xs text-white/50 mb-1">Название</div>
+                <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
+              </div>
+              
+              <!-- Автор -->
+              <div v-if="currentEvent.data?.authorName">
+                <div class="text-xs text-white/50 mb-1">Автор</div>
+                <div class="text-white/90">{{ currentEvent.data.authorName }}</div>
+              </div>
+              
+              <!-- Местоположение -->
+              <div v-if="currentEvent.data?.location">
+                <div class="text-xs text-white/50 mb-1">Местоположение</div>
+                <div class="text-white/90">{{ currentEvent.data.location }}</div>
+              </div>
+              
+              <!-- Места и цена -->
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Мест</div>
+                  <div class="text-white/90 font-semibold">{{ currentEvent.data?.seatLimit || '—' }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Цена за место</div>
+                  <div class="text-white/90 font-semibold">{{ currentEvent.data?.pricePerSeat ? (currentEvent.data.pricePerSeat / 100).toLocaleString('ru-RU') + ' ₽' : '—' }}</div>
+                </div>
+              </div>
+              
+              <!-- Даты -->
+              <div v-if="currentEvent.data?.startAtDate">
+                <div class="text-xs text-white/50 mb-1">Начало</div>
+                <div class="text-white/90">{{ formatDateDisplay(currentEvent.data.startAtDate, currentEvent.data.startAtTime) }}</div>
+              </div>
+              
+              <div v-if="currentEvent.data?.endAtDate">
+                <div class="text-xs text-white/50 mb-1">Окончание</div>
+                <div class="text-white/90">{{ formatDateDisplay(currentEvent.data.endAtDate, currentEvent.data.endAtTime) }}</div>
+              </div>
+              
+              <!-- Статус на платформе -->
+              <div class="pt-4 border-t border-white/10">
+                <div class="text-xs text-white/50 mb-2">Статус на платформе</div>
+                <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400">
+                  <span>✅</span>
+                  <span>Успешно загружен</span>
+                </div>
+                <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400">
+                  <span>❌</span>
+                  <span>Ошибка загрузки</span>
+                </div>
+                <div v-else class="flex items-center gap-2 text-gray-400">
+                  <span>⏸️</span>
+                  <span>Не загружен</span>
+                </div>
+                
+                <div v-if="currentEvent.serverId" class="mt-2 text-xs text-white/50">
+                  ID: <span class="font-mono text-white/70">{{ currentEvent.serverId }}</span>
+                </div>
+              </div>
+              
+              <!-- Дата создания/редактирования на демо-сайте -->
+              <div class="pt-4 border-t border-white/10">
+                <div class="text-xs text-white/50 mb-1">Создан/отредактирован на демо-сайте</div>
+                <div class="text-white/90 text-sm">{{ formatEventDate(currentEvent.createdAt) }}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else class="bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
+            <div class="text-white/50 text-sm py-8">
+              Выберите Ивент из картотеки, чтобы увидеть подробную информацию
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { DateTime } from 'luxon'
+
+const EVENTS_STORAGE_KEY = 'external_events_list'
+const LAST_SELECTED_EVENT_KEY = 'last_selected_event_id'
+
+interface SavedEvent {
+  id: string
+  title: string
+  data: any
+  createdAt: string
+  uploadStatus?: 'not_uploaded' | 'upload_success' | 'upload_failed'
+  serverId?: string
+  lastUploadAttempt?: string
+  uploadError?: string | string[]
+  isPublished?: boolean
+  publishedAt?: string
+}
+
+const savedEvents = ref<SavedEvent[]>([])
+const selectedEventId = ref<string | null>(null)
+const expandedErrors = ref<Set<string>>(new Set())
+
+const getSavedEvents = (): SavedEvent[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(EVENTS_STORAGE_KEY)
+    if (!stored) return []
+    return JSON.parse(stored)
+  } catch {
+    return []
+  }
+}
+
+const loadEventsList = () => {
+  savedEvents.value = getSavedEvents()
+}
+
+const saveEventsList = (events: SavedEvent[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events))
+    savedEvents.value = events
+  }
+}
+
+// Отсортированный список Ивентов: выбранный Ивент всегда первый
+const sortedEvents = computed(() => {
+  if (!selectedEventId.value) {
+    return savedEvents.value
+  }
+  const selected = savedEvents.value.find(e => e.id === selectedEventId.value)
+  const others = savedEvents.value.filter(e => e.id !== selectedEventId.value)
+  return selected ? [selected, ...others] : savedEvents.value
+})
+
+// Текущий выбранный Ивент
+const currentEvent = computed(() => {
+  if (!selectedEventId.value) return null
+  return savedEvents.value.find(e => e.id === selectedEventId.value) || null
+})
+
+// Выбор Ивента
+const selectEvent = (eventId: string) => {
+  selectedEventId.value = selectedEventId.value === eventId ? null : eventId
+  if (typeof window !== 'undefined') {
+    if (selectedEventId.value) {
+      localStorage.setItem(LAST_SELECTED_EVENT_KEY, selectedEventId.value)
+    } else {
+      localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
+    }
+  }
+}
+
+// Функции для работы с ошибками
+const getErrorArray = (uploadError: string | string[] | undefined): string[] => {
+  if (!uploadError) return []
+  if (Array.isArray(uploadError)) return uploadError
+  return [uploadError]
+}
+
+const getErrorCount = (uploadError: string | string[] | undefined): number => {
+  return getErrorArray(uploadError).length
+}
+
+const getFirstError = (uploadError: string | string[] | undefined): string => {
+  const errors = getErrorArray(uploadError)
+  return errors[0] || 'Неизвестная ошибка'
+}
+
+const toggleErrorList = (eventId: string) => {
+  if (expandedErrors.value.has(eventId)) {
+    expandedErrors.value.delete(eventId)
+  } else {
+    expandedErrors.value.add(eventId)
+  }
+}
+
+// Форматирование даты
+const formatEventDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return ''
+  }
+}
+
+const formatDateDisplay = (date: string, time?: string): string => {
+  if (!date) return '—'
+  try {
+    const [year, month, day] = date.split('-')
+    const dateStr = `${day}.${month}.${year}`
+    if (time) {
+      return `${dateStr} ${time}`
+    }
+    return dateStr
+  } catch {
+    return date
+  }
+}
+
+onMounted(() => {
+  loadEventsList()
+  // Восстанавливаем ранее выбранный Ивент
+  if (typeof window !== 'undefined') {
+    const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
+    if (lastId) {
+      const exists = savedEvents.value.some(e => e.id === lastId)
+      if (exists) {
+        selectedEventId.value = lastId
+      }
+    }
+  }
+})
+</script>
+
+<style scoped>
+/* Стили для переноса длинных названий обрабатываются через break-words в классах */
+</style>
+

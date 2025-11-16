@@ -138,8 +138,27 @@ export default defineEventHandler(async (event) => {
     }
 
     // Проверяем, включена ли автомодерация
+    // Проверяем из runtimeConfig (из nuxt.config.ts) или напрямую из process.env
+    // В Nitro переменные окружения доступны напрямую через process.env
     const config = useRuntimeConfig()
-    const autoModerationEnabled = String(config.autoModerationEnabled) === 'true' || process.env.AUTO_MODERATION_ENABLED === 'true'
+    const envValue = process.env.AUTO_MODERATION_ENABLED
+    const configValue = config.autoModerationEnabled
+    
+    // Проверяем все возможные варианты значения
+    const autoModerationEnabled = 
+      configValue === true || 
+      configValue === 'true' ||
+      String(configValue).toLowerCase() === 'true' ||
+      envValue === 'true' ||
+      String(envValue).toLowerCase() === 'true'
+    
+    console.log('🔍 Auto-moderation check:', {
+      configValue: configValue,
+      configType: typeof configValue,
+      envValue: envValue,
+      envType: typeof envValue,
+      enabled: autoModerationEnabled
+    })
 
     // Если автомодерация включена, сразу публикуем черновик
     if (autoModerationEnabled) {
@@ -148,6 +167,8 @@ export default defineEventHandler(async (event) => {
       // Добавляем поле publishedAt только если автомодерация включена
       (eventData as any).publishedAt = new Date()
       console.log('🤖 Auto-moderation enabled: event will be published immediately')
+    } else {
+      console.log('⏸️ Auto-moderation disabled: event will be saved as draft')
     }
 
     let savedEvent

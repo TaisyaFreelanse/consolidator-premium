@@ -6,47 +6,12 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-              External API Playground
+              Редактировать / Создать
             </h1>
             <p class="text-white/60 text-sm">Создание и редактирование эскизов мероприятий на демо-сайте</p>
           </div>
-          <!-- Компактное меню -->
-          <div class="relative">
-            <button
-              @click="menuOpen = !menuOpen"
-              class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
-              title="Меню"
-            >
-              ⋮
-            </button>
-            <div
-              v-if="menuOpen"
-              @click.outside="menuOpen = false"
-              class="absolute right-0 mt-2 w-56 bg-[#0f1428] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20"
-            >
-              <NuxtLink
-                to="/demo/external-upload"
-                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
-                @click="menuOpen = false"
-              >
-                ✏️ Создание/редактирование
-              </NuxtLink>
-              <NuxtLink
-                to="/demo/platform-interaction"
-                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
-                @click="menuOpen = false"
-              >
-                🔗 Взаимодействие с платформой
-              </NuxtLink>
-              <NuxtLink
-                to="/demo/api-register"
-                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
-                @click="menuOpen = false"
-              >
-                🔑 API ключ
-              </NuxtLink>
-            </div>
-          </div>
+          <!-- Навигация -->
+          <DemoNavigation />
         </div>
       </div>
 
@@ -466,117 +431,18 @@
             </div>
           </div>
 
-          <!-- Разделение функций: Создание нового и Редактирование существующего -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Секция: Создание нового Ивента -->
-            <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-              <h3 class="text-lg font-semibold mb-3 text-blue-300">➕ Создание нового Ивента</h3>
-              <p class="text-white/60 text-sm mb-4">
-                Создайте новый Ивент с нуля. После заполнения формы сохраните его на демо-сайте.
-              </p>
-              <button
-                type="button"
-                @click="handleNewEventClick"
-                class="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity"
-              >
-                {{ selectedEventId ? '🔄 Сбросить и создать новый' : '➕ Создать новый Ивент' }}
-              </button>
-              <p class="text-xs text-white/50 mt-2 text-center">
-                Очистит форму и подготовит для создания нового Ивента
-              </p>
-            </div>
-
-            <!-- Секция: Выбор Ивента для редактирования -->
-            <div class="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-              <h3 class="text-lg font-semibold mb-3 text-purple-300">✏️ Редактирование Ивента</h3>
-              <p class="text-white/60 text-sm mb-4">
-                Выберите сохраненный Ивент из картотеки для редактирования или удаления.
-              </p>
-              
-              <!-- Информация о картотеке -->
-              <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 mb-4">
-                  <div class="text-xs text-blue-300">
-                  <div class="font-medium mb-1">📋 Картотека Ивентов</div>
-                  <div class="text-blue-200/70">
-                    Хранилище на демо-сайте (localStorage). Здесь сохраняются все созданные Ивенты. 
-                    Для загрузки на платформу и получения актуального статуса перейдите на страницу 
-                    <NuxtLink to="/demo/platform-interaction" class="text-blue-400 hover:text-blue-300 underline">Взаимодействие с платформой</NuxtLink>.
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Картотека Ивентов -->
-              <div v-if="savedEvents.length === 0" class="text-white/50 text-sm py-4 text-center bg-white/5 rounded-lg">
-                Нет сохраненных Ивентов
-              </div>
-              
-              <div v-else class="space-y-2 max-h-48 overflow-y-auto mb-4">
-                <div 
-                  v-for="event in savedEvents" 
-                  :key="event.id"
-                  :class="[
-                    'flex flex-col p-3 rounded-lg border transition-all',
-                    selectedEventId === event.id 
-                      ? 'bg-[#007AFF]/20 border-[#007AFF]/50' 
-                      : 'bg-white/5 border-white/10 hover:bg-white/10',
-                    'cursor-pointer'
-                  ]"
-                  @click="loadEventForEditing(event.id)"
-                >
-                  <div class="flex items-center justify-between w-full">
-                    <div class="flex-1 min-w-0">
-                      <div class="font-medium text-white/90 truncate">{{ event.title }}</div>
-                      <div class="text-xs text-white/50 mt-1">Создан: {{ formatEventDate(event.createdAt) }}</div>
-                    </div>
-                    <button
-                      v-if="selectedEventId === event.id"
-                      @click.stop="deleteEvent(event.id)"
-                      class="ml-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm rounded-lg transition-colors flex-shrink-0"
-                      title="Удалить Ивент"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                  
-                  <!-- Статус загрузки на платформу -->
-                  <div class="mt-2 pt-2 border-t border-white/10">
-                    <div class="flex items-start gap-2">
-                      <div class="flex-shrink-0 mt-0.5">
-                        <span v-if="event.uploadStatus === 'upload_success'" class="text-green-400 text-sm">✅</span>
-                        <span v-else-if="event.uploadStatus === 'upload_failed'" class="text-red-400 text-sm">❌</span>
-                        <span v-else class="text-gray-400 text-sm">⏸️</span>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <div v-if="event.uploadStatus === 'upload_success'" class="text-xs">
-                          <div class="flex items-center gap-2">
-                            <span class="text-green-300 font-medium">Успешно загружен</span>
-                            <span v-if="!canEditEvent(event)" class="text-yellow-400 text-xs" title="Редактирование заблокировано">🔒</span>
-                          </div>
-                          <div class="text-green-200/70 mt-0.5">{{ formatEventDate(event.lastUploadAttempt || '') }}</div>
-                          <div v-if="event.serverId" class="text-green-200/50 mt-0.5">ID на платформе: {{ event.serverId }}</div>
-                          <div v-if="event.isPublished" class="text-green-200/50 mt-0.5">📢 Опубликован</div>
-                        </div>
-                        <div v-else-if="event.uploadStatus === 'upload_failed'" class="text-xs">
-                          <div class="text-red-300 font-medium">Ошибка загрузки</div>
-                          <div class="text-red-200/70 mt-0.5">{{ formatEventDate(event.lastUploadAttempt || '') }}</div>
-                          <div v-if="event.uploadError" class="text-red-200/50 mt-0.5">Ошибка: {{ event.uploadError }}</div>
-                        </div>
-                        <div v-else class="text-xs text-gray-400">
-                          Не загружен на платформу
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Сохранение текущего Ивента -->
+          <!-- Кнопки действий -->
           <div class="flex gap-4">
             <button
               type="button"
-              @click="saveEvent"
+              @click="handleCreateClick"
+              class="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity"
+            >
+              ➕ Создать
+            </button>
+            <button
+              type="button"
+              @click="handleSaveClick"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
                 'flex-1 text-white font-semibold py-3 px-6 rounded-xl transition-opacity',
@@ -585,14 +451,72 @@
                   : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90'
               ]"
             >
-              {{ selectedEventId && !canEditCurrentEvent ? '🔒 Редактирование заблокировано' : (selectedEventId ? '💾 Сохранить изменения' : '💾 Сохранить новый Ивент') }}
+              {{ selectedEventId && !canEditCurrentEvent ? '🔒 Редактирование заблокировано' : '💾 Сохранить' }}
             </button>
           </div>
         </form>
 
+        <!-- Карточка выбранного Ивента -->
+        <div v-if="currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+          <h2 class="text-2xl font-semibold mb-4">Выбранный Ивент</h2>
+          
+          <div class="space-y-4">
+            <!-- Название -->
+            <div>
+              <div class="text-xs text-white/50 mb-1">Название</div>
+              <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
+            </div>
+            
+            <!-- Дата создания/редактирования на демо-сайте -->
+            <div>
+              <div class="text-xs text-white/50 mb-1">Дата/время создания/редактирования на демо-сайте</div>
+              <div class="text-white/90">{{ formatEventDate(currentEvent.createdAt) }}</div>
+            </div>
+            
+            <!-- Статус на платформе -->
+            <div class="pt-4 border-t border-white/10">
+              <div class="text-xs text-white/50 mb-2">Статус на платформе</div>
+              <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 mb-2">
+                <span>✅</span>
+                <span>Успешно загружен</span>
+              </div>
+              <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 mb-2">
+                <span>❌</span>
+                <span>Ошибка загрузки</span>
+              </div>
+              <div v-else class="flex items-center gap-2 text-gray-400 mb-2">
+                <span>⏸️</span>
+                <span>Не загружен</span>
+              </div>
+              
+              <!-- Ошибки загрузки -->
+              <div v-if="currentEvent.uploadStatus === 'upload_failed' && currentEvent.uploadError" class="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                <div class="text-xs text-red-300 font-medium mb-2">Ошибки, обнаруженные платформой:</div>
+                <div v-if="getErrorCount(currentEvent.uploadError) === 1" class="text-xs text-red-200/80 break-words">
+                  {{ getFirstError(currentEvent.uploadError) }}
+                </div>
+                <div v-else>
+                  <div class="text-xs text-red-200/80 mb-2">
+                    Обнаружено {{ getErrorCount(currentEvent.uploadError) }} ошибок:
+                  </div>
+                  <ul class="list-disc pl-4 space-y-1">
+                    <li v-for="(err, idx) in getErrorArray(currentEvent.uploadError)" :key="idx" class="text-xs text-red-200/80 break-words">
+                      {{ err }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div v-if="currentEvent.serverId" class="mt-2 text-xs text-white/50">
+                ID на платформе: <span class="font-mono text-white/70">{{ currentEvent.serverId }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Индикатор текущего Ивента -->
         <div v-if="currentEvent" :class="[
-          'rounded-xl px-4 py-2 text-sm mb-4',
+          'rounded-xl px-4 py-2 text-sm mb-4 break-words',
           canEditCurrentEvent
             ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
             : 'bg-red-500/10 border border-red-500/30 text-red-300'
@@ -694,7 +618,6 @@ const apiBaseUrl = config.public.apiBaseUrl
 // API Key management
 const apiKey = ref<string>('')
 const copied = ref(false)
-const menuOpen = ref(false)
 
 // Управление эскизами (пред-черновики на клиенте)
 const EVENTS_STORAGE_KEY = 'external_events_list'
@@ -883,12 +806,27 @@ onMounted(() => {
     currentTime.value = Date.now()
   }, 1000)
   
-  // НЕ загружаем последний выбранный Ивент автоматически
-  // Форма должна быть пустой при загрузке страницы
-  // Пользователь должен явно выбрать Ивент из картотеки для редактирования
-  
-  // Устанавливаем значения по умолчанию для пустой формы
-  resetForm()
+  // Восстанавливаем последний выбранный Ивент при переходе с платформы
+  if (typeof window !== 'undefined') {
+    const lastId = localStorage.getItem('last_selected_event_id')
+    if (lastId) {
+      // Проверяем, существует ли такой Ивент в локальном списке
+      const exists = savedEvents.value.some(e => e.id === lastId)
+      if (exists) {
+        // Автоматически загружаем Ивент для редактирования
+        loadEventForEditing(lastId)
+      } else {
+        // Если Ивент не найден, очищаем запись
+        localStorage.removeItem('last_selected_event_id')
+        resetForm()
+      }
+    } else {
+      // Если нет сохраненного Ивента, форма остается пустой
+      resetForm()
+    }
+  } else {
+    resetForm()
+  }
 })
 
 
@@ -954,6 +892,55 @@ const handleNewEventClick = () => {
   // Очищаем сообщения об ошибках и ответах
   error.value = null
   response.value = null
+}
+
+// Обработчик кнопки "Создать"
+const handleCreateClick = () => {
+  // Если есть несохраненные изменения, спрашиваем подтверждение
+  if (hasUnsavedChanges()) {
+    if (!confirm('У вас есть несохраненные изменения. Создание нового Ивента удалит все текущие данные. Продолжить?')) {
+      return
+    }
+  }
+  handleNewEventClick()
+}
+
+// Обработчик кнопки "Сохранить"
+const handleSaveClick = () => {
+  if (!selectedEventId.value) {
+    // Если нет выбранного Ивента, показываем диалог сохранения нового
+    if (!formData.value.title?.trim()) {
+      error.value = { message: 'Пожалуйста, введите название Ивента' }
+      return
+    }
+    showSaveDialog.value = true
+    eventSaveName.value = formData.value.title
+  } else {
+    // Если есть выбранный Ивент, сохраняем изменения
+    // Если перед этим не была нажата кнопка "Создать", спрашиваем подтверждение
+    if (hasUnsavedChanges()) {
+      if (!confirm('Вы уверены, что хотите сохранить изменения? Предыдущие данные будут перезаписаны.')) {
+        return
+      }
+    }
+    updateCurrentEvent()
+  }
+}
+
+// Функции для работы с ошибками в карточке выбранного Ивента
+const getErrorArray = (uploadError: string | string[] | undefined): string[] => {
+  if (!uploadError) return []
+  if (Array.isArray(uploadError)) return uploadError
+  return [uploadError]
+}
+
+const getErrorCount = (uploadError: string | string[] | undefined): number => {
+  return getErrorArray(uploadError).length
+}
+
+const getFirstError = (uploadError: string | string[] | undefined): string => {
+  const errors = getErrorArray(uploadError)
+  return errors[0] || 'Неизвестная ошибка'
 }
 
 // Сохранение текущего Ивента
@@ -1068,6 +1055,7 @@ const updateCurrentEvent = () => {
     
     if (index >= 0) {
       events[index].data = draftData
+      events[index].title = formData.value.title || events[index].title // Обновляем название из формы
       events[index].createdAt = new Date().toISOString()
       
       // Сохраняем serverId, если он есть в форме
