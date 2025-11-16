@@ -90,6 +90,30 @@ const existingActivities = ref<string[]>([])
 // Timestamps
 const createdAt = ref<string>('')
 const updatedAt = ref<string>('')
+const eventTimezone = ref<string>('') // IANA timezone (e.g., "Asia/Yekaterinburg")
+
+const formatWithTimezone = (iso: string | undefined | null) => {
+  if (!iso) return '—'
+  try {
+    const dt = new Date(iso)
+    if (Number.isNaN(dt.getTime())) return '—'
+    const formatter = new Intl.DateTimeFormat('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: undefined,
+      timeZone: eventTimezone.value || undefined
+    })
+    return formatter.format(dt)
+  } catch {
+    return new Date(iso).toLocaleString('ru-RU')
+  }
+}
+
+const formattedCreatedAt = computed(() => formatWithTimezone(createdAt.value))
+const formattedUpdatedAt = computed(() => formatWithTimezone(updatedAt.value))
 
 const parseMoneyInput = (value: string | number | null | undefined): number => {
   if (value === null || value === undefined || value === '') return 0
@@ -266,6 +290,7 @@ const loadEvent = async () => {
         eventProducerName.value = event.producerName || ''
         eventProducerCode.value = event.producerCode || ''
         isPublished.value = event.status === 'published'
+        eventTimezone.value = event.timezone || ''
         
         // Если событие опубликовано, показываем предупреждение
         if (isPublished.value) {
@@ -319,6 +344,7 @@ const loadEvent = async () => {
       eventProducerName.value = event.producerName || ''
       eventProducerCode.value = event.producerCode || ''
       isPublished.value = event.status === 'published'
+      eventTimezone.value = event.timezone || ''
       
       if (isPublished.value) {
         alert('⚠️ Внимание!\n\nЭто мероприятие уже опубликовано.\nРедактирование опубликованных мероприятий запрещено (защита от манипуляций).\n\nВы можете просмотреть информацию, но не можете сохранить изменения.')
@@ -340,7 +366,7 @@ const addValidationError = (field: FieldKey | null, message: string, mirrorField
   })
 }
 
-const saveEvent = async (status: EventStatus) => {
+const saveEvent = async (status: EventStatus, options?: { skipRedirect?: boolean; silent?: boolean }) => {
   validationErrors.value = []
   resetFieldErrors()
 
@@ -486,12 +512,23 @@ const saveEvent = async (status: EventStatus) => {
     await eventsStore.reload()
     console.log('🔄 Store reloaded')
 
-    // Show success message
-    const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
-    alert(editMode.value ? `Мероприятие успешно обновлено (${statusText})!` : `Мероприятие успешно создано (${statusText})!`)
+    // Сохраняем id сохраненного события для дальнейших действий (например, публикации)
+    try {
+      if (result?.data?.id) {
+        eventId.value = result.data.id
+        editMode.value = true
+      }
+    } catch {}
 
-    // Redirect to catalog
-    router.push('/catalog')
+    if (!options?.skipRedirect) {
+      // Show success message
+      const statusText = status === 'draft' ? 'сохранено как черновик' : 'опубликовано'
+      if (!options?.silent) {
+        alert(editMode.value ? `Мероприятие успешно обновлено (${statusText})!` : `Мероприятие успешно создано (${statusText})!`)
+      }
+      // Redirect to catalog
+      router.push('/catalog')
+    }
   } catch (error: any) {
     console.error('❌ Failed to save event:', error)
     alert(`❌ Ошибка сохранения мероприятия\n\n${error.message || 'Произошла ошибка при сохранении. Попробуйте еще раз.'}`)
@@ -527,8 +564,21 @@ const submitForm = async (status: EventStatus = 'draft') => {
     return
   }
 
-  if (status === 'published' && !auth.isModerator) {
-    alert('⚠️ Публикация доступна только модератору.\n\nСохраните мероприятие как черновик и дождитесь модерации.')
+  if (status === 'published') {
+    if (!auth.isModerator) {
+      alert('⚠️ Публикация доступна только модератору.\n\nСохраните мероприятие как черновик и дождитесь модерации.')
+      return
+    }
+    // Модераторская публикация:
+    // 1) если создаем новое событие, сначала сохраняем черновик без редиректа
+    if (!editMode.value || !eventId.value) {
+      await saveEvent('draft', { skipRedirect: true, silent: true })
+      if (!eventId.value) {
+        return
+      }
+    }
+    // 2) затем вызываем серверный эндпоинт публикации
+    await publishAsModerator()
     return
   }
 
@@ -894,11 +944,17 @@ onMounted(async () => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div class="bg-white/5 rounded-xl p-4">
                 <div class="text-white/60 mb-1">Создано:</div>
-                <div class="text-white font-mono">{{ new Date(createdAt).toLocaleString('ru-RU') }}</div>
+                <div class="text-white font-mono">
+                  {{ formattedCreatedAt }}
+                  <span v-if="eventTimezone" class="text-white/50 text-xs ml-2">({{ eventTimezone }})</span>
+                </div>
               </div>
               <div class="bg-white/5 rounded-xl p-4">
                 <div class="text-white/60 mb-1">Последнее изменение:</div>
-                <div class="text-white font-mono">{{ updatedAt ? new Date(updatedAt).toLocaleString('ru-RU') : '—' }}</div>
+                <div class="text-white font-mono">
+                  {{ updatedAt ? formattedUpdatedAt : '—' }}
+                  <span v-if="updatedAt && eventTimezone" class="text-white/50 text-xs ml-2">({{ eventTimezone }})</span>
+                </div>
               </div>
             </div>
           </div>

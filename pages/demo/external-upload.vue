@@ -3,60 +3,55 @@
     <div class="container mx-auto px-4 py-8 max-w-[800px]">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-          External API Playground
-        </h1>
-        <div class="flex items-center justify-between mb-4">
-          <p class="text-white/60 text-sm">
-            Создание и редактирование эскизов мероприятий на демо-сайте
-          </p>
-          <NuxtLink
-            to="/demo/platform-interaction"
-            class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap"
-          >
-            Взаимодействие с платформой →
-          </NuxtLink>
-        </div>
-        
-        <!-- API Key Info -->
-        <div v-if="apiKey" class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <p class="text-green-300 text-sm font-medium mb-1">API ключ активен</p>
-              <p class="text-green-200/70 text-xs font-mono break-all">{{ apiKey }}</p>
-            </div>
-            <button
-              @click="copyApiKey"
-              class="ml-4 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 rounded-lg text-green-300 text-sm transition-colors"
-            >
-              {{ copied ? 'Скопировано!' : 'Копировать' }}
-            </button>
-            <button
-              @click="clearApiKey"
-              class="ml-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
-            >
-              Очистить
-            </button>
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
+              External API Playground
+            </h1>
+            <p class="text-white/60 text-sm">Создание и редактирование эскизов мероприятий на демо-сайте</p>
           </div>
-        </div>
-        
-        <div v-else class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
-          <div class="flex items-center justify-between">
-            <p class="text-yellow-300 text-sm">
-              Для работы с API необходимо получить API ключ
-            </p>
-            <NuxtLink
-              to="/demo/api-register"
-              class="ml-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap"
+          <!-- Компактное меню -->
+          <div class="relative">
+            <button
+              @click="menuOpen = !menuOpen"
+              class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
+              title="Меню"
             >
-              Получить API ключ
-            </NuxtLink>
+              ⋮
+            </button>
+            <div
+              v-if="menuOpen"
+              @click.outside="menuOpen = false"
+              class="absolute right-0 mt-2 w-56 bg-[#0f1428] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20"
+            >
+              <NuxtLink
+                to="/demo/external-upload"
+                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                @click="menuOpen = false"
+              >
+                ✏️ Создание/редактирование
+              </NuxtLink>
+              <NuxtLink
+                to="/demo/platform-interaction"
+                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                @click="menuOpen = false"
+              >
+                🔗 Взаимодействие с платформой
+              </NuxtLink>
+              <NuxtLink
+                to="/demo/api-register"
+                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                @click="menuOpen = false"
+              >
+                🔑 API ключ
+              </NuxtLink>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Форма создания/обновления -->
-      <div v-if="apiKey" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
         <h2 class="text-2xl font-semibold mb-4">Создание/обновление черновика</h2>
         
         <div v-if="selectedEventId && !canEditCurrentEvent" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
@@ -699,6 +694,7 @@ const apiBaseUrl = config.public.apiBaseUrl
 // API Key management
 const apiKey = ref<string>('')
 const copied = ref(false)
+const menuOpen = ref(false)
 
 // Управление эскизами (пред-черновики на клиенте)
 const EVENTS_STORAGE_KEY = 'external_events_list'
@@ -999,15 +995,7 @@ const confirmSaveEvent = () => {
     showSaveDialog.value = false
     eventSaveName.value = ''
     
-    response.value = { 
-      success: true, 
-      message: `Ивент "${newEvent.title}" успешно сохранен`
-    }
-    setTimeout(() => {
-      if (response.value?.message?.includes('успешно сохранен')) {
-        response.value = null
-      }
-    }, 3000)
+    // Локальное сохранение: не заполняем область "Ответ сервера"
   } catch (err: any) {
     error.value = { message: 'Ошибка при сохранении Ивента: ' + (err.message || 'Неизвестная ошибка') }
   }
@@ -1089,15 +1077,7 @@ const updateCurrentEvent = () => {
       
       saveEventsList(events)
       
-      response.value = { 
-        success: true, 
-        message: `Ивент "${events[index].title}" успешно обновлен`
-      }
-      setTimeout(() => {
-        if (response.value?.message?.includes('успешно обновлен')) {
-          response.value = null
-        }
-      }, 3000)
+      // Локальное обновление: не заполняем область "Ответ сервера"
     }
   } catch (err: any) {
     error.value = { message: 'Ошибка при обновлении Ивента: ' + (err.message || 'Неизвестная ошибка') }

@@ -3,62 +3,55 @@
     <div class="container mx-auto px-4 py-8 max-w-[1000px]">
       <!-- Header -->
       <div class="mb-8">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
+            <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
               Взаимодействие с платформой
             </h1>
-            <p class="text-white/60 text-sm">
-              Загрузка эскизов на платформу, обновление статуса и публикация мероприятий
-            </p>
+            <p class="text-white/60 text-sm">Загрузка эскизов на платформу, обновление статуса и публикация мероприятий</p>
           </div>
-          <NuxtLink
-            to="/demo/external-upload"
-            class="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-medium transition-colors"
-          >
-            ← Создание/редактирование
-          </NuxtLink>
-        </div>
-        
-        <!-- API Key Info -->
-        <div v-if="apiKey" class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <p class="text-green-300 text-sm font-medium mb-1">API ключ активен</p>
-              <p class="text-green-200/70 text-xs font-mono break-all">{{ apiKey }}</p>
+          <!-- Компактное меню -->
+          <div class="relative">
+            <button
+              @click="menuOpen = !menuOpen"
+              class="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
+              title="Меню"
+            >
+              ⋮
+            </button>
+            <div
+              v-if="menuOpen"
+              @click.outside="menuOpen = false"
+              class="absolute right-0 mt-2 w-56 bg-[#0f1428] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20"
+            >
+              <NuxtLink
+                to="/demo/external-upload"
+                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                @click="menuOpen = false"
+              >
+                ✏️ Создание/редактирование
+              </NuxtLink>
+              <NuxtLink
+                to="/demo/platform-interaction"
+                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                @click="menuOpen = false"
+              >
+                🔗 Взаимодействие с платформой
+              </NuxtLink>
+              <NuxtLink
+                to="/demo/api-register"
+                class="block px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                @click="menuOpen = false"
+              >
+                🔑 API ключ
+              </NuxtLink>
             </div>
-            <button
-              @click="copyApiKey"
-              class="ml-4 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 rounded-lg text-green-300 text-sm transition-colors"
-            >
-              {{ copied ? 'Скопировано!' : 'Копировать' }}
-            </button>
-            <button
-              @click="clearApiKey"
-              class="ml-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-300 text-sm transition-colors"
-            >
-              Очистить
-            </button>
-          </div>
-        </div>
-        
-        <div v-else class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
-          <div class="flex items-center justify-between">
-            <p class="text-yellow-300 text-sm">
-              Для работы с API необходимо получить API ключ
-            </p>
-            <NuxtLink
-              to="/demo/api-register"
-              class="ml-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap"
-            >
-              Получить API ключ
-            </NuxtLink>
           </div>
         </div>
       </div>
 
       <!-- Картотека Ивентов -->
-      <div v-if="apiKey" class="mb-6">
+      <div class="mb-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-2xl font-semibold">Картотека Ивентов</h2>
           <button
@@ -212,6 +205,22 @@
 
       <!-- Ответы сервера (всегда видимая область) -->
       <div class="sticky bottom-0 bg-[#1A1F2E] border-t border-white/10 rounded-t-2xl p-6 shadow-2xl">
+        <!-- Индикатор длительного процесса -->
+        <div v-if="isSubmitting || isRefreshingStatus" class="flex items-start gap-3 mb-4 bg-white/5 border border-white/10 rounded-xl p-4">
+          <svg class="w-5 h-5 text-blue-300 animate-spin mt-0.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+          <div class="flex-1">
+            <div class="text-blue-300 font-medium">
+              {{ isSubmitting ? 'Выполняется загрузка на платформу…' : 'Выполняется запрос статуса…' }}
+            </div>
+            <div class="text-white/60 text-sm">
+              {{ progressMessage }}
+            </div>
+          </div>
+        </div>
+
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xl font-semibold">Ответы сервера</h2>
           <button
@@ -240,7 +249,10 @@
             <span class="text-red-400 text-xl">❌</span>
             <div class="flex-1">
               <div class="text-red-300 font-medium mb-2">{{ error.message || 'Ошибка' }}</div>
-              <pre v-if="error.errors || (typeof error === 'object' && Object.keys(error).length > 1)" class="bg-black/30 rounded-lg p-3 text-xs overflow-auto max-h-64 text-red-200/80">{{ JSON.stringify(error, null, 2) }}</pre>
+              <ul v-if="formattedErrors.length" class="list-disc pl-5 space-y-1 text-red-200/80 text-sm">
+                <li v-for="(msg, idx) in formattedErrors" :key="idx">{{ msg }}</li>
+              </ul>
+              <pre v-else class="bg-black/30 rounded-lg p-3 text-xs overflow-auto max-h-64 text-red-200/80">{{ JSON.stringify(error, null, 2) }}</pre>
             </div>
           </div>
         </div>
@@ -255,7 +267,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { DateTime } from 'luxon'
 
 const config = useRuntimeConfig()
@@ -264,9 +276,39 @@ const apiBaseUrl = config.public.apiBaseUrl
 // API Key management
 const apiKey = ref<string>('')
 const copied = ref(false)
+const menuOpen = ref(false)
+
+// Прогресс длительных операций
+const progressMessage = ref<string>('')
+let progressStartTime: number | null = null
+let progressInterval: ReturnType<typeof setInterval> | null = null
+
+const startProgress = (label: string) => {
+  progressStartTime = Date.now()
+  const update = () => {
+    if (progressStartTime == null) return
+    const seconds = Math.floor((Date.now() - progressStartTime) / 1000)
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    progressMessage.value = `${label}. Прошло ${mins > 0 ? mins + ' мин ' : ''}${secs} сек`
+  }
+  update()
+  progressInterval && clearInterval(progressInterval)
+  progressInterval = setInterval(update, 5000)
+}
+
+const stopProgress = () => {
+  progressStartTime = null
+  progressMessage.value = ''
+  if (progressInterval) {
+    clearInterval(progressInterval)
+    progressInterval = null
+  }
+}
 
 // Управление эскизами
 const EVENTS_STORAGE_KEY = 'external_events_list'
+const LAST_SELECTED_EVENT_KEY = 'last_selected_event_id'
 
 interface SavedEvent {
   id: string
@@ -357,6 +399,13 @@ const selectEvent = (eventId: string) => {
   selectedEventId.value = selectedEventId.value === eventId ? null : eventId
   error.value = null
   response.value = null
+  if (typeof window !== 'undefined') {
+    if (selectedEventId.value) {
+      localStorage.setItem(LAST_SELECTED_EVENT_KEY, selectedEventId.value)
+    } else {
+      localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
+    }
+  }
 }
 
 // Текущий выбранный Ивент
@@ -419,6 +468,21 @@ const canEditEvent = (event: SavedEvent): boolean => {
 const canEditCurrentEvent = computed(() => {
   if (!currentEvent.value) return true
   return canEditEvent(currentEvent.value)
+})
+
+// Форматирование ошибок для списка
+const formattedErrors = computed(() => {
+  if (!error.value) return []
+  if (Array.isArray(error.value)) {
+    return error.value
+  }
+  if (error.value.errors && Array.isArray(error.value.errors)) {
+    return error.value.errors.map((e: any) => e.message || e)
+  }
+  if (error.value.message && typeof error.value.message === 'string') {
+    return [error.value.message]
+  }
+  return []
 })
 
 // Загрузка Ивента для получения данных формы
@@ -522,6 +586,7 @@ const uploadEventToPlatform = async () => {
   response.value = null
 
   const uploadTimestamp = new Date().toISOString()
+  startProgress('Загрузка на платформу выполняется')
 
   try {
     const payload = {
@@ -588,6 +653,7 @@ const uploadEventToPlatform = async () => {
     error.value = { message: err.message || 'Неизвестная ошибка' }
   } finally {
     isSubmitting.value = false
+    stopProgress()
   }
 }
 
@@ -607,6 +673,7 @@ const refreshEventStatus = async (eventId: string) => {
   isRefreshingStatus.value = eventId
   error.value = null
   response.value = null
+  startProgress('Запрос статуса на платформе выполняется')
 
   try {
     const res = await fetch(`${apiBaseUrl}/api/external/events/${event.serverId}`, {
@@ -654,6 +721,7 @@ const refreshEventStatus = async (eventId: string) => {
     error.value = { message: err.message || 'Неизвестная ошибка при запросе статуса' }
   } finally {
     isRefreshingStatus.value = null
+    stopProgress()
   }
 }
 
@@ -666,6 +734,22 @@ const clearServerMessages = () => {
 onMounted(() => {
   loadApiKey()
   loadEventsList()
+  // Восстанавливаем ранее выбранный Ивент при навигации между формами
+  if (typeof window !== 'undefined') {
+    const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
+    if (lastId) {
+      // Устанавливаем только если такой Ивент существует в локальном списке
+      const exists = savedEvents.value.some(e => e.id === lastId)
+      if (exists) {
+        selectedEventId.value = lastId
+      }
+    }
+  }
+})
+
+onBeforeUnmount(() => {
+  // Ensure any running progress interval is cleared and state reset
+  stopProgress()
 })
 </script>
 

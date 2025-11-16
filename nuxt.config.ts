@@ -32,7 +32,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   // Настройка CORS для внешнего API
   nitro: {
-    compatibilityDate: '2025-11-15',
+    compatibilityDate: '2025-11-16',
     routeRules: {
       '/api/external/**': {
         cors: true,

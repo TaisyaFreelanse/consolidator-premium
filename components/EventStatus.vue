@@ -29,7 +29,7 @@ const controlPointOrder: Record<ControlPointCode, number> = {
   t999: 6
 }
 
-const fallbackInterval = computed(() => getCurrentTimeInterval(props.event, props.event.createdAt))
+const fallbackInterval = computed(() => getCurrentTimeInterval(props.event, props.event.createdAt, props.event.timezone))
 
 // Текущий временной интервал — выбираем наиболее продвинутую точку между snapshot и локальным вычислением
 const timeInterval = computed(() => {
@@ -277,7 +277,8 @@ const countdown = computed(() => {
   countdownTick.value // Зависимость для реактивности
   return getCountdownTimer(
     countdownDeadline.value,
-    timeInterval.value?.currentInterval
+    timeInterval.value?.currentInterval,
+    props.event.timezone
   )
 })
 
