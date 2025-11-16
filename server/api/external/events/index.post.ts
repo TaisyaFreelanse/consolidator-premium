@@ -113,30 +113,6 @@ export default defineEventHandler(async (event) => {
     const pricePerSeatKopecks = Math.round(Number(data.pricePerSeat) * 100)
     const priceTotalKopecks = Math.round(Number(data.seatLimit) * pricePerSeatKopecks)
 
-    const eventData = {
-      title: data.title.trim(),
-      author: data.authorName.trim(), // Сохраняем authorName в поле author
-      location: data.location.trim(),
-      startAt: new Date(data.startAt),
-      endAt: data.endAt ? new Date(data.endAt) : null,
-      seatLimit: Number(data.seatLimit),
-      priceTotal: BigInt(priceTotalKopecks),
-      pricePerSeat: BigInt(pricePerSeatKopecks),
-      description: data.description.trim(),
-      startApplicationsAt: new Date(data.startApplicationsAt),
-      endApplicationsAt: new Date(data.endApplicationsAt),
-      startContractsAt: new Date(data.startContractsAt),
-      status: 'draft' as const,
-      producerName: data.producerName?.trim() || data.producerCode.trim() || null, // Используем producerName если есть, иначе producerCode, иначе null
-      producerCode: data.producerCode.trim(),
-      timezone: data.timezone.trim(),
-      createdAtClient: new Date(data.createdAtClient),
-      // Стандартный controlPlan для всех событий
-      controlPlan: JSON.stringify(['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']),
-      currentControlPoint: 't0',
-      isCancelled: false
-    }
-
     // Проверяем, включена ли автомодерация
     // Проверяем из runtimeConfig (из nuxt.config.ts) или напрямую из process.env
     // В Nitro переменные окружения доступны напрямую через process.env
@@ -166,15 +142,43 @@ export default defineEventHandler(async (event) => {
       isTrueConfig: isTrue(configValue)
     })
 
-    // Если автомодерация включена, сразу публикуем черновик
+    // Определяем статус и publishedAt в зависимости от автомодерации
+    const eventStatus: 'draft' | 'published' = autoModerationEnabled ? 'published' : 'draft'
+    const publishedAt = autoModerationEnabled ? new Date() : undefined
+
     if (autoModerationEnabled) {
-      // @ts-ignore // Тип eventData.status изначально 'draft', но здесь нужно присвоить 'published'
-      eventData.status = 'published'
-      // Добавляем поле publishedAt только если автомодерация включена
-      (eventData as any).publishedAt = new Date()
       console.log('🤖 Auto-moderation enabled: event will be published immediately')
     } else {
       console.log('⏸️ Auto-moderation disabled: event will be saved as draft')
+    }
+
+    const eventData: any = {
+      title: data.title.trim(),
+      author: data.authorName.trim(), // Сохраняем authorName в поле author
+      location: data.location.trim(),
+      startAt: new Date(data.startAt),
+      endAt: data.endAt ? new Date(data.endAt) : null,
+      seatLimit: Number(data.seatLimit),
+      priceTotal: BigInt(priceTotalKopecks),
+      pricePerSeat: BigInt(pricePerSeatKopecks),
+      description: data.description.trim(),
+      startApplicationsAt: new Date(data.startApplicationsAt),
+      endApplicationsAt: new Date(data.endApplicationsAt),
+      startContractsAt: new Date(data.startContractsAt),
+      status: eventStatus,
+      producerName: data.producerName?.trim() || data.producerCode.trim() || null, // Используем producerName если есть, иначе producerCode, иначе null
+      producerCode: data.producerCode.trim(),
+      timezone: data.timezone.trim(),
+      createdAtClient: new Date(data.createdAtClient),
+      // Стандартный controlPlan для всех событий
+      controlPlan: JSON.stringify(['t0', 'ti10', 'ti20', 'ti30', 'ti40', 'ti50', 't999']),
+      currentControlPoint: 't0',
+      isCancelled: false
+    }
+
+    // Добавляем publishedAt только если автомодерация включена
+    if (publishedAt) {
+      eventData.publishedAt = publishedAt
     }
 
     let savedEvent
