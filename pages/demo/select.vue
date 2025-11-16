@@ -1,17 +1,16 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
     <div class="container mx-auto px-4 py-8 max-w-[1200px]">
+      <!-- Главное меню -->
+      <DemoNavigation />
+      
       <!-- Header -->
       <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-              Выбрать Ивент
-            </h1>
-            <p class="text-white/60 text-sm">Выберите Ивент для работы на демо-сайте</p>
-          </div>
-          <!-- Навигация -->
-          <DemoNavigation />
+        <div>
+          <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
+            Выбрать Ивент
+          </h1>
+          <p class="text-white/60 text-sm">Выберите Ивент для работы на демо-сайте</p>
         </div>
       </div>
 
@@ -48,7 +47,7 @@
               >
                 <!-- Заголовок карточки -->
                 <div class="flex items-start justify-between mb-3 gap-2">
-                  <h3 class="text-lg font-semibold text-white/90 flex-1 break-words">
+                  <h3 class="text-lg font-semibold text-white/90 flex-1 break-words min-w-0">
                     {{ event.title }}
                   </h3>
                   <div v-if="selectedEventId === event.id" class="text-[#007AFF] text-xl font-bold flex-shrink-0">
@@ -202,7 +201,15 @@
               <!-- Дата создания/редактирования на демо-сайте -->
               <div class="pt-4 border-t border-white/10">
                 <div class="text-xs text-white/50 mb-1">Создан/отредактирован на демо-сайте</div>
-                <div class="text-white/90 text-sm">{{ formatEventDate(currentEvent.createdAt) }}</div>
+                <div class="text-white/90 text-sm mb-4">{{ formatEventDate(currentEvent.createdAt) }}</div>
+                
+                <!-- Кнопка редактирования -->
+                <NuxtLink
+                  to="/demo/external-upload"
+                  class="w-full inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  ✏️ Редактировать
+                </NuxtLink>
               </div>
             </div>
           </div>
@@ -362,6 +369,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Стили для переноса длинных названий обрабатываются через break-words в классах */
+/* Стили для переноса длинных названий */
+h3 {
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
 </style>
 

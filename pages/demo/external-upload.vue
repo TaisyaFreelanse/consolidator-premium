@@ -1,17 +1,16 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
     <div class="container mx-auto px-4 py-8 max-w-[800px]">
+      <!-- Главное меню -->
+      <DemoNavigation />
+      
       <!-- Header -->
       <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-              Редактировать / Создать
-            </h1>
-            <p class="text-white/60 text-sm">Создание и редактирование эскизов мероприятий на демо-сайте</p>
-          </div>
-          <!-- Навигация -->
-          <DemoNavigation />
+        <div>
+          <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
+            Редактировать / Создать
+          </h1>
+          <p class="text-white/60 text-sm">Создание и редактирование эскизов мероприятий на демо-сайте</p>
         </div>
       </div>
 
