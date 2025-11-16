@@ -144,20 +144,26 @@ export default defineEventHandler(async (event) => {
     const envValue = process.env.AUTO_MODERATION_ENABLED
     const configValue = config.autoModerationEnabled
     
-    // Проверяем все возможные варианты значения
-    const autoModerationEnabled = 
-      configValue === true || 
-      configValue === 'true' ||
-      String(configValue).toLowerCase() === 'true' ||
-      envValue === 'true' ||
-      String(envValue).toLowerCase() === 'true'
+    // Функция для проверки значения на true
+    const isTrue = (value: any): boolean => {
+      if (value === true) return true
+      if (value === false) return false
+      if (value === undefined || value === null) return false
+      const str = String(value).toLowerCase().trim()
+      return str === 'true' || str === '1' || str === 'yes' || str === 'on'
+    }
+    
+    // Проверяем все возможные варианты значения (приоритет у envValue)
+    const autoModerationEnabled = isTrue(envValue) || isTrue(configValue)
     
     console.log('🔍 Auto-moderation check:', {
       configValue: configValue,
       configType: typeof configValue,
       envValue: envValue,
       envType: typeof envValue,
-      enabled: autoModerationEnabled
+      enabled: autoModerationEnabled,
+      isTrueEnv: isTrue(envValue),
+      isTrueConfig: isTrue(configValue)
     })
 
     // Если автомодерация включена, сразу публикуем черновик
