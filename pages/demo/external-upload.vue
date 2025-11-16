@@ -16,7 +16,16 @@
 
       <!-- Форма создания/обновления -->
       <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <h2 class="text-2xl font-semibold mb-4">Создание/обновление черновика</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-semibold">Создание/обновление черновика</h2>
+          <button
+            type="button"
+            @click="handleCreateClick"
+            class="bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-2 px-6 rounded-xl hover:opacity-90 transition-opacity"
+          >
+            ➕ Создать
+          </button>
+        </div>
         
         <div v-if="selectedEventId && !canEditCurrentEvent" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
           <div class="flex items-center gap-2 text-red-300 font-medium mb-1">
@@ -45,19 +54,19 @@
             <label class="block text-sm font-medium text-white/80 mb-2">
               Название мероприятия <span class="text-red-400">*</span>
             </label>
-            <input 
+            <textarea 
               v-model="formData.title"
-              type="text" 
               required
+              rows="2"
               placeholder="Кулинарный интенсив"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
-                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all',
+                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all break-words',
                 selectedEventId && !canEditCurrentEvent
                   ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
                   : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
               ]"
-            >
+            ></textarea>
           </div>
 
           <div>
@@ -83,19 +92,19 @@
             <label class="block text-sm font-medium text-white/80 mb-2">
               Место проведения <span class="text-red-400">*</span>
             </label>
-            <input 
+            <textarea 
               v-model="formData.location"
-              type="text" 
               required
+              rows="2"
               placeholder="Москва, ул. Поварская, 12"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
-                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all',
+                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all break-words',
                 selectedEventId && !canEditCurrentEvent
                   ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
                   : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
               ]"
-            >
+            ></textarea>
           </div>
 
           <div>
@@ -434,13 +443,6 @@
           <div class="flex gap-4">
             <button
               type="button"
-              @click="handleCreateClick"
-              class="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity"
-            >
-              ➕ Создать
-            </button>
-            <button
-              type="button"
               @click="handleSaveClick"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
@@ -773,8 +775,8 @@ const resetForm = () => {
     title: '',
     authorName: '',
     location: '',
-    seatLimit: 12,
-    pricePerSeat: 7500,
+    seatLimit: '' as any,
+    pricePerSeat: '' as any,
     description: '',
     timezone: 'Europe/Moscow',
     // createdAtClient НЕ заполняется автоматически - только при сохранении

@@ -32,11 +32,11 @@
               Нет сохраненных Ивентов. Создайте Ивент на странице "Редактировать / Создать".
             </div>
             
-            <!-- Grid с карточками Ивентов -->
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div
-                v-for="event in sortedEvents"
-                :key="event.id"
+                  <!-- Grid с карточками Ивентов -->
+                  <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      v-for="event in savedEvents"
+                      :key="event.id"
                 :class="[
                   'bg-white/5 border rounded-2xl p-5 transition-all cursor-pointer',
                   selectedEventId === event.id
@@ -270,16 +270,6 @@ const saveEventsList = (events: SavedEvent[]) => {
     savedEvents.value = events
   }
 }
-
-// Отсортированный список Ивентов: выбранный Ивент всегда первый
-const sortedEvents = computed(() => {
-  if (!selectedEventId.value) {
-    return savedEvents.value
-  }
-  const selected = savedEvents.value.find(e => e.id === selectedEventId.value)
-  const others = savedEvents.value.filter(e => e.id !== selectedEventId.value)
-  return selected ? [selected, ...others] : savedEvents.value
-})
 
 // Текущий выбранный Ивент
 const currentEvent = computed(() => {
