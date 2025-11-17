@@ -1,4 +1,20 @@
+import { DateTime } from 'luxon'
 import type { ControlPointCode } from '~/types'
+
+const getNowMillis = (timezone?: string): number => {
+  if (!timezone) {
+    return Date.now()
+  }
+  try {
+    const dt = DateTime.now().setZone(timezone)
+    if (dt.isValid) {
+      return dt.toMillis()
+    }
+  } catch {
+    // ignore, fallback below
+  }
+  return Date.now()
+}
 
 /**
  * Таблица статусов и извещений для мероприятий
@@ -96,25 +112,7 @@ export function getCurrentTimeInterval(
   timezone?: string
 ): { currentInterval: string; currentPoint: ControlPointCode; progress: number } {
   // Используем "текущее время" в часовом поясе Продюсера для логики продвижения по точкам
-  let now = Date.now()
-  try {
-    if (timezone) {
-      // Получаем миллисекунды "сейчас" с координатами времени для заданной зоны
-      // В итоге сравнение идёт в UTC, но мгновение берётся для локального «сейчас» этой зоны
-      const dt = new Date(new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-      }).formatToParts(new Date()).reduce((acc: Record<string,string>, p) => (p.type !== 'literal' && (acc[p.type]=p.value), acc), {} as any) as any as string)
-      // Fallback: если формат выше не дал корректную дату, оставляем Date.now()
-      if (!Number.isNaN(dt.getTime())) {
-        // Пересчитать в миллисекунды UTC
-        now = dt.getTime()
-      }
-    }
-  } catch {
-    // ignore, fallback to Date.now()
-  }
+  const now = getNowMillis(timezone)
   
   // Определяем временные точки
   const t0 = createdAt ? new Date(createdAt).getTime() : 0
@@ -378,26 +376,7 @@ export function getCountdownTimer(deadlineNext?: string, currentInterval?: strin
       urgent: false
     }
   }
-  // Используем «сейчас» в заданном часовом поясе, если передан
-  let now = Date.now()
-  try {
-    if (timezone) {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-      }).formatToParts(new Date())
-      const map: Record<string, string> = {}
-      for (const p of parts) {
-        if (p.type !== 'literal') map[p.type] = p.value
-      }
-      const localStr = `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}:${map.second}Z`
-      const dt = new Date(localStr)
-      if (!Number.isNaN(dt.getTime())) now = dt.getTime()
-    }
-  } catch {
-    // ignore
-  }
+  const now = getNowMillis(timezone)
   const deadline = new Date(deadlineNext).getTime()
   const diff = deadline - now
   

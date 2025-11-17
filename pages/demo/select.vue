@@ -68,10 +68,13 @@
                   <div v-if="event.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 text-sm font-medium mb-2">
                     <span>✅</span>
                     <span>Успешно загружен</span>
+                    <span v-if="event.lastUploadAttempt" class="text-green-300/70 text-xs">
+                      ({{ formatEventDate(event.lastUploadAttempt) }})
+                    </span>
                   </div>
                   <div v-else-if="event.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
                     <span>❌</span>
-                    <span>Ошибка загрузки</span>
+                    <span>В загрузке отказано - обнаружена ошибка</span>
                   </div>
                   <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
                     <span>⏸️</span>
@@ -162,7 +165,7 @@
                 </div>
                 <div>
                   <div class="text-xs text-white/50 mb-1">Цена за место</div>
-                  <div class="text-white/90 font-semibold">{{ currentEvent.data?.pricePerSeat ? (currentEvent.data.pricePerSeat / 100).toLocaleString('ru-RU') + ' ₽' : '—' }}</div>
+                  <div class="text-white/90 font-semibold">{{ formatPriceValue(currentEvent.data?.pricePerSeat) }}</div>
                 </div>
               </div>
               
@@ -183,10 +186,13 @@
                 <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400">
                   <span>✅</span>
                   <span>Успешно загружен</span>
+                  <span v-if="currentEvent.lastUploadAttempt" class="text-green-300/70 text-xs">
+                    ({{ formatEventDate(currentEvent.lastUploadAttempt) }})
+                  </span>
                 </div>
                 <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400">
                   <span>❌</span>
-                  <span>Ошибка загрузки</span>
+                  <span>В загрузке отказано - обнаружена ошибка</span>
                 </div>
                 <div v-else class="flex items-center gap-2 text-gray-400">
                   <span>⏸️</span>
@@ -341,6 +347,21 @@ const formatDateDisplay = (date: string, time?: string): string => {
   } catch {
     return date
   }
+}
+
+const formatPriceValue = (value: number | string | undefined | null): string => {
+  if (value === undefined || value === null || value === '') {
+    return '—'
+  }
+  const numericValue = typeof value === 'string' ? Number(value) : value
+  if (Number.isNaN(numericValue)) {
+    return '—'
+  }
+  const hasFraction = Math.abs(numericValue % 1) > 0
+  return `${numericValue.toLocaleString('ru-RU', {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2
+  })} ₽`
 }
 
 onMounted(() => {

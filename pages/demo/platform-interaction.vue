@@ -47,8 +47,26 @@
         <div class="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
           <div class="text-xs text-white/50 mb-2 space-y-1">
             <div>Создан: {{ formatEventDate(currentEvent.createdAt) }}</div>
-            <div v-if="currentEvent.lastUploadAttempt">
-              Последняя загрузка: {{ formatEventDate(currentEvent.lastUploadAttempt) }}
+            <div v-if="currentEvent.uploadHistory && currentEvent.uploadHistory.length > 0">
+              <div class="mb-1">История загрузок:</div>
+              <div class="ml-2 space-y-1">
+                <div 
+                  v-for="(item, idx) in currentEvent.uploadHistory.slice().reverse()" 
+                  :key="idx"
+                  :class="[
+                    'text-xs',
+                    item.status === 'success' ? 'text-green-300/70' : 'text-red-300/70'
+                  ]"
+                >
+                  <span>{{ formatEventDate(item.timestamp) }}</span>
+                  <span :class="item.status === 'success' ? 'text-green-400' : 'text-red-400'">
+                    {{ item.status === 'success' ? ' ✅' : ' ❌' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="currentEvent.lastUploadAttempt" class="text-white/40 italic">
+              (старая версия данных - история загрузок недоступна)
             </div>
           </div>
           
@@ -57,10 +75,22 @@
             <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 text-sm font-medium mb-2">
               <span>✅</span>
               <span>Успешно загружен</span>
+              <span 
+                v-if="currentEvent.uploadHistory && currentEvent.uploadHistory.length > 0" 
+                class="text-green-300/70 text-xs"
+              >
+                ({{ formatEventDate(currentEvent.uploadHistory[currentEvent.uploadHistory.length - 1].timestamp) }})
+              </span>
+              <span 
+                v-else-if="currentEvent.lastUploadAttempt" 
+                class="text-green-300/70 text-xs"
+              >
+                ({{ formatEventDate(currentEvent.lastUploadAttempt) }})
+              </span>
             </div>
             <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
               <span>❌</span>
-              <span>Ошибка загрузки</span>
+              <span>В загрузке отказано - обнаружена ошибка</span>
             </div>
             <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
               <span>⏸️</span>
@@ -262,6 +292,12 @@ const stopProgress = () => {
 const EVENTS_STORAGE_KEY = 'external_events_list'
 const LAST_SELECTED_EVENT_KEY = 'last_selected_event_id'
 
+interface UploadHistoryItem {
+  timestamp: string
+  status: 'success' | 'failed'
+  error?: string | string[]
+}
+
 interface SavedEvent {
   id: string
   title: string
@@ -270,6 +306,7 @@ interface SavedEvent {
   uploadStatus?: 'not_uploaded' | 'upload_success' | 'upload_failed'
   serverId?: string
   lastUploadAttempt?: string
+  uploadHistory?: UploadHistoryItem[] // История всех загрузок
   uploadError?: string | string[] // Может быть строкой (для обратной совместимости) или массивом ошибок
   isPublished?: boolean
   publishedAt?: string
@@ -583,8 +620,17 @@ const uploadEventToPlatform = async () => {
     if (eventIndex >= 0) {
       if (res.ok && data.success) {
         events[eventIndex].uploadStatus = 'upload_success'
-        // Используем время загрузки с сервера, если оно есть, иначе локальное время
-        events[eventIndex].lastUploadAttempt = data.data?.uploadedAtServer || uploadTimestamp
+        // Всегда используем текущее время загрузки как время последней загрузки
+        // (uploadedAtServer от сервера - это время первой загрузки, не последней)
+        events[eventIndex].lastUploadAttempt = uploadTimestamp
+        // Добавляем запись в историю загрузок
+        if (!events[eventIndex].uploadHistory) {
+          events[eventIndex].uploadHistory = []
+        }
+        events[eventIndex].uploadHistory.push({
+          timestamp: uploadTimestamp,
+          status: 'success'
+        })
         events[eventIndex].serverId = data.data?.id || eventData.id
         events[eventIndex].uploadError = undefined
         events[eventIndex].isPublished = data.data?.status === 'published' || false
@@ -598,15 +644,27 @@ const uploadEventToPlatform = async () => {
         events[eventIndex].uploadStatus = 'upload_failed'
         events[eventIndex].lastUploadAttempt = uploadTimestamp
         // Сохраняем все ошибки из массива data.errors, если они есть
+        let errorMessages: string | string[] = 'Неизвестная ошибка'
         if (data.errors && Array.isArray(data.errors)) {
           // Извлекаем сообщения из массива ошибок
-          const errorMessages = data.errors.map((e: any) => e.message || String(e))
+          errorMessages = data.errors.map((e: any) => e.message || String(e))
           events[eventIndex].uploadError = errorMessages.length > 0 ? errorMessages : [data.message || `HTTP ${res.status}` || 'Неизвестная ошибка']
         } else if (data.message) {
+          errorMessages = data.message
           events[eventIndex].uploadError = data.message
         } else {
-          events[eventIndex].uploadError = `HTTP ${res.status}` || 'Неизвестная ошибка'
+          errorMessages = `HTTP ${res.status}` || 'Неизвестная ошибка'
+          events[eventIndex].uploadError = errorMessages
         }
+        // Добавляем запись в историю загрузок
+        if (!events[eventIndex].uploadHistory) {
+          events[eventIndex].uploadHistory = []
+        }
+        events[eventIndex].uploadHistory.push({
+          timestamp: uploadTimestamp,
+          status: 'failed',
+          error: errorMessages
+        })
         error.value = data
       }
       
@@ -619,7 +677,17 @@ const uploadEventToPlatform = async () => {
     if (eventIndex >= 0) {
       events[eventIndex].uploadStatus = 'upload_failed'
       events[eventIndex].lastUploadAttempt = uploadTimestamp
-      events[eventIndex].uploadError = err.message || 'Ошибка сети'
+      const errorMsg = err.message || 'Ошибка сети'
+      events[eventIndex].uploadError = errorMsg
+      // Добавляем запись в историю загрузок
+      if (!events[eventIndex].uploadHistory) {
+        events[eventIndex].uploadHistory = []
+      }
+      events[eventIndex].uploadHistory.push({
+        timestamp: uploadTimestamp,
+        status: 'failed',
+        error: errorMsg
+      })
       saveEventsList(events)
     }
     

@@ -480,10 +480,13 @@
               <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 mb-2">
                 <span>✅</span>
                 <span>Успешно загружен</span>
+                <span v-if="currentEvent.lastUploadAttempt" class="text-green-300/70 text-xs">
+                  ({{ formatEventDate(currentEvent.lastUploadAttempt) }})
+                </span>
               </div>
               <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 mb-2">
                 <span>❌</span>
-                <span>Ошибка загрузки</span>
+                <span>В загрузке отказано - обнаружена ошибка</span>
               </div>
               <div v-else class="flex items-center gap-2 text-gray-400 mb-2">
                 <span>⏸️</span>
