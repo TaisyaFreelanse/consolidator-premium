@@ -63,6 +63,66 @@
           </div>
             </div>
           </div>
+          
+          <!-- Ответы сервера (внутри левой колонки) -->
+          <div class="bg-[#1A1F2E] border border-white/10 rounded-2xl p-4 mt-6">
+        <!-- Индикатор длительного процесса -->
+        <div v-if="isSubmitting || isRefreshingStatus" class="flex items-start gap-3 mb-4 bg-white/5 border border-white/10 rounded-xl p-4">
+          <svg class="w-5 h-5 text-blue-300 animate-spin mt-0.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+          <div class="flex-1">
+            <div class="text-blue-300 font-medium">
+              {{ isSubmitting ? 'Выполняется загрузка на платформу…' : 'Выполняется запрос статуса…' }}
+            </div>
+            <div class="text-white/60 text-sm">
+              {{ progressMessage }}
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Ответы сервера</h2>
+          <button
+            v-if="response || error"
+            @click="clearServerMessages"
+            class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/70 text-xs transition-colors"
+          >
+            Очистить
+          </button>
+        </div>
+        
+        <!-- Успешный ответ -->
+        <div v-if="response" class="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-3">
+          <div class="flex items-start gap-2">
+            <span class="text-green-400 text-lg">✅</span>
+            <div class="flex-1">
+              <div class="text-green-300 font-medium mb-2 text-sm">{{ response.message || 'Успешно' }}</div>
+              <pre class="bg-black/30 rounded-lg p-2 text-xs overflow-auto max-h-48 text-green-200/80">{{ JSON.stringify(response, null, 2) }}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Ошибка -->
+        <div v-if="error" class="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+          <div class="flex items-start gap-2">
+            <span class="text-red-400 text-lg">❌</span>
+            <div class="flex-1">
+              <div class="text-red-300 font-medium mb-2 text-sm">{{ error.message || 'Ошибка' }}</div>
+              <ul v-if="formattedErrors.length" class="list-disc pl-5 space-y-1 text-red-200/80 text-xs">
+                <li v-for="(msg, idx) in formattedErrors" :key="idx">{{ msg }}</li>
+              </ul>
+              <pre v-else class="bg-black/30 rounded-lg p-2 text-xs overflow-auto max-h-48 text-red-200/80">{{ JSON.stringify(error, null, 2) }}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Пустое состояние -->
+        <div v-if="!response && !error" class="text-center text-white/30 text-xs py-6">
+          Здесь будут отображаться ответы сервера при выполнении действий
+        </div>
+      </div>
         </div>
 
         <!-- Правая колонка: Активный Ивент -->
@@ -178,66 +238,6 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Ответы сервера (всегда видимая область) -->
-      <div class="sticky bottom-0 bg-[#1A1F2E] border-t border-white/10 rounded-t-2xl p-4 shadow-2xl max-w-[800px] mx-auto">
-        <!-- Индикатор длительного процесса -->
-        <div v-if="isSubmitting || isRefreshingStatus" class="flex items-start gap-3 mb-4 bg-white/5 border border-white/10 rounded-xl p-4">
-          <svg class="w-5 h-5 text-blue-300 animate-spin mt-0.5" viewBox="0 0 24 24" fill="none">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-          </svg>
-          <div class="flex-1">
-            <div class="text-blue-300 font-medium">
-              {{ isSubmitting ? 'Выполняется загрузка на платформу…' : 'Выполняется запрос статуса…' }}
-            </div>
-            <div class="text-white/60 text-sm">
-              {{ progressMessage }}
-            </div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold">Ответы сервера</h2>
-          <button
-            v-if="response || error"
-            @click="clearServerMessages"
-            class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/70 text-xs transition-colors"
-          >
-            Очистить
-          </button>
-        </div>
-        
-        <!-- Успешный ответ -->
-        <div v-if="response" class="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-3">
-          <div class="flex items-start gap-2">
-            <span class="text-green-400 text-lg">✅</span>
-            <div class="flex-1">
-              <div class="text-green-300 font-medium mb-2 text-sm">{{ response.message || 'Успешно' }}</div>
-              <pre class="bg-black/30 rounded-lg p-2 text-xs overflow-auto max-h-48 text-green-200/80">{{ JSON.stringify(response, null, 2) }}</pre>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Ошибка -->
-        <div v-if="error" class="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-          <div class="flex items-start gap-2">
-            <span class="text-red-400 text-lg">❌</span>
-            <div class="flex-1">
-              <div class="text-red-300 font-medium mb-2 text-sm">{{ error.message || 'Ошибка' }}</div>
-              <ul v-if="formattedErrors.length" class="list-disc pl-5 space-y-1 text-red-200/80 text-xs">
-                <li v-for="(msg, idx) in formattedErrors" :key="idx">{{ msg }}</li>
-              </ul>
-              <pre v-else class="bg-black/30 rounded-lg p-2 text-xs overflow-auto max-h-48 text-red-200/80">{{ JSON.stringify(error, null, 2) }}</pre>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Пустое состояние -->
-        <div v-if="!response && !error" class="text-center text-white/30 text-xs py-6">
-          Здесь будут отображаться ответы сервера при выполнении действий
         </div>
       </div>
     </div>
