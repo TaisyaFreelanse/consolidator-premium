@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
-    <div class="container mx-auto px-4 py-8 max-w-[1000px]">
+    <div class="container mx-auto px-4 py-8 max-w-[1400px]">
       <!-- Главное меню -->
       <DemoNavigation />
       
@@ -14,142 +14,20 @@
         </div>
       </div>
 
-      <!-- Выбранный Ивент для взаимодействия с платформой -->
-      <div v-if="!selectedEventId" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center mb-6">
-        <p class="text-white/50 text-lg mb-2">Ивент не выбран</p>
+      <!-- Основной контент в две колонки -->
+      <div v-if="!selectedEventId || !currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center mb-6">
+        <p v-if="!selectedEventId" class="text-white/50 text-lg mb-2">Ивент не выбран</p>
+        <p v-else class="text-white/50 text-lg mb-2">Ивент не найден</p>
         <p class="text-white/40 text-sm mb-4">
-          Выберите Ивент на странице <NuxtLink to="/demo/select" class="text-blue-400 hover:text-blue-300 underline">Выбрать</NuxtLink> для взаимодействия с платформой
+          Выберите Ивент на странице <NuxtLink to="/demo/select" class="text-blue-400 hover:text-blue-300 underline">Выбрать ивент</NuxtLink> для взаимодействия с платформой
         </p>
       </div>
       
-      <div v-else-if="!currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center mb-6">
-        <p class="text-white/50 text-lg mb-2">Ивент не найден</p>
-        <p class="text-white/40 text-sm">
-          Выбранный Ивент был удален. Выберите другой Ивент на странице <NuxtLink to="/demo/select" class="text-blue-400 hover:text-blue-300 underline">Выбрать</NuxtLink>
-        </p>
-      </div>
-      
-      <!-- Карточка выбранного Ивента -->
-      <div v-else class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <div class="flex items-start justify-between gap-4 mb-4">
-          <div class="flex-1 min-w-0">
-            <h2 class="text-2xl font-semibold break-words">Ивент: {{ currentEvent.title }}</h2>
-          </div>
-          <NuxtLink
-            to="/demo/select"
-            class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-xl text-blue-300 text-sm transition-colors flex-shrink-0"
-          >
-            🔄 Выбрать другой Ивент
-          </NuxtLink>
-        </div>
-        
-        <!-- Информация о выбранном Ивенте -->
-        <div class="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
-          <div class="text-xs text-white/50 mb-2 space-y-1">
-            <div>Создан: {{ formatEventDate(currentEvent.createdAt) }}</div>
-            <div v-if="currentEvent.uploadHistory && currentEvent.uploadHistory.length > 0">
-              <div class="mb-1">История загрузок:</div>
-              <div class="ml-2 space-y-1">
-                <div 
-                  v-for="(item, idx) in currentEvent.uploadHistory.slice().reverse()" 
-                  :key="idx"
-                  :class="[
-                    'text-xs',
-                    item.status === 'success' ? 'text-green-300/70' : 'text-red-300/70'
-                  ]"
-                >
-                  <span>{{ formatEventDate(item.timestamp) }}</span>
-                  <span :class="item.status === 'success' ? 'text-green-400' : 'text-red-400'">
-                    {{ item.status === 'success' ? ' ✅' : ' ❌' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div v-else-if="currentEvent.lastUploadAttempt" class="text-white/40 italic">
-              (старая версия данных - история загрузок недоступна)
-            </div>
-          </div>
-          
-          <!-- Статус загрузки на платформу -->
-          <div class="mb-4">
-            <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400 text-sm font-medium mb-2">
-              <span>✅</span>
-              <span>Успешно загружен</span>
-              <span 
-                v-if="currentEvent.uploadHistory && currentEvent.uploadHistory.length > 0" 
-                class="text-green-300/70 text-xs"
-              >
-                ({{ formatEventDate(currentEvent.uploadHistory[currentEvent.uploadHistory.length - 1].timestamp) }})
-              </span>
-              <span 
-                v-else-if="currentEvent.lastUploadAttempt" 
-                class="text-green-300/70 text-xs"
-              >
-                ({{ formatEventDate(currentEvent.lastUploadAttempt) }})
-              </span>
-            </div>
-            <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
-              <span>❌</span>
-              <span>В загрузке отказано - обнаружена ошибка</span>
-            </div>
-            <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
-              <span>⏸️</span>
-              <span>Не загружен</span>
-            </div>
-            
-            <!-- Дополнительная информация о статусе -->
-            <div v-if="currentEvent.uploadStatus === 'upload_success'" class="text-xs text-green-300/70 space-y-1">
-              <div v-if="currentEvent.serverId">ID на платформе: <span class="font-mono">{{ currentEvent.serverId }}</span></div>
-              <div v-if="currentEvent.isPublished" class="flex items-center gap-1">
-                <span>📢</span>
-                <span>Опубликован</span>
-              </div>
-              <div v-else class="flex items-center gap-1">
-                <span>📝</span>
-                <span>Черновик</span>
-              </div>
-            </div>
-            
-            <!-- Отображение ошибок загрузки -->
-            <div v-if="currentEvent.uploadStatus === 'upload_failed' && currentEvent.uploadError" class="mt-2">
-              <div class="text-xs text-red-300/70 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex-1">
-                    <!-- Если одна ошибка или массив с одной ошибкой -->
-                    <div v-if="getErrorCount(currentEvent.uploadError) === 1" class="break-words">
-                      {{ getFirstError(currentEvent.uploadError) }}
-                    </div>
-                    <!-- Если несколько ошибок -->
-                    <div v-else>
-                      <div class="font-medium mb-1">
-                        Обнаружено {{ getErrorCount(currentEvent.uploadError) }} ошибок:
-                      </div>
-                      <button
-                        @click.stop="toggleErrorList(currentEvent.id)"
-                        class="text-red-300/80 hover:text-red-300 text-xs underline mb-1"
-                      >
-                        {{ expandedErrors.has(currentEvent.id) ? 'Скрыть список' : 'Показать все ошибки' }}
-                      </button>
-                      <ul v-if="expandedErrors.has(currentEvent.id)" class="list-disc pl-4 space-y-1 mt-1">
-                        <li v-for="(err, idx) in getErrorArray(currentEvent.uploadError)" :key="idx" class="break-words">
-                          {{ err }}
-                        </li>
-                      </ul>
-                      <div v-else class="text-red-300/60 italic">
-                        {{ getFirstError(currentEvent.uploadError) }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Действия с выбранным Ивентом -->
-      <div v-if="apiKey && selectedEventId && currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <h2 class="text-2xl font-semibold mb-4 break-words">Действия с Ивентом: {{ currentEvent.title }}</h2>
+      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Левая колонка: Действия с Ивентом -->
+        <div class="lg:col-span-2">
+          <div v-if="apiKey" class="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <h2 class="text-2xl font-semibold mb-4">Действия с Ивентом</h2>
         
         <!-- Предупреждение о блокировке -->
         <div v-if="!canEditCurrentEvent" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
@@ -183,11 +61,128 @@
               После загрузки мероприятие будет автоматически опубликовано (если включена автомодерация) или отправлено на модерацию.
             </p>
           </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Правая колонка: Активный Ивент -->
+        <div class="lg:col-span-1">
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
+            <h2 class="text-2xl font-semibold mb-4">Активный Ивент</h2>
+            
+            <div class="space-y-4">
+              <!-- Название -->
+              <div>
+                <div class="text-xs text-white/50 mb-1">Название</div>
+                <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
+              </div>
+              
+              <!-- Автор -->
+              <div v-if="currentEvent.data?.authorName">
+                <div class="text-xs text-white/50 mb-1">Автор</div>
+                <div class="text-white/90">{{ currentEvent.data.authorName }}</div>
+              </div>
+              
+              <!-- Местоположение -->
+              <div v-if="currentEvent.data?.location">
+                <div class="text-xs text-white/50 mb-1">Местоположение</div>
+                <div class="text-white/90">{{ currentEvent.data.location }}</div>
+              </div>
+              
+              <!-- Места и цена в одной строке -->
+              <div class="grid grid-cols-3 gap-4">
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Мест</div>
+                  <div class="text-white/90 font-semibold">{{ currentEvent.data?.seatLimit || '—' }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Цена места</div>
+                  <div class="text-white/90 font-semibold">{{ formatPriceValue(currentEvent.data?.pricePerSeat) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Цена общая</div>
+                  <div class="text-white/90 font-semibold">{{ formatPriceValue(calculateTotalPrice(currentEvent)) }}</div>
+                </div>
+              </div>
+              
+              <!-- Начало - конец сбора заявок, начало оформления договоров в одной строке -->
+              <div class="grid grid-cols-3 gap-4">
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Начало сбора заявок</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startApplicationsAtDate, currentEvent.data?.startApplicationsAtTime) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Конец сбора заявок</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endApplicationsAtDate, currentEvent.data?.endApplicationsAtTime) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Начало оформления договоров</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startContractsAtDate, currentEvent.data?.startContractsAtTime) }}</div>
+                </div>
+              </div>
+              
+              <!-- Начало-окончание Ивента в одной строке -->
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Начало Ивента</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startAtDate, currentEvent.data?.startAtTime) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Окончание Ивента</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endAtDate, currentEvent.data?.endAtTime) }}</div>
+                </div>
+              </div>
+              
+              <!-- Статус на платформе -->
+              <div class="pt-4 border-t border-white/10">
+                <div class="text-xs text-white/50 mb-2">Статус на платформе</div>
+                <div v-if="currentEvent.uploadStatus === 'upload_success'" class="flex items-center gap-2 text-green-400">
+                  <span>✅</span>
+                  <span>Успешно загружен</span>
+                  <span v-if="currentEvent.uploadHistory && currentEvent.uploadHistory.length > 0" class="text-green-300/70 text-xs">
+                    ({{ formatEventDate(currentEvent.uploadHistory[currentEvent.uploadHistory.length - 1].timestamp) }})
+                  </span>
+                  <span v-else-if="currentEvent.lastUploadAttempt" class="text-green-300/70 text-xs">
+                    ({{ formatEventDate(currentEvent.lastUploadAttempt) }})
+                  </span>
+                </div>
+                <div v-else-if="currentEvent.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400">
+                  <span>❌</span>
+                  <span>В загрузке отказано - обнаружена ошибка</span>
+                  <span v-if="getLastFailedUploadTime(currentEvent)" class="text-red-300/70 text-xs">
+                    ({{ formatEventDate(getLastFailedUploadTime(currentEvent)!) }})
+                  </span>
+                </div>
+                <div v-else class="flex items-center gap-2 text-gray-400">
+                  <span>⏸️</span>
+                  <span>Не загружен</span>
+                </div>
+                
+                <div v-if="currentEvent.serverId" class="mt-2 text-xs text-white/50">
+                  ID: <span class="font-mono text-white/70">{{ currentEvent.serverId }}</span>
+                </div>
+              </div>
+              
+              <!-- Дата создания/редактирования на демо-сайте -->
+              <div class="pt-4 border-t border-white/10">
+                <div class="text-xs text-white/50 mb-1">Создан/отредактирован на демо-сайте</div>
+                <div class="text-white/90 text-sm mb-4">{{ formatEventDate(currentEvent.createdAt) }}</div>
+                
+                <!-- Кнопка выбора другого Ивента -->
+                <NuxtLink
+                  to="/demo/select"
+                  class="w-full inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  🔄 Выбрать другой Ивент
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Ответы сервера (всегда видимая область) -->
-      <div class="sticky bottom-0 bg-[#1A1F2E] border-t border-white/10 rounded-t-2xl p-6 shadow-2xl">
+      <div class="sticky bottom-0 bg-[#1A1F2E] border-t border-white/10 rounded-t-2xl p-4 shadow-2xl max-w-[800px] mx-auto">
         <!-- Индикатор длительного процесса -->
         <div v-if="isSubmitting || isRefreshingStatus" class="flex items-start gap-3 mb-4 bg-white/5 border border-white/10 rounded-xl p-4">
           <svg class="w-5 h-5 text-blue-300 animate-spin mt-0.5" viewBox="0 0 24 24" fill="none">
@@ -204,44 +199,44 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-semibold">Ответы сервера</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Ответы сервера</h2>
           <button
             v-if="response || error"
             @click="clearServerMessages"
-            class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/70 text-sm transition-colors"
+            class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/70 text-xs transition-colors"
           >
             Очистить
           </button>
         </div>
         
         <!-- Успешный ответ -->
-        <div v-if="response" class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
-          <div class="flex items-start gap-3">
-            <span class="text-green-400 text-xl">✅</span>
+        <div v-if="response" class="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-3">
+          <div class="flex items-start gap-2">
+            <span class="text-green-400 text-lg">✅</span>
             <div class="flex-1">
-              <div class="text-green-300 font-medium mb-2">{{ response.message || 'Успешно' }}</div>
-              <pre class="bg-black/30 rounded-lg p-3 text-xs overflow-auto max-h-64 text-green-200/80">{{ JSON.stringify(response, null, 2) }}</pre>
+              <div class="text-green-300 font-medium mb-2 text-sm">{{ response.message || 'Успешно' }}</div>
+              <pre class="bg-black/30 rounded-lg p-2 text-xs overflow-auto max-h-48 text-green-200/80">{{ JSON.stringify(response, null, 2) }}</pre>
             </div>
           </div>
         </div>
         
         <!-- Ошибка -->
-        <div v-if="error" class="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-          <div class="flex items-start gap-3">
-            <span class="text-red-400 text-xl">❌</span>
+        <div v-if="error" class="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+          <div class="flex items-start gap-2">
+            <span class="text-red-400 text-lg">❌</span>
             <div class="flex-1">
-              <div class="text-red-300 font-medium mb-2">{{ error.message || 'Ошибка' }}</div>
-              <ul v-if="formattedErrors.length" class="list-disc pl-5 space-y-1 text-red-200/80 text-sm">
+              <div class="text-red-300 font-medium mb-2 text-sm">{{ error.message || 'Ошибка' }}</div>
+              <ul v-if="formattedErrors.length" class="list-disc pl-5 space-y-1 text-red-200/80 text-xs">
                 <li v-for="(msg, idx) in formattedErrors" :key="idx">{{ msg }}</li>
               </ul>
-              <pre v-else class="bg-black/30 rounded-lg p-3 text-xs overflow-auto max-h-64 text-red-200/80">{{ JSON.stringify(error, null, 2) }}</pre>
+              <pre v-else class="bg-black/30 rounded-lg p-2 text-xs overflow-auto max-h-48 text-red-200/80">{{ JSON.stringify(error, null, 2) }}</pre>
             </div>
           </div>
         </div>
         
         <!-- Пустое состояние -->
-        <div v-if="!response && !error" class="text-center text-white/30 text-sm py-8">
+        <div v-if="!response && !error" class="text-center text-white/30 text-xs py-6">
           Здесь будут отображаться ответы сервера при выполнении действий
         </div>
       </div>
@@ -382,6 +377,66 @@ const formatEventDate = (dateString: string): string => {
   } catch {
     return ''
   }
+}
+
+const formatDateDisplay = (date: string, time?: string): string => {
+  if (!date) return '—'
+  try {
+    const [year, month, day] = date.split('-')
+    const dateStr = `${day}.${month}.${year}`
+    if (time) {
+      return `${dateStr} ${time}`
+    }
+    return dateStr
+  } catch {
+    return date
+  }
+}
+
+const formatPriceValue = (value: number | string | undefined | null): string => {
+  if (value === undefined || value === null || value === '') {
+    return '—'
+  }
+  const numericValue = typeof value === 'string' ? Number(value) : value
+  if (Number.isNaN(numericValue)) {
+    return '—'
+  }
+  const hasFraction = Math.abs(numericValue % 1) > 0
+  return `${numericValue.toLocaleString('ru-RU', {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2
+  })} ₽`
+}
+
+// Вычислить общую цену
+const calculateTotalPrice = (event: SavedEvent): number => {
+  const seatLimit = event.data?.seatLimit
+  const pricePerSeat = event.data?.pricePerSeat
+  if (!seatLimit || !pricePerSeat) return 0
+  const seats = typeof seatLimit === 'string' ? Number(seatLimit) : seatLimit
+  const price = typeof pricePerSeat === 'string' ? Number(pricePerSeat) : pricePerSeat
+  if (Number.isNaN(seats) || Number.isNaN(price)) return 0
+  return seats * price
+}
+
+// Получить время последней неудачной загрузки
+const getLastFailedUploadTime = (event: SavedEvent): string | null => {
+  if (event.uploadHistory && event.uploadHistory.length > 0) {
+    // Ищем последнюю неудачную попытку
+    const failedAttempts = event.uploadHistory.filter(item => item.status === 'failed')
+    if (failedAttempts.length > 0) {
+      // Сортируем по времени (новые первыми) и берем последнюю
+      const sorted = failedAttempts.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      return sorted[0].timestamp
+    }
+  }
+  // Fallback: если есть lastUploadAttempt и статус failed, используем его
+  if (event.uploadStatus === 'upload_failed' && event.lastUploadAttempt) {
+    return event.lastUploadAttempt
+  }
+  return null
 }
 
 // Текущий выбранный Ивент

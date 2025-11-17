@@ -1,23 +1,15 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
-    <div class="container mx-auto px-4 py-8 max-w-[800px]">
+    <div class="container mx-auto px-4 py-8 max-w-[1200px]">
       <!-- Главное меню -->
       <DemoNavigation />
       
       <!-- Header -->
       <div class="mb-8">
-        <div>
+        <div class="flex items-center justify-between">
           <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
             Редактировать / Создать
           </h1>
-          <p class="text-white/60 text-sm">Создание и редактирование эскизов мероприятий на демо-сайте</p>
-        </div>
-      </div>
-
-      <!-- Форма создания/обновления -->
-      <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-semibold">Создание/обновление черновика</h2>
           <button
             type="button"
             @click="handleCreateClick"
@@ -26,6 +18,10 @@
             ➕ Создать
           </button>
         </div>
+      </div>
+
+      <!-- Форма создания/обновления -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
         
         <div v-if="selectedEventId && !canEditCurrentEvent" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
           <div class="flex items-center gap-2 text-red-300 font-medium mb-1">
@@ -126,7 +122,7 @@
             ></textarea>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
                 Количество участников <span class="text-red-400">*</span>
@@ -167,208 +163,120 @@
                 ]"
               >
             </div>
-          </div>
 
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Совокупная стоимость мероприятия
-            </label>
-            <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3 text-blue-300 font-semibold">
-              {{ formatPrice(totalPrice) }} ₽
-            </div>
-            <p class="text-xs text-white/50 mt-1">Рассчитывается автоматически: {{ formData.seatLimit || 0 }} × {{ formData.pricePerSeat || 0 }} ₽</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Часовой пояс (IANA) <span class="text-red-400">*</span>
-            </label>
-            <select
-              v-model="formData.timezone"
-              required
-              :disabled="!!(selectedEventId && !canEditCurrentEvent)"
-              :class="[
-                'w-full border rounded-xl px-4 py-3 outline-none transition-all appearance-none',
-                selectedEventId && !canEditCurrentEvent
-                  ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                  : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 cursor-pointer select-arrow'
-              ]"
-            >
-              <option value="">Выберите часовой пояс</option>
-              <optgroup
-                v-for="(group, groupKey) in timezoneGroups"
-                :key="groupKey"
-                :label="group.label"
-              >
-                <option
-                  v-for="tz in group.timezones"
-                  :key="tz.value"
-                  :value="tz.value"
-                >
-                  {{ tz.display }}
-                </option>
-              </optgroup>
-            </select>
-            <p class="text-xs text-white/50 mt-1">Все часовые пояса мира (включая с 30-минутным и 45-минутным смещением)</p>
-          </div>
-
-          <!-- Календарь и часы в часовом поясе Продюсера -->
-          <div v-if="formData.timezone" class="bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h3 class="text-lg font-semibold text-white mb-1">📅 Календарь и часы Продюсера</h3>
-                <p class="text-xs text-white/60">Текущая дата и время в выбранном часовом поясе</p>
-              </div>
-              <div class="text-right">
-                <div class="text-xs text-white/50 mb-1">Часовой пояс:</div>
-                <div class="text-sm font-mono text-blue-300">{{ formData.timezone }}</div>
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- Календарь -->
-              <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                <div class="text-center">
-                  <div class="text-xl font-bold text-white mb-2">{{ producerDateTime.fullDate }}</div>
-                  <div class="text-sm text-white/70">{{ producerDateTime.weekday }}</div>
-                </div>
-              </div>
-              
-              <!-- Часы -->
-              <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                <div class="text-center">
-                  <div class="text-4xl font-bold text-white mb-2 font-mono">{{ producerDateTime.time }}</div>
-                  <div class="text-sm text-white/70 mt-2">{{ producerDateTime.timezoneOffset }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Дата/время создания на клиенте (t0) -->
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
-              Дата/время последней актуальной версии на клиенте (t0) <span class="text-red-400">*</span>
+                Совокупная стоимость
               </label>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input 
-                :value="formData.createdAtClientDate"
-                type="date" 
-                readonly
-                class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed"
-              >
-              <input 
-                :value="formData.createdAtClientTime"
-                type="time" 
-                readonly
-                step="60"
-                class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed"
-              >
+              <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3 text-blue-300 font-semibold">
+                {{ formatPrice(totalPrice) }} ₽
+              </div>
+              <p class="text-xs text-white/50 mt-1">{{ formData.seatLimit || 0 }} × {{ formData.pricePerSeat || 0 }} ₽</p>
             </div>
-            <p class="text-xs text-white/50 mt-1">Обновляется автоматически при сохранении эскиза</p>
-            </div>
+          </div>
 
-          <!-- ti10 и ti20 в одной строке -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <!-- ti10, ti20, ti30 в одной строке (6 полей) -->
+          <div class="grid grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
+              <label class="block text-xs font-medium text-white/80 mb-1">
                 Начало приема заявок (ti10) <span class="text-red-400">*</span>
               </label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid grid-cols-2 gap-1">
                 <input 
                   v-model="formData.startApplicationsAtDate"
                   type="date" 
                   required
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
-                    'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
+                    'border rounded-lg px-2 py-1.5 text-xs outline-none transition-all',
                     selectedEventId && !canEditCurrentEvent
                       ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
+                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]/20'
                   ]"
                 >
-              <input 
+                <input 
                   v-model="formData.startApplicationsAtTime"
                   type="time" 
-                required
+                  required
                   step="60"
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
-                    'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
+                    'border rounded-lg px-2 py-1.5 text-xs outline-none transition-all',
                     selectedEventId && !canEditCurrentEvent
                       ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
+                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]/20'
                   ]"
-              >
+                >
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
+              <label class="block text-xs font-medium text-white/80 mb-1">
                 Окончание приема заявок (ti20) <span class="text-red-400">*</span>
               </label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid grid-cols-2 gap-1">
                 <input 
                   v-model="formData.endApplicationsAtDate"
                   type="date" 
                   required
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
-                    'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
+                    'border rounded-lg px-2 py-1.5 text-xs outline-none transition-all',
                     selectedEventId && !canEditCurrentEvent
                       ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
+                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]/20'
                   ]"
                 >
-              <input 
+                <input 
                   v-model="formData.endApplicationsAtTime"
                   type="time" 
-                required
+                  required
                   step="60"
                   :disabled="!!(selectedEventId && !canEditCurrentEvent)"
                   :class="[
-                    'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
+                    'border rounded-lg px-2 py-1.5 text-xs outline-none transition-all',
                     selectedEventId && !canEditCurrentEvent
                       ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
+                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]/20'
                   ]"
-              >
+                >
               </div>
             </div>
-            </div>
 
-          <!-- ti30 отдельно -->
             <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
+              <label class="block text-xs font-medium text-white/80 mb-1">
                 Начало оформления договоров (ti30) <span class="text-red-400">*</span>
               </label>
-            <div class="grid grid-cols-2 gap-2 max-w-md">
-              <input 
-                v-model="formData.startContractsAtDate"
-                type="date" 
-                required
-                :disabled="!!(selectedEventId && !canEditCurrentEvent)"
-                :class="[
-                  'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
-                  selectedEventId && !canEditCurrentEvent
-                    ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                    : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
-                ]"
-              >
-              <input 
-                v-model="formData.startContractsAtTime"
-                type="time" 
-                required
-                step="60"
-                :disabled="!!(selectedEventId && !canEditCurrentEvent)"
-                :class="[
-                  'border rounded-xl px-3 py-2 text-sm outline-none transition-all',
-                  selectedEventId && !canEditCurrentEvent
-                    ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                    : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
-                ]"
-              >
+              <div class="grid grid-cols-2 gap-1">
+                <input 
+                  v-model="formData.startContractsAtDate"
+                  type="date" 
+                  required
+                  :disabled="!!(selectedEventId && !canEditCurrentEvent)"
+                  :class="[
+                    'border rounded-lg px-2 py-1.5 text-xs outline-none transition-all',
+                    selectedEventId && !canEditCurrentEvent
+                      ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
+                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]/20'
+                  ]"
+                >
+                <input 
+                  v-model="formData.startContractsAtTime"
+                  type="time" 
+                  required
+                  step="60"
+                  :disabled="!!(selectedEventId && !canEditCurrentEvent)"
+                  :class="[
+                    'border rounded-lg px-2 py-1.5 text-xs outline-none transition-all',
+                    selectedEventId && !canEditCurrentEvent
+                      ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
+                      : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]/20'
+                  ]"
+                >
+              </div>
             </div>
-            </div>
+          </div>
 
           <!-- ti40 и ti50 в одной строке -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -440,13 +348,13 @@
           </div>
 
           <!-- Кнопки действий -->
-          <div class="flex gap-4">
+          <div class="flex gap-4 items-end">
             <button
               type="button"
               @click="handleSaveClick"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
-                'flex-1 text-white font-semibold py-3 px-6 rounded-xl transition-opacity',
+                'text-white font-semibold py-3 px-6 rounded-xl transition-opacity',
                 selectedEventId && !canEditCurrentEvent
                   ? 'bg-gray-500/30 opacity-50 cursor-not-allowed'
                   : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90'
@@ -454,6 +362,27 @@
             >
               {{ selectedEventId && !canEditCurrentEvent ? '🔒 Редактирование заблокировано' : '💾 Сохранить' }}
             </button>
+            <div class="flex-1">
+              <label class="block text-sm font-medium text-white/80 mb-2">
+                Дата/время последней актуальной версии
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <input 
+                  :value="formData.createdAtClientDate"
+                  type="date" 
+                  readonly
+                  class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed text-sm"
+                >
+                <input 
+                  :value="formData.createdAtClientTime"
+                  type="time" 
+                  readonly
+                  step="60"
+                  class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed text-sm"
+                >
+              </div>
+              <p class="text-xs text-white/50 mt-1">Обновляется автоматически при сохранении эскиза</p>
+            </div>
           </div>
         </form>
 
@@ -804,11 +733,6 @@ onMounted(() => {
   
   // Загружаем список Ивентов
   loadEventsList()
-  
-  // Запускаем обновление времени каждую секунду
-  timeUpdateInterval = setInterval(() => {
-    currentTime.value = Date.now()
-  }, 1000)
   
   // Восстанавливаем последний выбранный Ивент при переходе с платформы
   if (typeof window !== 'undefined') {
@@ -1265,93 +1189,11 @@ const canEditCurrentEvent = computed(() => {
 const response = ref<any>(null)
 const error = ref<any>(null)
 
-// Текущее время для обновления календаря и часов
-const currentTime = ref(Date.now())
-
-// Интервал для обновления времени
-let timeUpdateInterval: NodeJS.Timeout | null = null
-
 // Вычисление общей стоимости мероприятия
 const totalPrice = computed(() => {
   const seats = formData.value.seatLimit || 0
   const price = formData.value.pricePerSeat || 0
   return seats * price
-})
-
-// Дата и время в часовом поясе Продюсера
-const producerDateTime = computed(() => {
-  // Используем currentTime для реактивности
-  const _ = currentTime.value
-  
-  if (!formData.value.timezone) {
-    return {
-      day: '--',
-      monthName: '--',
-      year: '----',
-      fullDate: '-- -- ----',
-      weekday: '--',
-      time: '--:--:--',
-      timezoneOffset: ''
-    }
-  }
-
-  try {
-    const dt = DateTime.now().setZone(formData.value.timezone)
-    
-    if (!dt.isValid) {
-      return {
-        day: '--',
-        monthName: '--',
-        year: '----',
-        fullDate: '-- -- ----',
-        weekday: '--',
-        time: '--:--:--',
-        timezoneOffset: ''
-      }
-    }
-
-    // Названия месяцев на русском
-    const months = [
-      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-    ]
-
-    // Названия дней недели на русском
-    const weekdays = [
-      'Воскресенье', 'Понедельник', 'Вторник', 'Среда',
-      'Четверг', 'Пятница', 'Суббота'
-    ]
-
-    const offset = dt.offset
-    const offsetHours = Math.floor(Math.abs(offset) / 60)
-    const offsetMinutes = Math.abs(offset) % 60
-    const offsetSign = offset >= 0 ? '+' : '-'
-    const offsetString = `UTC${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
-
-    // Форматируем полную дату в одну строку: "15 ноября 2025"
-    const fullDate = `${dt.day} ${months[dt.month - 1]} ${dt.year}`
-    
-    return {
-      day: String(dt.day).padStart(2, '0'),
-      monthName: months[dt.month - 1],
-      year: dt.year,
-      fullDate: fullDate,
-      weekday: weekdays[dt.weekday % 7],
-      time: dt.toFormat('HH:mm:ss'),
-      timezoneOffset: offsetString
-    }
-  } catch (error) {
-    console.error('Error formatting producer date/time:', error)
-    return {
-      day: '--',
-      monthName: '--',
-      year: '----',
-      fullDate: '-- -- ----',
-      weekday: '--',
-      time: '--:--:--',
-      timezoneOffset: ''
-    }
-  }
 })
 
 // Форматирование цены
@@ -1644,13 +1486,6 @@ const getHeaders = () => {
   return headers
 }
 
-// Очистка интервала при размонтировании
-onUnmounted(() => {
-  if (timeUpdateInterval) {
-    clearInterval(timeUpdateInterval)
-    timeUpdateInterval = null
-  }
-})
 </script>
 
 <style scoped>

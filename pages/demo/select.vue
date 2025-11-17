@@ -4,30 +4,11 @@
       <!-- Главное меню -->
       <DemoNavigation />
       
-      <!-- Header -->
-      <div class="mb-8">
-        <div>
-          <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-            Выбрать Ивент
-          </h1>
-          <p class="text-white/60 text-sm">Выберите Ивент для работы на демо-сайте</p>
-        </div>
-      </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Левая колонка: Картотека Ивентов -->
         <div class="lg:col-span-2">
           <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-2xl font-semibold">Картотека Ивентов</h2>
-              <button
-                @click="loadEventsList"
-                class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-xl text-blue-300 text-sm transition-colors"
-              >
-                🔄 Обновить список
-              </button>
-            </div>
-            
             <div v-if="savedEvents.length === 0" class="text-white/50 text-sm py-8 text-center bg-white/5 rounded-lg">
               Нет сохраненных Ивентов. Создайте Ивент на странице "Редактировать / Создать".
             </div>
@@ -75,6 +56,9 @@
                   <div v-else-if="event.uploadStatus === 'upload_failed'" class="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
                     <span>❌</span>
                     <span>В загрузке отказано - обнаружена ошибка</span>
+                    <span v-if="getLastFailedUploadTime(event)" class="text-red-300/70 text-xs">
+                      ({{ formatEventDate(getLastFailedUploadTime(event)!) }})
+                    </span>
                   </div>
                   <div v-else class="flex items-center gap-2 text-gray-400 text-sm font-medium mb-2">
                     <span>⏸️</span>
@@ -157,27 +141,48 @@
                 <div class="text-white/90">{{ currentEvent.data.location }}</div>
               </div>
               
-              <!-- Места и цена -->
-              <div class="grid grid-cols-2 gap-4">
+              <!-- Места и цена в одной строке -->
+              <div class="grid grid-cols-3 gap-4">
                 <div>
                   <div class="text-xs text-white/50 mb-1">Мест</div>
                   <div class="text-white/90 font-semibold">{{ currentEvent.data?.seatLimit || '—' }}</div>
                 </div>
                 <div>
-                  <div class="text-xs text-white/50 mb-1">Цена за место</div>
+                  <div class="text-xs text-white/50 mb-1">Цена места</div>
                   <div class="text-white/90 font-semibold">{{ formatPriceValue(currentEvent.data?.pricePerSeat) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Цена общая</div>
+                  <div class="text-white/90 font-semibold">{{ formatPriceValue(calculateTotalPrice(currentEvent)) }}</div>
                 </div>
               </div>
               
-              <!-- Даты -->
-              <div v-if="currentEvent.data?.startAtDate">
-                <div class="text-xs text-white/50 mb-1">Начало</div>
-                <div class="text-white/90">{{ formatDateDisplay(currentEvent.data.startAtDate, currentEvent.data.startAtTime) }}</div>
+              <!-- Начало - конец сбора заявок, начало оформления договоров в одной строке -->
+              <div class="grid grid-cols-3 gap-4">
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Начало сбора заявок</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startApplicationsAtDate, currentEvent.data?.startApplicationsAtTime) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Конец сбора заявок</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endApplicationsAtDate, currentEvent.data?.endApplicationsAtTime) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Начало оформления договоров</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startContractsAtDate, currentEvent.data?.startContractsAtTime) }}</div>
+                </div>
               </div>
               
-              <div v-if="currentEvent.data?.endAtDate">
-                <div class="text-xs text-white/50 mb-1">Окончание</div>
-                <div class="text-white/90">{{ formatDateDisplay(currentEvent.data.endAtDate, currentEvent.data.endAtTime) }}</div>
+              <!-- Начало-окончание Ивента в одной строке -->
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Начало Ивента</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startAtDate, currentEvent.data?.startAtTime) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-white/50 mb-1">Окончание Ивента</div>
+                  <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endAtDate, currentEvent.data?.endAtTime) }}</div>
+                </div>
               </div>
               
               <!-- Статус на платформе -->
@@ -238,6 +243,12 @@ import { DateTime } from 'luxon'
 const EVENTS_STORAGE_KEY = 'external_events_list'
 const LAST_SELECTED_EVENT_KEY = 'last_selected_event_id'
 
+interface UploadHistoryItem {
+  timestamp: string
+  status: 'success' | 'failed'
+  error?: string | string[]
+}
+
 interface SavedEvent {
   id: string
   title: string
@@ -247,6 +258,7 @@ interface SavedEvent {
   serverId?: string
   lastUploadAttempt?: string
   uploadError?: string | string[]
+  uploadHistory?: UploadHistoryItem[]
   isPublished?: boolean
   publishedAt?: string
 }
@@ -362,6 +374,37 @@ const formatPriceValue = (value: number | string | undefined | null): string => 
     minimumFractionDigits: hasFraction ? 2 : 0,
     maximumFractionDigits: 2
   })} ₽`
+}
+
+// Получить время последней неудачной загрузки
+const getLastFailedUploadTime = (event: SavedEvent): string | null => {
+  if (event.uploadHistory && event.uploadHistory.length > 0) {
+    // Ищем последнюю неудачную попытку
+    const failedAttempts = event.uploadHistory.filter(item => item.status === 'failed')
+    if (failedAttempts.length > 0) {
+      // Сортируем по времени (новые первыми) и берем последнюю
+      const sorted = failedAttempts.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      return sorted[0].timestamp
+    }
+  }
+  // Fallback: если есть lastUploadAttempt и статус failed, используем его
+  if (event.uploadStatus === 'upload_failed' && event.lastUploadAttempt) {
+    return event.lastUploadAttempt
+  }
+  return null
+}
+
+// Вычислить общую цену
+const calculateTotalPrice = (event: SavedEvent): number => {
+  const seatLimit = event.data?.seatLimit
+  const pricePerSeat = event.data?.pricePerSeat
+  if (!seatLimit || !pricePerSeat) return 0
+  const seats = typeof seatLimit === 'string' ? Number(seatLimit) : seatLimit
+  const price = typeof pricePerSeat === 'string' ? Number(pricePerSeat) : pricePerSeat
+  if (Number.isNaN(seats) || Number.isNaN(price)) return 0
+  return seats * price
 }
 
 onMounted(() => {
