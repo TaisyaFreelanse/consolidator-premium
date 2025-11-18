@@ -166,7 +166,7 @@
                   <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endApplicationsAtDate, currentEvent.data?.endApplicationsAtTime) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs text-white/50 mb-1">Нач.<br>оформ. договоров</div>
+                  <div class="text-xs text-white/50 mb-1">Нач. оформ.<br>договоров</div>
                   <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startContractsAtDate, currentEvent.data?.startContractsAtTime) }}</div>
                 </div>
               </div>
@@ -429,3 +429,8 @@ h3 {
   hyphens: auto;
 }
 </style>
+
+
+
+
+
