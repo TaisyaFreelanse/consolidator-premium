@@ -1,6 +1,6 @@
 <template>
-  <nav class="bg-white/5 border-b border-white/10 mb-6 rounded-xl overflow-hidden" aria-label="Основная навигация демо-страниц">
-    <div class="flex items-center justify-around">
+  <nav class="bg-white/5 border-b border-white/10 mb-4 rounded-xl overflow-hidden" aria-label="Основная навигация демо-страниц">
+    <div class="flex items-center justify-around flex-wrap">
       <NuxtLink
         to="/demo/select"
         class="flex-1 px-2 py-3 text-center text-xs text-white/80 hover:bg-white/10 transition-colors border-r border-white/10 last:border-r-0"
@@ -23,9 +23,9 @@
         to="/demo/platform-interaction"
         class="flex-1 px-2 py-3 text-center text-xs text-white/80 hover:bg-white/10 transition-colors border-r border-white/10 last:border-r-0"
         :class="{ 'bg-white/10 font-semibold text-white border-b-2 border-[#007AFF]': $route.path === '/demo/platform-interaction' }"
-        aria-label="Взаимодействовать с платформой"
+        aria-label="Загрузить на платформу"
       >
-        <span class="hidden md:inline">🔗 На платформу</span>
+        <span class="hidden md:inline">🔗 Загрузить на платформу</span>
         <span class="md:hidden">🔗</span>
       </NuxtLink>
       <NuxtLink
@@ -36,6 +36,15 @@
       >
         <span class="hidden md:inline">🔑 API-ключ</span>
         <span class="md:hidden">🔑</span>
+      </NuxtLink>
+      <NuxtLink
+        to="/demo/platform-report"
+        class="flex-1 px-2 py-3 text-center text-xs text-white/80 hover:bg-white/10 transition-colors border-r border-white/10 last:border-r-0"
+        :class="{ 'bg-white/10 font-semibold text-white border-b-2 border-[#007AFF]': $route.path === '/demo/platform-report' }"
+        aria-label="Отчет платформы"
+      >
+        <span class="hidden md:inline">📊 Отчет платформы</span>
+        <span class="md:hidden">📊</span>
       </NuxtLink>
     </div>
   </nav>

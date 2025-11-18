@@ -307,12 +307,21 @@ onUnmounted(() => {
     <div v-if="!compact" class="status-header">
       <div class="event-title-row">
         <h3 class="event-title">{{ event.title }}</h3>
-        <span v-if="event.createdAt" class="upload-date">
+        <div v-if="event.createdAt" class="upload-date">
           <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
           </svg>
-          Загружено: {{ formatUploadDate(event.createdAt) }}
-        </span>
+          <div class="upload-date-text">
+            <div class="upload-date-line">
+              <span class="upload-date-label">Загрузка первичная:</span>
+              <span>{{ formatUploadDate(event.createdAt) }}</span>
+            </div>
+            <div class="upload-date-line">
+              <span class="upload-date-label">Загрузка актуальная:</span>
+              <span>{{ formatUploadDate(event.updatedAt || event.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="event-meta">
         <span class="meta-item">
@@ -499,18 +508,36 @@ onUnmounted(() => {
 
 .upload-date {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 13px;
-  color: #64748b;
-  font-weight: 500;
-  white-space: nowrap;
+  color: #475569;
 }
 
 .upload-date .icon {
   width: 16px;
   height: 16px;
-  color: #64748b;
+  color: #475569;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.upload-date-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #475569;
+}
+
+.upload-date-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.upload-date-label {
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .event-meta {

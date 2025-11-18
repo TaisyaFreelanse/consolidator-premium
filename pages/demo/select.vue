@@ -168,7 +168,9 @@
                   <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endApplicationsAtDate, currentEvent.data?.endApplicationsAtTime) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs text-white/50 mb-1">Начало оформления договоров</div>
+                  <div class="text-xs text-white/50 mb-1">
+                    Нач.<span class="block">оформ. договоров</span>
+                  </div>
                   <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startContractsAtDate, currentEvent.data?.startContractsAtTime) }}</div>
                 </div>
               </div>

@@ -1,24 +1,10 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-[#0A0F1E] via-[#1A1F2E] to-[#0A0F1E] text-white">
-    <div class="container mx-auto px-4 py-8 max-w-[1200px]">
+    <div class="container mx-auto px-4 pt-4 pb-8 max-w-[1200px]">
       <!-- Главное меню -->
       <DemoNavigation />
       
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-            Редактировать / Создать
-          </h1>
-          <button
-            type="button"
-            @click="handleCreateClick"
-            class="bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-2 px-6 rounded-xl hover:opacity-90 transition-opacity"
-          >
-            ➕ Создать
-          </button>
-        </div>
-      </div>
+      <div class="mb-3"></div>
 
       <!-- Форма создания/обновления -->
       <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
@@ -34,22 +20,36 @@
           </div>
         </div>
         
-        <form @submit.prevent="saveEvent" class="space-y-4">
+        <form @submit.prevent="saveEvent" class="space-y-3">
           <!-- ID мероприятия (только для чтения, показывается только если есть ID от сервера) -->
-          <div v-if="formData.id" class="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
-            <label class="block text-sm font-medium text-green-300 mb-1">
-              ID мероприятия на платформе
-            </label>
-            <div class="text-green-200 font-mono text-sm break-all">
-              {{ formData.id }}
-            </div>
-            <p class="text-xs text-green-200/70 mt-1">Присвоено автоматически после успешной загрузки на платформу</p>
-          </div>
-
           <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Название мероприятия <span class="text-red-400">*</span>
-            </label>
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+              <label class="block text-sm font-medium text-white/80">
+                Название мероприятия <span class="text-red-400">*</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  @click="handleCreateClick"
+                  class="bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-1.5 px-4 rounded-xl text-sm hover:opacity-90 transition-opacity"
+                >
+                  ➕ Создать
+                </button>
+                <button
+                  type="button"
+                  @click="handleDeleteClick"
+                  :disabled="!selectedEventId"
+                  :class="[
+                    'py-1.5 px-4 rounded-xl text-sm border transition-opacity',
+                    selectedEventId
+                      ? 'border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20'
+                      : 'border-white/10 text-white/40 cursor-not-allowed bg-white/5'
+                  ]"
+                >
+                  🗑 Удалить
+                </button>
+              </div>
+            </div>
             <textarea 
               v-model="formData.title"
               required
@@ -65,37 +65,51 @@
             ></textarea>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Имя автора (authorName) <span class="text-red-400">*</span>
-            </label>
-            <input 
-              v-model="formData.authorName"
-              type="text" 
-              required
-              placeholder="Шеф Иванов"
-              :disabled="!!(selectedEventId && !canEditCurrentEvent)"
-              :class="[
-                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all',
-                selectedEventId && !canEditCurrentEvent
-                  ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
-                  : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
-              ]"
-            >
+          <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+            <div>
+              <label class="block text-sm font-medium text-white/80 mb-1">
+                Имя автора (authorName) <span class="text-red-400">*</span>
+              </label>
+              <input 
+                v-model="formData.authorName"
+                type="text" 
+                required
+                placeholder="Шеф Иванов"
+                :disabled="!!(selectedEventId && !canEditCurrentEvent)"
+                :class="[
+                  'w-full border rounded-xl px-4 py-2.5 placeholder-white/30 outline-none transition-all',
+                  selectedEventId && !canEditCurrentEvent
+                    ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
+                    : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
+                ]"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-white/80 mb-1">
+                ID мероприятия на платформе
+              </label>
+              <input 
+                :value="formData.id || ''"
+                type="text" 
+                readonly
+                placeholder="Будет присвоен после загрузки"
+                class="w-full border rounded-xl px-4 py-2.5 bg-white/5 border-white/10 text-white/70 placeholder-white/30 cursor-not-allowed font-mono text-sm"
+              >
+            </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
+            <label class="block text-sm font-medium text-white/80 mb-1">
               Место проведения <span class="text-red-400">*</span>
             </label>
             <textarea 
               v-model="formData.location"
               required
-              rows="2"
+              rows="1"
               placeholder="Москва, ул. Поварская, 12"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
-                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all break-words',
+                'w-full border rounded-xl px-4 py-2 placeholder-white/30 outline-none transition-all break-words',
                 selectedEventId && !canEditCurrentEvent
                   ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
                   : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
@@ -104,17 +118,17 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
+            <label class="block text-sm font-medium text-white/80 mb-1">
               Описание <span class="text-red-400">*</span>
             </label>
             <textarea 
               v-model="formData.description"
               required
-              rows="3"
+              rows="2"
               placeholder="Погружаемся в гастрономию с шефом Ивановым"
               :disabled="!!(selectedEventId && !canEditCurrentEvent)"
               :class="[
-                'w-full border rounded-xl px-4 py-3 placeholder-white/30 outline-none transition-all',
+                'w-full border rounded-xl px-4 py-2 placeholder-white/30 outline-none transition-all',
                 selectedEventId && !canEditCurrentEvent
                   ? 'bg-white/10 border-white/20 text-white/70 cursor-not-allowed'
                   : 'bg-white/5 border-white/10 text-white focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20'
@@ -124,7 +138,7 @@
 
           <div class="grid grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
+            <label class="block text-sm font-medium text-white/80 mb-1">
                 Количество участников <span class="text-red-400">*</span>
               </label>
               <input 
@@ -144,7 +158,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
+            <label class="block text-sm font-medium text-white/80 mb-1">
                 Цена за место (₽) <span class="text-red-400">*</span>
               </label>
               <input 
@@ -165,7 +179,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
+            <label class="block text-sm font-medium text-white/80 mb-1">
                 Совокупная стоимость
               </label>
               <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3 text-blue-300 font-semibold">
@@ -364,36 +378,34 @@
             </button>
             <div class="flex-1">
               <label class="block text-sm font-medium text-white/80 mb-2">
-                Дата/время последней актуальной версии
+                Дата/время актуальной версии — обновляется автоматически при сохранении
               </label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid grid-cols-2 gap-2 max-w-xs">
                 <input 
                   :value="formData.createdAtClientDate"
                   type="date" 
                   readonly
-                  class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed text-sm"
+                  class="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white/70 cursor-not-allowed text-sm"
                 >
                 <input 
                   :value="formData.createdAtClientTime"
                   type="time" 
                   readonly
                   step="60"
-                  class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white/70 cursor-not-allowed text-sm"
+                  class="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white/70 cursor-not-allowed text-sm"
                 >
               </div>
-              <p class="text-xs text-white/50 mt-1">Обновляется автоматически при сохранении эскиза</p>
             </div>
           </div>
         </form>
 
         <!-- Карточка выбранного Ивента -->
         <div v-if="currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-          <h2 class="text-2xl font-semibold mb-4">Выбранный Ивент</h2>
           
           <div class="space-y-4">
             <!-- Название -->
             <div>
-              <div class="text-xs text-white/50 mb-1">Название</div>
+              <div class="text-xs text-white/50 mb-1">Редактируется</div>
               <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
             </div>
             
@@ -447,32 +459,15 @@
           </div>
         </div>
 
-        <!-- Индикатор текущего Ивента -->
-        <div v-if="currentEvent" :class="[
-          'rounded-xl px-4 py-2 text-sm mb-4 break-words',
-          canEditCurrentEvent
-            ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
-            : 'bg-red-500/10 border border-red-500/30 text-red-300'
-        ]">
-          <span class="font-medium">
-            {{ canEditCurrentEvent ? '✏️ Редактируется:' : '🔒 Редактирование заблокировано:' }}
-          </span> 
-          {{ currentEvent.title }} (обновлено: {{ formatEventDate(currentEvent.createdAt) }})
-          <div v-if="!canEditCurrentEvent" class="text-xs mt-1 text-red-200/70">
-            Время Ти-20 (окончание приема заявок) прошло. Редактирование невозможно.
-          </div>
-        </div>
-
         <!-- Информация о загрузке на платформу -->
         <div class="border-t border-white/10 pt-4">
           <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3">
             <div class="flex items-start gap-3">
               <span class="text-blue-400 text-xl">ℹ️</span>
               <div class="flex-1">
-                <div class="text-blue-300 font-medium mb-1">Загрузка на платформу</div>
                 <div class="text-blue-200/70 text-sm">
                   Для загрузки Ивента на платформу, обновления статуса и публикации перейдите на страницу 
-                  <NuxtLink to="/demo/platform-interaction" class="text-blue-400 hover:text-blue-300 underline font-medium">Взаимодействие с платформой</NuxtLink>.
+                  <NuxtLink to="/demo/platform-interaction" class="text-blue-400 hover:text-blue-300 underline font-medium">Загрузить на платформу</NuxtLink>.
                 </div>
               </div>
             </div>
@@ -831,6 +826,14 @@ const handleCreateClick = () => {
     }
   }
   handleNewEventClick()
+}
+
+const handleDeleteClick = () => {
+  if (!selectedEventId.value) {
+    alert('Сначала выберите Ивент для удаления')
+    return
+  }
+  deleteEvent(selectedEventId.value)
 }
 
 // Обработчик кнопки "Сохранить"

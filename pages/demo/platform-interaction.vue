@@ -4,15 +4,7 @@
       <!-- Главное меню -->
       <DemoNavigation />
       
-      <!-- Header -->
-      <div class="mb-8">
-        <div>
-          <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-            Взаимодействовать с платформой
-          </h1>
-          <p class="text-white/60 text-sm">Загрузка эскизов на платформу, обновление статуса и публикация мероприятий</p>
-        </div>
-      </div>
+      <div class="mb-4"></div>
 
       <!-- Основной контент в две колонки -->
       <div v-if="!selectedEventId || !currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-12 text-center mb-6">
@@ -128,12 +120,11 @@
         <!-- Правая колонка: Активный Ивент -->
         <div class="lg:col-span-1">
           <div class="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
-            <h2 class="text-2xl font-semibold mb-4">Активный Ивент</h2>
             
             <div class="space-y-4">
               <!-- Название -->
               <div>
-                <div class="text-xs text-white/50 mb-1">Название</div>
+                <div class="text-xs text-white/50 mb-1">Название активного Ивента</div>
                 <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
               </div>
               
@@ -176,7 +167,9 @@
                   <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.endApplicationsAtDate, currentEvent.data?.endApplicationsAtTime) }}</div>
                 </div>
                 <div>
-                  <div class="text-xs text-white/50 mb-1">Начало оформления договоров</div>
+                  <div class="text-xs text-white/50 mb-1">
+                    Нач.<span class="block">оформ. договоров</span>
+                  </div>
                   <div class="text-white/90 text-sm">{{ formatDateDisplay(currentEvent.data?.startContractsAtDate, currentEvent.data?.startContractsAtTime) }}</div>
                 </div>
               </div>
@@ -218,8 +211,22 @@
                   <span>Не загружен</span>
                 </div>
                 
-                <div v-if="currentEvent.serverId" class="mt-2 text-xs text-white/50">
-                  ID: <span class="font-mono text-white/70">{{ currentEvent.serverId }}</span>
+                <div v-if="currentEvent.serverId" class="mt-2 text-xs text-white/60 space-y-1">
+                  <div class="flex justify-between gap-4">
+                    <span>Загрузка первичная</span>
+                    <span class="text-white/80">
+                      {{ getFirstSuccessfulUploadTime(currentEvent) ? formatEventDate(getFirstSuccessfulUploadTime(currentEvent)!) : '—' }}
+                    </span>
+                  </div>
+                  <div class="flex justify-between gap-4">
+                    <span>Загрузка актуальная</span>
+                    <span class="text-white/80">
+                      {{ getLatestSuccessfulUploadTime(currentEvent) ? formatEventDate(getLatestSuccessfulUploadTime(currentEvent)!) : '—' }}
+                    </span>
+                  </div>
+                  <div class="pt-1">
+                    ID: <span class="font-mono text-white/70">{{ currentEvent.serverId }}</span>
+                  </div>
                 </div>
               </div>
               
@@ -377,6 +384,27 @@ const formatEventDate = (dateString: string): string => {
   } catch {
     return ''
   }
+}
+
+const getFirstSuccessfulUploadTime = (event: SavedEvent): string | null => {
+  if (event.uploadHistory && event.uploadHistory.length > 0) {
+    const firstSuccess = event.uploadHistory.find(item => item.status === 'success')
+    if (firstSuccess) {
+      return firstSuccess.timestamp
+    }
+  }
+  return event.lastUploadAttempt || null
+}
+
+const getLatestSuccessfulUploadTime = (event: SavedEvent): string | null => {
+  if (event.uploadHistory && event.uploadHistory.length > 0) {
+    for (let i = event.uploadHistory.length - 1; i >= 0; i--) {
+      if (event.uploadHistory[i].status === 'success') {
+        return event.uploadHistory[i].timestamp
+      }
+    }
+  }
+  return event.lastUploadAttempt || null
 }
 
 const formatDateDisplay = (date: string, time?: string): string => {
