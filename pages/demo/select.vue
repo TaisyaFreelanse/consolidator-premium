@@ -117,15 +117,13 @@
           </div>
         </div>
 
-        <!-- Правая колонка: Активный Ивент -->
+        <!-- Правая колонка: активное событие -->
         <div class="lg:col-span-1">
           <div v-if="currentEvent" class="bg-white/5 border border-white/10 rounded-2xl p-6 sticky top-6">
-            <h2 class="text-2xl font-semibold mb-4">Активный Ивент</h2>
-            
             <div class="space-y-4">
               <!-- Название -->
               <div>
-                <div class="text-xs text-white/50 mb-1">Название</div>
+                <div class="text-xs text-white/50 mb-1">Название активного Ивента</div>
                 <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
               </div>
               
@@ -144,12 +142,12 @@
               <!-- Места и цена в одной строке -->
               <div class="grid grid-cols-3 gap-4">
                 <div>
-                  <div class="text-xs text-white/50 mb-1">Мест</div>
+                  <div class="text-xs text-white/50 mb-1 pl-1">Мест</div>
                   <div class="text-white/90 font-semibold">{{ currentEvent.data?.seatLimit || '—' }}</div>
                 </div>
                 <div>
-                  <div class="text-xs text-white/50 mb-1">Цена места</div>
-                  <div class="text-white/90 font-semibold">{{ formatPriceValue(currentEvent.data?.pricePerSeat) }}</div>
+                  <div class="text-xs text-white/50 mb-1 pl-1">Цена места</div>
+                  <div class="text-white/90 font-semibold pl-1">{{ formatPriceValue(currentEvent.data?.pricePerSeat) }}</div>
                 </div>
                 <div>
                   <div class="text-xs text-white/50 mb-1">Цена общая</div>
