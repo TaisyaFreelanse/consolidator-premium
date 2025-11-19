@@ -426,14 +426,57 @@ export const generateApplicantPdf = async (
       formatDate(payment.createdAt)
     ])
 
+    // Убеждаемся, что шрифт установлен перед созданием таблицы
+    setCyrillicFont(doc, 'normal')
+
     autoTable(doc, {
       startY: yPos,
       head: [['Сумма', 'Дата платежа']],
       body: paymentsData,
       theme: 'striped',
-      headStyles: { fillColor: [66, 139, 202], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 10, cellPadding: 3 },
-      margin: { left: margin, right: margin }
+      headStyles: { 
+        fillColor: [66, 139, 202], 
+        textColor: 255, 
+        fontStyle: 'bold',
+        font: 'DejaVuSans'
+      },
+      bodyStyles: {
+        font: 'DejaVuSans',
+        fontStyle: 'normal'
+      },
+      styles: { 
+        fontSize: 10, 
+        cellPadding: 3,
+        font: 'DejaVuSans',
+        fontStyle: 'normal'
+      },
+      margin: { left: margin, right: margin },
+      didParseCell: (data: any) => {
+        // Убеждаемся, что используется правильный шрифт при парсинге
+        if (data.cell && data.cell.styles) {
+          data.cell.styles.font = 'DejaVuSans'
+          // Убеждаемся, что fontStyle правильный
+          if (data.section === 'head') {
+            data.cell.styles.fontStyle = 'bold'
+          } else {
+            data.cell.styles.fontStyle = 'normal'
+          }
+        }
+      },
+      didDrawCell: (data: any) => {
+        // Принудительно устанавливаем шрифт при отрисовке
+        if (data.doc) {
+          try {
+            if (data.section === 'head') {
+              data.doc.setFont('DejaVuSans', 'bold')
+            } else {
+              data.doc.setFont('DejaVuSans', 'normal')
+            }
+          } catch (e) {
+            // Ignore font errors
+          }
+        }
+      }
     })
 
     yPos = (doc as any).lastAutoTable.finalY + 10
