@@ -1,11 +1,16 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MonitoringSnapshot } from '~/types'
+import type { MonitoringSnapshot, EventItem } from '~/types'
 import { useAuthStore } from '~/stores/auth'
+import { getMoneyStatus } from '~/utils/statusMessages'
 
 const auth = useAuthStore()
-const props = defineProps<{ data: MonitoringSnapshot; seatLimit?: number }>()
+const props = defineProps<{ 
+  data: MonitoringSnapshot
+  seatLimit?: number
+  event?: EventItem // Добавляем event для расчета всех чисел
+}>()
 const emit = defineEmits<{ openPersonalCalc: [] }>()
 
 type SnapshotApplicant = MonitoringSnapshot['applicants'][number]
@@ -61,6 +66,51 @@ const isWithinLimit = (index: number) => {
   return index < seatLimit.value
 }
 
+// Расчет effectiveCollected
+const effectiveCollected = computed(() => {
+  const totalCollected = props.data.collected || 0
+  const limit = seatLimit.value
+
+  if (limit > 0 && props.data.applicants.length >= limit) {
+    const sortedApplicants = [...props.data.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
+    const topNTotal = sortedApplicants.slice(0, limit).reduce((sum, applicant) => sum + applicant.paidAmount, 0)
+    return topNTotal
+  }
+
+  return totalCollected
+})
+
+// Расчет "Возврат сверхлимитчикам"
+const refundToOverlimit = computed(() => {
+  const limit = seatLimit.value
+  if (limit <= 0) return 0
+  
+  const overflowApplicants = sortedApplicants.value.slice(limit)
+  return overflowApplicants.reduce((sum, applicant) => sum + applicant.paidAmount, 0)
+})
+
+// Расчет moneyStatus
+const moneyStatus = computed(() => {
+  if (!props.event) return null
+  return getMoneyStatus(effectiveCollected.value, props.event.priceTotal)
+})
+
+// Расчет "Профицит к распределению"
+const surplusToDistribute = computed(() => {
+  if (!moneyStatus.value || moneyStatus.value.type !== 'surplus') return 0
+  return Math.max(0, moneyStatus.value.amount - refundToOverlimit.value)
+})
+
+// Получить отображаемый код/логин заявителя
+const getApplicantDisplayCode = (applicant: SnapshotApplicant): string => {
+  // Если пользователь авторизован и это его заявка - показываем логин
+  if (auth.isAuthenticated && isCurrentUser(applicant.code) && applicant.login) {
+    return applicant.login
+  }
+  // Для остальных - показываем секретный код
+  return applicant.code
+}
+
 const enrichedApplicants = computed(() => {
   const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
@@ -85,7 +135,8 @@ const enrichedApplicants = computed(() => {
     if (!payments.length) {
       return {
         ...applicant,
-        lastPayment: null as LastPaymentInfo | null
+        lastPayment: null as LastPaymentInfo | null,
+        displayCode: getApplicantDisplayCode(applicant)
       }
     }
 
@@ -94,7 +145,8 @@ const enrichedApplicants = computed(() => {
     if (Number.isNaN(paymentDate.getTime())) {
       return {
         ...applicant,
-        lastPayment: null as LastPaymentInfo | null
+        lastPayment: null as LastPaymentInfo | null,
+        displayCode: getApplicantDisplayCode(applicant)
       }
     }
 
@@ -104,19 +156,57 @@ const enrichedApplicants = computed(() => {
         date: dateFormatter.format(paymentDate),
         time: timeFormatter.format(paymentDate),
         full: fullFormatter.format(paymentDate)
-      } as LastPaymentInfo
+      } as LastPaymentInfo,
+      displayCode: getApplicantDisplayCode(applicant)
     }
   })
 })
+
+// Форматирование суммы
+const formatMoney = (amount: number) => {
+  return (amount / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
+}
 </script>
 
 <template>
   <div class="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
     <!-- Заголовок таблицы -->
     <div class="p-8 border-b border-white/10">
-      <h3 class="text-2xl font-bold text-white mb-1" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+      <h3 class="text-2xl font-bold text-white mb-4" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
         Список заявителей
       </h3>
+      
+      <!-- Отображение всех пяти чисел -->
+      <div v-if="event" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div class="text-white/60 text-xs mb-1">Собрано</div>
+          <div class="text-lg font-bold text-green-400">{{ formatMoney(effectiveCollected) }} ₽</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div class="text-white/60 text-xs mb-1">Требуется</div>
+          <div class="text-lg font-bold text-blue-400">{{ formatMoney(event.priceTotal) }} ₽</div>
+        </div>
+        <div class="bg-white/5 rounded-xl p-3 border border-white/10" :class="moneyStatus?.type === 'surplus' ? 'border-green-500/30' : moneyStatus?.type === 'deficit' ? 'border-red-500/30' : ''">
+          <div class="text-white/60 text-xs mb-1">
+            <template v-if="moneyStatus?.type === 'deficit'">Недобор</template>
+            <template v-else-if="moneyStatus?.type === 'surplus'">Профицит</template>
+            <template v-else>Баланс</template>
+          </div>
+          <div class="text-lg font-bold" :class="moneyStatus?.type === 'surplus' ? 'text-green-400' : moneyStatus?.type === 'deficit' ? 'text-red-400' : 'text-white'">
+            <template v-if="moneyStatus?.type === 'deficit'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
+            <template v-else-if="moneyStatus?.type === 'surplus'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
+            <template v-else>Достигнут</template>
+          </div>
+        </div>
+        <div v-if="moneyStatus?.type === 'surplus' && refundToOverlimit > 0" class="bg-white/5 rounded-xl p-3 border border-yellow-500/30">
+          <div class="text-white/60 text-xs mb-1">Возврат сверхлимитчикам</div>
+          <div class="text-lg font-bold text-yellow-400">{{ formatMoney(refundToOverlimit) }} ₽</div>
+        </div>
+        <div v-if="moneyStatus?.type === 'surplus'" class="bg-white/5 rounded-xl p-3 border border-green-500/30">
+          <div class="text-white/60 text-xs mb-1">Профицит к распределению</div>
+          <div class="text-lg font-bold text-green-400">{{ formatMoney(surplusToDistribute) }} ₽</div>
+        </div>
+      </div>
     </div>
 
     <!-- Таблица -->
@@ -153,7 +243,7 @@ const enrichedApplicants = computed(() => {
               <div class="flex items-center gap-2">
                 <span class="font-mono font-medium"
                       :class="isCurrentUser(row.code) ? 'text-[#34c759]' : 'text-white'">
-                  {{ row.code }}
+                  {{ row.displayCode || row.code }}
                 </span>
                 <span v-if="isCurrentUser(row.code)" class="text-xs bg-[#34c759]/20 text-[#34c759] px-2 py-0.5 rounded-full font-semibold">
                   ВЫ

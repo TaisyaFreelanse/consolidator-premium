@@ -467,7 +467,7 @@ const handlePayment = async (paymentData: any) => {
             </button>
           </div>
 
-          <MonitoringTable :data="snap" :seat-limit="ev.seatLimit || 0" @open-personal-calc="openPersonalCalculation" />
+          <MonitoringTable :data="snap" :seat-limit="ev.seatLimit || 0" :event="ev" @open-personal-calc="openPersonalCalculation" />
 
           <div class="table-note">
             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

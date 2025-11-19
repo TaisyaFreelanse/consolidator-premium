@@ -98,6 +98,25 @@ const moneyStatus = computed(() => {
   return getMoneyStatus(effectiveCollected.value, props.event.priceTotal)
 })
 
+// Расчет "Возврат сверхлимитчикам" - сумма всех платежей от заявителей вне лимита
+const refundToOverlimit = computed(() => {
+  if (!props.snapshot) return 0
+  
+  const seatLimit = props.event.seatLimit || 0
+  if (seatLimit <= 0) return 0
+  
+  const sortedApplicants = [...props.snapshot.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
+  const overflowApplicants = sortedApplicants.slice(seatLimit)
+  
+  return overflowApplicants.reduce((sum, applicant) => sum + applicant.paidAmount, 0)
+})
+
+// Расчет "Профицит к распределению" - ПРОФИЦИТ - Возврат сверхлимитчикам
+const surplusToDistribute = computed(() => {
+  if (moneyStatus.value.type !== 'surplus') return 0
+  return Math.max(0, moneyStatus.value.amount - refundToOverlimit.value)
+})
+
 // Статус мест
 const seatsStatus = computed(() => {
   const applicantsCount = props.snapshot?.applicants.length || 0
@@ -431,6 +450,14 @@ onUnmounted(() => {
             <template v-else-if="moneyStatus.type === 'surplus'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
             <template v-else>Достигнут</template>
           </span>
+        </div>
+        <div v-if="moneyStatus.type === 'surplus' && refundToOverlimit > 0" class="stat-pill refund-pill">
+          <span class="pill-label">Возврат сверхлимитчикам</span>
+          <span class="pill-value">{{ formatMoney(refundToOverlimit) }} ₽</span>
+        </div>
+        <div v-if="moneyStatus.type === 'surplus'" class="stat-pill surplus-pill">
+          <span class="pill-label">Профицит к распределению</span>
+          <span class="pill-value">{{ formatMoney(surplusToDistribute) }} ₽</span>
         </div>
       </div>
     </div>
@@ -856,6 +883,32 @@ onUnmounted(() => {
 
 .stat-pill.surplus .pill-value {
   color: #059669;
+}
+
+.stat-pill.refund-pill {
+  background: rgba(255, 193, 7, 0.15);
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.stat-pill.refund-pill .pill-label {
+  color: #f57c00;
+}
+
+.stat-pill.refund-pill .pill-value {
+  color: #f57c00;
+}
+
+.stat-pill.surplus-pill {
+  background: rgba(76, 175, 80, 0.15);
+  border-color: rgba(46, 125, 50, 0.3);
+}
+
+.stat-pill.surplus-pill .pill-label {
+  color: #2e7d32;
+}
+
+.stat-pill.surplus-pill .pill-value {
+  color: #2e7d32;
 }
 
 .flag {

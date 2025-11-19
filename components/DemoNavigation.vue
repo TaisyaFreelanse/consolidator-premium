@@ -29,13 +29,13 @@
         <span class="md:hidden">🔗</span>
       </NuxtLink>
       <NuxtLink
-        to="/demo/api-register"
+        to="/demo/settings"
         class="flex-1 px-2 py-3 text-center text-xs text-white/80 hover:bg-white/10 transition-colors border-r border-white/10 last:border-r-0"
-        :class="{ 'bg-white/10 font-semibold text-white border-b-2 border-[#007AFF]': $route.path === '/demo/api-register' }"
-        aria-label="Регистрация API-ключа"
+        :class="{ 'bg-white/10 font-semibold text-white border-b-2 border-[#007AFF]': $route.path === '/demo/settings' }"
+        aria-label="Настройки/регистр"
       >
-        <span class="hidden md:inline">🔑 API-ключ</span>
-        <span class="md:hidden">🔑</span>
+        <span class="hidden md:inline">⚙️ Настройки</span>
+        <span class="md:hidden">⚙️</span>
       </NuxtLink>
       <NuxtLink
         to="/demo/platform-report"

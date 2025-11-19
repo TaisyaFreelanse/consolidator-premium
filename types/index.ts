@@ -46,6 +46,7 @@ export interface PaymentEntry {
 }
 export interface Applicant {
   code: string
+  login?: string // Логин заявителя (на платформе все заявители авторизованы, логин всегда доступен)
   seats: number
   paidAmount: number
   payments?: PaymentEntry[]
