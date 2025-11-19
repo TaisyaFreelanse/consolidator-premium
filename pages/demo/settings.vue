@@ -367,6 +367,114 @@ if (data.success) {
             </div>
           </div>
 
+          <!-- Эндпоинт 4: Получение данных мониторинга -->
+          <div>
+            <h3 class="text-xl font-semibold mb-3 text-[#007AFF]">4. Получение данных мониторинга</h3>
+            <div class="bg-black/30 rounded-xl p-4 space-y-3">
+              <div>
+                <p class="text-white font-medium mb-2">GET <code class="bg-white/10 px-2 py-1 rounded">/api/external/events/:id/monitoring</code></p>
+                <p class="text-white/70 text-sm mb-3">
+                  Получает данные мониторинга события по его ID. Доступен только после наступления контрольной точки Ти20 (окончание приема заявок). 
+                  Требует авторизацию через API-ключ. Возвращает список заявителей, суммы оплат и другую статистику.
+                </p>
+              </div>
+
+              <div>
+                <p class="text-white font-medium mb-2">Параметры URL:</p>
+                <ul class="list-disc list-inside text-white/70 text-sm space-y-1 ml-4">
+                  <li><code class="bg-white/10 px-1 rounded">:id</code> — ID события на платформе (обязательно)</li>
+                </ul>
+              </div>
+
+              <div>
+                <p class="text-white font-medium mb-2">Пример успешного ответа (200 OK):</p>
+                <pre class="bg-black/50 rounded-lg p-3 text-xs overflow-x-auto"><code>{
+  "success": true,
+  "data": {
+    "applicants": [
+      {
+        "code": "APP001",
+        "login": "user1",
+        "seats": 2,
+        "paidAmount": 10000,
+        "payments": [
+          {
+            "amount": 5000,
+            "createdAt": "2025-11-15T10:00:00.000Z",
+            "paymentId": "pay_123",
+            "status": "completed"
+          },
+          {
+            "amount": 5000,
+            "createdAt": "2025-11-16T14:30:00.000Z",
+            "paymentId": "pay_124",
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "code": "APP002",
+        "login": "user2",
+        "seats": 1,
+        "paidAmount": 5000,
+        "payments": [
+          {
+            "amount": 5000,
+            "createdAt": "2025-11-15T12:00:00.000Z",
+            "paymentId": "pay_125",
+            "status": "completed"
+          }
+        ]
+      }
+    ],
+    "collected": 15000
+  },
+  "message": "Данные мониторинга получены"
+}</code></pre>
+                <p class="text-white/60 text-xs mt-2">
+                  <strong>Примечание:</strong> 
+                  Поле <code class="bg-white/10 px-1 rounded">collected</code> содержит общую сумму всех платежей. 
+                  Заявители отсортированы по сумме оплаты (по убыванию) для удобства анализа.
+                </p>
+              </div>
+
+              <div>
+                <p class="text-white font-medium mb-2">Пример ответа с ошибкой (403 Forbidden - Ти20 еще не наступила):</p>
+                <pre class="bg-black/50 rounded-lg p-3 text-xs overflow-x-auto"><code>{
+  "success": false,
+  "message": "Данные мониторинга недоступны",
+  "errors": [
+    {
+      "message": "Данные мониторинга доступны только после окончания приема заявок (Ти20)"
+    }
+  ]
+}</code></pre>
+              </div>
+
+              <div>
+                <p class="text-white font-medium mb-2">Пример использования (JavaScript):</p>
+                <pre class="bg-black/50 rounded-lg p-3 text-xs overflow-x-auto"><code>const apiKey = 'YOUR_API_KEY';
+const eventId = 'evt_1234567890';
+
+const response = await fetch(`{{ apiBaseUrl }}/api/external/events/${eventId}/monitoring`, {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`
+  }
+});
+
+const data = await response.json();
+if (data.success) {
+  console.log('Всего заявителей:', data.data.applicants.length);
+  console.log('Общая сумма:', data.data.collected);
+  data.data.applicants.forEach(applicant => {
+    console.log(`Заявитель ${applicant.code}: оплачено ${applicant.paidAmount}`);
+  });
+}</code></pre>
+              </div>
+            </div>
+          </div>
+
           <!-- Коды ошибок -->
           <div>
             <h3 class="text-xl font-semibold mb-3 text-[#007AFF]">Коды ошибок HTTP</h3>
@@ -429,6 +537,9 @@ if (data.success) {
               </p>
               <p class="text-yellow-200">
                 <strong>5. Обновление событий:</strong> При обновлении события передавайте полный набор данных, а не только измененные поля.
+              </p>
+              <p class="text-yellow-200">
+                <strong>6. Данные мониторинга:</strong> Получение данных мониторинга доступно только после наступления контрольной точки Ти20 (окончание приема заявок). До этого момента эндпоинт мониторинга будет возвращать ошибку 403.
               </p>
             </div>
           </div>
@@ -599,4 +710,5 @@ onUnmounted(() => {
   }
 })
 </script>
+
 
