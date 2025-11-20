@@ -39,7 +39,8 @@ const PRESET_MODERATOR: User = {
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     currentUser: null as User | null,
-    users: [] as User[]
+    users: [] as User[],
+    _usersLoaded: false // Флаг для отслеживания загрузки
   }),
 
   getters: {
@@ -53,6 +54,22 @@ export const useAuthStore = defineStore('auth', {
     // Загрузка пользователей из localStorage
     loadUsers() {
       if (process.client) {
+        // Если уже загружено, не загружаем повторно (но все равно восстанавливаем currentUser)
+        if (this._usersLoaded) {
+          // Восстанавливаем currentUser, если он еще не установлен
+          if (!this.currentUser) {
+            const currentUserCode = localStorage.getItem('currentUserCode')
+            if (currentUserCode) {
+              const foundUser = this.users.find(u => u.code === currentUserCode)
+              if (foundUser) {
+                this.currentUser = foundUser
+                console.log('✅ User restored (already loaded):', foundUser.code, foundUser.name)
+              }
+            }
+          }
+          return
+        }
+
         try {
           const stored = localStorage.getItem('users')
           if (stored) {
@@ -105,12 +122,41 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('users', JSON.stringify(this.users))
           }
 
+          // Восстанавливаем currentUser из localStorage ПОСЛЕ загрузки всех users
           const currentUserCode = localStorage.getItem('currentUserCode')
           if (currentUserCode) {
-            this.currentUser = this.users.find(u => u.code === currentUserCode) || null
+            const foundUser = this.users.find(u => u.code === currentUserCode)
+            if (foundUser) {
+              this.currentUser = foundUser
+              console.log('✅ User restored from localStorage:', foundUser.code, foundUser.name)
+            } else {
+              // Если пользователь не найден, очищаем currentUserCode
+              console.warn('⚠️ User code in localStorage not found in users list, clearing:', currentUserCode)
+              localStorage.removeItem('currentUserCode')
+              this.currentUser = null
+            }
+          } else {
+            // Если нет currentUserCode, убеждаемся, что currentUser = null
+            this.currentUser = null
           }
+
+          // Помечаем, что пользователи загружены
+          this._usersLoaded = true
         } catch (e) {
-          console.error('Failed to load users:', e)
+          console.error('❌ Failed to load users:', e)
+          // В случае ошибки пытаемся восстановить currentUser, если возможно
+          try {
+            const currentUserCode = localStorage.getItem('currentUserCode')
+            if (currentUserCode && this.users.length > 0) {
+              const foundUser = this.users.find(u => u.code === currentUserCode)
+              if (foundUser) {
+                this.currentUser = foundUser
+              }
+            }
+          } catch (recoveryError) {
+            console.error('❌ Failed to recover currentUser:', recoveryError)
+          }
+          this._usersLoaded = true // Помечаем как загруженное даже при ошибке
         }
       }
     },

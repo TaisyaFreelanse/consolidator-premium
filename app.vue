@@ -22,15 +22,16 @@ const handleMenuToggle = (state: boolean) => {
 
 // Инициализация stores при загрузке приложения
 onMounted(async () => {
-  // Миграция происходит автоматически в utils/migrateLocalStorage.ts
-  // Даём ей время завершиться
-  await new Promise(resolve => setTimeout(resolve, 150))
-  
   const auth = useAuthStore()
   const events = useEventsStore()
   
-  // Загружаем пользователей (включая продюсеров)
+  // Загружаем пользователей СИНХРОННО (включая продюсеров)
+  // Это должно быть первым, чтобы currentUser был восстановлен до загрузки других данных
   auth.loadUsers()
+  
+  // Миграция происходит автоматически в utils/migrateLocalStorage.ts
+  // Даём ей время завершиться
+  await new Promise(resolve => setTimeout(resolve, 150))
   
   // Загружаем события (включая кастомные из localStorage)
   events.fetch()

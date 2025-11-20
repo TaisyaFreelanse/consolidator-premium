@@ -55,16 +55,9 @@ const timeInterval = computed(() => {
 const effectiveCollected = computed(() => {
   if (!props.snapshot) return 0
 
-  const totalCollected = props.snapshot.collected || 0
-  const seatLimit = props.event.seatLimit || 0
-
-  if (seatLimit > 0 && props.snapshot.applicants.length >= seatLimit) {
-    const sortedApplicants = [...props.snapshot.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
-    const topNTotal = sortedApplicants.slice(0, seatLimit).reduce((sum, applicant) => sum + applicant.paidAmount, 0)
-    return topNTotal
-  }
-
-  return totalCollected
+  // "Собрано" - это сумма ВСЕХ платежей всех заявителей, независимо от лимита мест
+  // Лимит мест влияет только на то, кто попадает в лимит (для расчета возврата)
+  return props.snapshot.collected || 0
 })
 
 // Определяем, отменено ли мероприятие

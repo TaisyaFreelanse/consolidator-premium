@@ -174,7 +174,7 @@
                         :key="applicant.code || index"
                         class="border-b border-white/5 hover:bg-white/5"
                       >
-                        <td class="py-2 px-3 font-mono text-xs">{{ applicant.code || applicant.login || '—' }}</td>
+                        <td class="py-2 px-3 font-mono text-xs">{{ applicant.login || applicant.code || '—' }}</td>
                         <td class="py-2 px-3 text-right">{{ applicant.seats || 0 }}</td>
                         <td class="py-2 px-3 text-right font-medium">{{ formatPrice(applicant.paidAmount || 0) }}</td>
                         <td class="py-2 px-3">
@@ -205,7 +205,7 @@
                 <div v-for="(applicant, index) in sortedApplicants" :key="`payments-${index}`" class="mt-4">
                   <div v-if="expandedPayments.has(index)" class="bg-black/30 rounded-xl p-4">
                     <h5 class="font-semibold mb-2 text-sm">
-                      Платежи заявителя: {{ applicant.code || applicant.login || '—' }}
+                      Платежи заявителя: {{ applicant.login || applicant.code || '—' }}
                     </h5>
                     <div v-if="applicant.payments && applicant.payments.length > 0" class="space-y-2">
                       <div 
@@ -535,16 +535,9 @@ const seatLimit = computed(() => {
 const effectiveCollected = computed(() => {
   if (!monitoringData.value) return 0
   
-  const totalCollected = monitoringData.value.collected || 0
-  const limit = seatLimit.value
-
-  if (limit > 0 && monitoringData.value.applicants.length >= limit) {
-    const sorted = [...monitoringData.value.applicants].sort((a, b) => (b.paidAmount || 0) - (a.paidAmount || 0))
-    const topNTotal = sorted.slice(0, limit).reduce((sum, applicant) => sum + (applicant.paidAmount || 0), 0)
-    return topNTotal
-  }
-
-  return totalCollected
+  // "Собрано" - это сумма ВСЕХ платежей всех заявителей, независимо от лимита мест
+  // Лимит мест влияет только на то, кто попадает в лимит (для расчета возврата)
+  return monitoringData.value.collected || 0
 })
 
 // Расчет moneyStatus

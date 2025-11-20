@@ -158,11 +158,18 @@ interface EventData {
   timezone?: string
 }
 
+interface UploadHistoryItem {
+  timestamp: string
+  status: 'success' | 'failed'
+}
+
 interface SavedEvent {
   id: string
   title: string
   data: EventData
   serverId?: string
+  uploadHistory?: UploadHistoryItem[]
+  lastUploadAttempt?: string
 }
 
 // Форматирование цены
@@ -223,6 +230,49 @@ const formatDateTime = (date?: string, time?: string, timezone?: string): string
   }
 }
 
+// Получение даты/времени первой успешной загрузки на платформу
+const getFirstSuccessfulUploadTime = (event: SavedEvent): string | null => {
+  if (event.uploadHistory && event.uploadHistory.length > 0) {
+    const firstSuccess = event.uploadHistory.find(item => item.status === 'success')
+    if (firstSuccess) {
+      return firstSuccess.timestamp
+    }
+  }
+  return event.lastUploadAttempt || null
+}
+
+// Получение даты/времени последней успешной загрузки на платформу
+const getLatestSuccessfulUploadTime = (event: SavedEvent): string | null => {
+  if (event.uploadHistory && event.uploadHistory.length > 0) {
+    for (let i = event.uploadHistory.length - 1; i >= 0; i -= 1) {
+      if (event.uploadHistory[i].status === 'success') {
+        return event.uploadHistory[i].timestamp
+      }
+    }
+  }
+  return event.lastUploadAttempt || null
+}
+
+// Форматирование ISO строки даты/времени
+const formatIsoDateTime = (isoString: string | null, timezone?: string): string => {
+  if (!isoString) return '—'
+  try {
+    const dt = DateTime.fromISO(isoString, { zone: timezone || 'Europe/Moscow' })
+    if (dt.isValid) {
+      return dt.toLocaleString({
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+    return isoString
+  } catch {
+    return isoString
+  }
+}
+
 // Генерация PDF для одного заявителя
 export const generateApplicantPdf = async (
   event: SavedEvent,
@@ -258,14 +308,8 @@ export const generateApplicantPdf = async (
   // Заголовок
   doc.setFontSize(18)
   setCyrillicFont(doc, 'bold')
-  doc.text('Отчет по мониторингу мероприятия', margin, yPos)
+  doc.text('Отчет о сборе заявок на участие в мероприятии', margin, yPos)
   yPos += 10
-
-  // Информация о событии
-  doc.setFontSize(14)
-  setCyrillicFont(doc, 'bold')
-  doc.text('Информация о мероприятии', margin, yPos)
-  yPos += 7
 
   doc.setFontSize(11)
   setCyrillicFont(doc, 'normal')
@@ -308,6 +352,28 @@ export const generateApplicantPdf = async (
     }
     yPos += 6
   })
+
+  // Даты загрузки на платформу
+  const firstUploadTime = getFirstSuccessfulUploadTime(event)
+  const latestUploadTime = getLatestSuccessfulUploadTime(event)
+  
+  if (firstUploadTime || latestUploadTime) {
+    yPos += 2
+    if (firstUploadTime) {
+      setCyrillicFont(doc, 'bold')
+      doc.text('Загрузка первичная:', margin, yPos)
+      setCyrillicFont(doc, 'normal')
+      doc.text(formatIsoDateTime(firstUploadTime, event.data.timezone), margin + 70, yPos)
+      yPos += 6
+    }
+    if (latestUploadTime) {
+      setCyrillicFont(doc, 'bold')
+      doc.text('Загрузка актуальная:', margin, yPos)
+      setCyrillicFont(doc, 'normal')
+      doc.text(formatIsoDateTime(latestUploadTime, event.data.timezone), margin + 70, yPos)
+      yPos += 6
+    }
+  }
 
   // Даты мероприятия
   yPos += 2
@@ -355,28 +421,33 @@ export const generateApplicantPdf = async (
     yPos += 6
   })
 
-  // Финансовые показатели
+  // Результаты сбора
   yPos += 5
   doc.setFontSize(14)
   setCyrillicFont(doc, 'bold')
-  doc.text('Финансовые показатели', margin, yPos)
+  doc.text('Результаты сбора', margin, yPos)
   yPos += 7
 
   doc.setFontSize(11)
   setCyrillicFont(doc, 'normal')
+  
+  // Всегда показываем все составляющие расчета для единообразия структуры отчета
   const financialInfo = [
     ['Собрано:', formatPrice(effectiveCollected)],
     ['Требуется:', formatPrice(required)],
     [
       moneyStatusType === 'deficit' ? 'Недобор:' : moneyStatusType === 'surplus' ? 'Профицит:' : 'Баланс:',
       formatPrice(moneyStatusAmount)
+    ],
+    [
+      'Возврат сверхлимитчикам:',
+      refundToOverlimit > 0 ? formatPrice(refundToOverlimit) : '—'
+    ],
+    [
+      'Профицит к распределению:',
+      surplusToDistribute > 0 ? formatPrice(surplusToDistribute) : '—'
     ]
   ]
-
-  if (moneyStatusType === 'surplus') {
-    financialInfo.push(['Возврат сверхлимитчикам:', formatPrice(refundToOverlimit)])
-    financialInfo.push(['Профицит к распределению:', formatPrice(surplusToDistribute)])
-  }
 
   financialInfo.forEach(([label, value]) => {
     setCyrillicFont(doc, 'bold')
@@ -386,11 +457,11 @@ export const generateApplicantPdf = async (
     yPos += 6
   })
 
-  // Информация о заявителе
+  // Заявитель
   yPos += 5
   doc.setFontSize(14)
   setCyrillicFont(doc, 'bold')
-  doc.text('Информация о заявителе', margin, yPos)
+  doc.text('Заявитель', margin, yPos)
   yPos += 7
 
   doc.setFontSize(11)
@@ -398,8 +469,7 @@ export const generateApplicantPdf = async (
   const refundAmount = isInLimit ? 0 : (applicant.paidAmount || 0)
 
   const applicantInfo = [
-    ['Код/Логин:', applicant.login || applicant.code || '—'],
-    ['Мест:', String(applicant.seats || 0)],
+    ['Логин/Код:', applicant.login || applicant.code || '—'],
     ['Оплачено:', formatPrice(applicant.paidAmount || 0)],
     ['Статус:', isInLimit ? 'В лимите' : 'Вне лимита'],
     ['Возврат:', formatPrice(refundAmount)]
@@ -431,7 +501,7 @@ export const generateApplicantPdf = async (
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Сумма', 'Дата платежа']],
+      head: [['Сумма', 'Дата и время платежа']],
       body: paymentsData,
       theme: 'striped',
       headStyles: { 
@@ -532,10 +602,11 @@ export const generateZipArchive = async (
       surplusToDistribute
     )
 
-    // Формирование имени файла
+    // Формирование имени файла (используем логин, если доступен, иначе код)
     const now = DateTime.now()
     const dateStr = now.toFormat('ddMMyyyy')
     const timeStr = now.toFormat('HHmm')
+    // Приоритет логину: на платформе все заявители авторизованы, логин всегда должен быть
     const login = applicant.login || applicant.code || `applicant_${i + 1}`
     const fileName = `Cons_${dateStr}_${timeStr}_${login}.pdf`
 

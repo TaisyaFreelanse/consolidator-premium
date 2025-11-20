@@ -227,6 +227,25 @@ const computeResult = (applicant: Applicant | null) => {
   }
   const refundFromSurplus = Math.round(surplusForDistribution.value * share)
 
+  // Итоговый возврат: если участник переплатил, возвращаем его переплату (но не больше профицита)
+  // Если профицит >= суммы всех переплат, возвращаем всю переплату участника
+  // Если профицит < суммы всех переплат, возвращаем пропорциональную долю из профицита
+  // Но в любом случае не больше, чем переплата участника
+  let refundTotal = 0
+  if (extraContribution > 0) {
+    // Если профицит больше или равен сумме всех переплат, возвращаем всю переплату
+    if (surplusForDistribution.value >= totalExtras.value && totalExtras.value > 0) {
+      refundTotal = extraContribution
+    } else {
+      // Если профицит меньше суммы всех переплат, возвращаем пропорциональную долю
+      // Но не больше, чем переплата участника
+      refundTotal = Math.min(extraContribution, refundFromSurplus)
+    }
+  } else {
+    // Если нет переплаты, возврат из профицита (если профицит распределяется поровну)
+    refundTotal = refundFromSurplus
+  }
+
   return {
     status: 'success' as const,
     totalPaid,
@@ -236,7 +255,7 @@ const computeResult = (applicant: Applicant | null) => {
     deficit,
     share,
     refundFromSurplus,
-    refundTotal: refundFromSurplus,
+    refundTotal,
     pricePerSeat: pricePerSeat.value,
     surplusAvailable: surplusForDistribution.value,
     overflowTotal: overflowTotal.value

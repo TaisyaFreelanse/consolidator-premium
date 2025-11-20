@@ -68,16 +68,9 @@ const isWithinLimit = (index: number) => {
 
 // Расчет effectiveCollected
 const effectiveCollected = computed(() => {
-  const totalCollected = props.data.collected || 0
-  const limit = seatLimit.value
-
-  if (limit > 0 && props.data.applicants.length >= limit) {
-    const sortedApplicants = [...props.data.applicants].sort((a, b) => b.paidAmount - a.paidAmount)
-    const topNTotal = sortedApplicants.slice(0, limit).reduce((sum, applicant) => sum + applicant.paidAmount, 0)
-    return topNTotal
-  }
-
-  return totalCollected
+  // "Собрано" - это сумма ВСЕХ платежей всех заявителей, независимо от лимита мест
+  // Лимит мест влияет только на то, кто попадает в лимит (для расчета возврата)
+  return props.data.collected || 0
 })
 
 // Расчет "Возврат сверхлимитчикам"
