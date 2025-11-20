@@ -34,7 +34,7 @@
         :class="{ 'bg-white/10 font-semibold text-white border-b-2 border-[#007AFF]': $route.path === '/demo/settings' }"
         aria-label="Настройки/регистр"
       >
-        <span class="hidden md:inline">⚙️ Настройки</span>
+        <span class="hidden md:inline">⚙️ Настройки/Регистр</span>
         <span class="md:hidden">⚙️</span>
       </NuxtLink>
       <NuxtLink
@@ -53,4 +53,5 @@
 <script setup lang="ts">
 // Главное меню навигации - постоянно видимое на всех страницах
 </script>
+
 

@@ -271,11 +271,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { DateTime } from 'luxon'
-import type { MonitoringSnapshot, Applicant } from '~/types'
-import { generateZipArchive, getZipFileName } from '~/utils/generatePdfReport'
+import type { MonitoringSnapshot, Applicant } from '~/types/index'
 
 const config = useRuntimeConfig()
-const apiBaseUrl = config.public.apiBaseUrl
+const apiBaseUrl = config?.public?.apiBaseUrl || ''
 
 // API Key management
 const apiKey = ref<string>('')
@@ -482,6 +481,10 @@ const requestMonitoringData = async () => {
   startProgress('Запрос данных мониторинга выполняется')
 
   try {
+    if (!currentEvent.value?.serverId) {
+      throw new Error('Ивент не загружен на платформу')
+    }
+    
     const res = await fetch(`${apiBaseUrl}/api/external/events/${currentEvent.value.serverId}/monitoring`, {
       method: 'GET',
       headers: getHeaders()
@@ -654,6 +657,9 @@ const generateAndDownloadZip = async () => {
   error.value = null
 
   try {
+    // Динамический импорт для client-only библиотек
+    const { generateZipArchive, getZipFileName } = await import('~/utils/generatePdfReport')
+
     // Преобразование priceTotal в число, если это строка
     const priceTotal = typeof currentEvent.value.data.priceTotal === 'string'
       ? Number(currentEvent.value.data.priceTotal)
