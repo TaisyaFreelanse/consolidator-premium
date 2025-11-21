@@ -237,7 +237,8 @@ const normalizeNumber = (value: number | string | null | undefined): number => {
 }
 
 const getApplicantKey = (applicant: Applicant): string => {
-  return applicant.login || applicant.code || ''
+  // Используем ТОЛЬКО логин, код не используем для идентификации
+  return applicant.login?.trim() || ''
 }
 
 const sanitizeFileNameComponent = (value: string): string => {
@@ -718,12 +719,13 @@ export const generateZipArchive = async (
       surplusToDistribute
     )
 
-    // Формирование имени файла (используем только логин)
+    // Формирование имени файла (используем ТОЛЬКО логин, код не используем)
     const now = DateTime.now()
     const dateStr = now.toFormat('ddMMyyyy')
     const timeStr = now.toFormat('HHmm')
-    const login = sanitizeFileNameComponent(applicant.login || `applicant_${i + 1}`)
-    const fileName = `Cons_${dateStr}_${timeStr}_${login}.pdf`
+    const login = applicant.login?.trim() || ''
+    const loginSanitized = login ? sanitizeFileNameComponent(login) : `applicant_${i + 1}`
+    const fileName = `Cons_${dateStr}_${timeStr}_${loginSanitized}.pdf`
 
     // Добавление PDF в ZIP
     const pdfBlob = pdf.output('blob')

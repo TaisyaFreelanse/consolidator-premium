@@ -446,12 +446,6 @@ const handlePayment = async (paymentData: any) => {
 
         <!-- Таблица участников -->
         <div v-if="snap && snap.applicants.length > 0" class="participants-section">
-          <div class="section-header">
-            <div class="header-left">
-              <span class="participants-count">{{ snap.applicants.length }} чел.</span>
-            </div>
-          </div>
-
           <MonitoringTable
             :data="snap"
             :seat-limit="ev.seatLimit || 0"

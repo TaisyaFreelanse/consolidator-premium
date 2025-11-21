@@ -193,23 +193,23 @@ const formatMoney = (amount: number) => {
                 <div v-if="isCurrentUser(row.code)" class="action-buttons">
                   <button
                     @click="emit('openPersonalCalc')"
-                    class="inline-flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-3 py-2 transition-all text-blue-400 hover:text-blue-300"
+                    class="inline-flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-3 py-2 transition-all text-blue-400 hover:text-blue-300"
                     title="Персональная калькуляция"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span class="text-sm font-medium">Персональные результаты</span>
+                    <span class="text-sm font-medium">Перс.результ</span>
                   </button>
                   <button
                     @click="emit('requestAdditionalPayment')"
-                    class="inline-flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-xl px-3 py-2 transition-all text-amber-300 hover:text-amber-200"
+                    class="inline-flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-xl px-3 py-2 transition-all text-amber-300 hover:text-amber-200"
                     title="Дополнительная оплата"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    <span class="text-sm font-medium">Дополнительная оплата</span>
+                    <span class="text-sm font-medium">Доп.оплата</span>
                   </button>
                 </div>
               </div>
@@ -268,8 +268,10 @@ const formatMoney = (amount: number) => {
 
 .action-buttons {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 8px;
+  align-items: center;
 }
 
 /* Ранги */

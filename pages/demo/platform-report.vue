@@ -121,7 +121,7 @@
                   :total-applicants="monitoringData?.applicants?.length || 0"
                   :seat-limit="currentEvent.data.seatLimit"
                   :collected="effectiveCollected"
-                  :required="currentEvent.data.priceTotal"
+                  :required="normalizedRequired"
                   :money-status-type="moneyStatusType"
                   :money-status-amount="moneyStatusAmount"
                   :refund-to-overlimit="refundToOverlimit"
@@ -138,7 +138,7 @@
                   <table class="w-full text-sm">
                     <thead>
                       <tr class="border-b border-white/10">
-                        <th class="text-left py-2 px-3 text-white/70">Логин/Код</th>
+                        <th class="text-left py-2 px-3 text-white/70">Логин</th>
                         <th class="text-right py-2 px-3 text-white/70">Мест</th>
                         <th class="text-right py-2 px-3 text-white/70">Оплачено</th>
                         <th class="text-left py-2 px-3 text-white/70">Статус</th>
@@ -515,8 +515,9 @@ const seatLimit = computed(() => {
   return raw || 0
 })
 
-const applicantKey = (applicant: Applicant) => applicant.login || applicant.code || ''
-const getApplicantDisplayLabel = (applicant: Applicant) => applicant.login || applicant.code || '—'
+// Используем ТОЛЬКО логин для идентификации, код не используем
+const applicantKey = (applicant: Applicant) => applicant.login?.trim() || ''
+const getApplicantDisplayLabel = (applicant: Applicant) => applicant.login?.trim() || '—'
 const findApplicantIndexByKey = (key: string) => sortedApplicants.value.findIndex(a => applicantKey(a) === key)
 
 // Расчет effectiveCollected
@@ -528,10 +529,52 @@ const effectiveCollected = computed(() => {
   return monitoringData.value.collected || 0
 })
 
+// Нормализация required (целевая сумма) - должна быть в копейках
+const normalizedRequired = computed(() => {
+  // Приоритет: используем данные из мониторинга, если доступны
+  if (monitoringData.value && effectiveCollected.value > 0) {
+    // required = collected - surplus + deficit
+    const collected = effectiveCollected.value
+    const surplus = monitoringData.value.surplus || 0
+    const deficit = monitoringData.value.deficit || 0
+    if (surplus > 0) {
+      return collected - surplus
+    } else if (deficit > 0) {
+      return collected + deficit
+    } else {
+      // Если нет ни профицита, ни дефицита, значит collected = required
+      return collected
+    }
+  }
+  
+  // Если мониторинг недоступен, используем priceTotal из события
+  if (!currentEvent.value?.data?.priceTotal) {
+    // Если priceTotal не задан, пытаемся вычислить из pricePerSeat и seatLimit
+    const pricePerSeat = currentEvent.value?.data?.pricePerSeat
+    const limit = seatLimit.value
+    if (pricePerSeat && limit > 0) {
+      // pricePerSeat может быть в рублях или копейках, проверяем
+      const pricePerSeatNum = typeof pricePerSeat === 'string' ? Number(pricePerSeat) : pricePerSeat
+      // Если pricePerSeat < 1000, вероятно в рублях, умножаем на 100
+      const pricePerSeatInKopeks = pricePerSeatNum < 1000 ? pricePerSeatNum * 100 : pricePerSeatNum
+      return pricePerSeatInKopeks * limit
+    }
+    return 0
+  }
+  
+  const raw = currentEvent.value.data.priceTotal
+  const num = typeof raw === 'string' ? Number(raw) : raw
+  if (Number.isNaN(num) || num <= 0) return 0
+  
+  // Если значение меньше 10000, вероятно в рублях, умножаем на 100
+  // (10000 копеек = 100 рублей, разумный порог)
+  return num < 10000 ? num * 100 : num
+})
+
 // Расчет moneyStatus
 const moneyStatusType = computed(() => {
-  if (!currentEvent.value?.data?.priceTotal) return 'balanced'
-  const required = currentEvent.value.data.priceTotal
+  const required = normalizedRequired.value
+  if (required <= 0) return 'balanced'
   const collected = effectiveCollected.value
   
   if (collected > required) return 'surplus'
@@ -540,8 +583,8 @@ const moneyStatusType = computed(() => {
 })
 
 const moneyStatusAmount = computed(() => {
-  if (!currentEvent.value?.data?.priceTotal) return 0
-  const required = currentEvent.value.data.priceTotal
+  const required = normalizedRequired.value
+  if (required <= 0) return 0
   const collected = effectiveCollected.value
   return Math.abs(collected - required)
 })
@@ -733,10 +776,8 @@ const generateAndDownloadZip = async () => {
     // Динамический импорт для client-only библиотек
     const { generateZipArchive, getZipFileName } = await import('~/utils/generatePdfReport')
 
-    // Преобразование priceTotal в число, если это строка
-    const priceTotal = typeof currentEvent.value.data.priceTotal === 'string'
-      ? Number(currentEvent.value.data.priceTotal)
-      : (currentEvent.value.data.priceTotal || 0)
+    // Используем нормализованное значение required (в копейках)
+    const priceTotal = normalizedRequired.value
 
     const zipBlob = await generateZipArchive(
       currentEvent.value,

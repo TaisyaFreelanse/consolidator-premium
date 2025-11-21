@@ -330,8 +330,8 @@ const computeResult = (applicant: Applicant | null) => {
 
             <div v-else-if="ownerApplicant" class="p-6 rounded-2xl border border-white/10 bg-white/5 text-white/80 text-sm space-y-2">
               <div class="flex justify-between">
-                <span>Ваш код участника</span>
-                <span class="font-mono text-white">{{ ownerApplicant.code }}</span>
+                <span>Ваш логин</span>
+                <span class="font-mono text-white">{{ ownerApplicant.login || '—' }}</span>
               </div>
               <div class="flex justify-between" v-if="ownerApplicant.paidAmount">
                 <span>Всего оплачено</span>

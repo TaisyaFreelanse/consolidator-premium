@@ -79,37 +79,63 @@ const moneyStatusAmountValue = computed(() => {
   return monetaryValue(props.moneyStatusAmount)
 })
 
+// Функция для разбивки заголовка на 2 строки
+const splitLabel = (label: string): [string, string] => {
+  const splits: Record<string, [string, string]> = {
+    'Заявителей': ['Заявителей', ''],
+    'Лимит мест': ['Лимит', 'мест'],
+    'Свободно мест': ['Свободно', 'мест'],
+    'Получат отказ': ['Получат', 'отказ'],
+    'Оплачено': ['Оплачено', ''],
+    'Целевая сумма': ['Целевая', 'сумма'],
+    'Профицит': ['Профицит', ''],
+    'Дефицит': ['Дефицит', ''],
+    'Баланс': ['Баланс', ''],
+    'Возврат непринятым': ['Возврат', 'непринятым'],
+    'Профицит к распределению': ['Профицит к', 'распределению']
+  }
+  return splits[label] || [label, '']
+}
+
 const metrics = computed(() => [
   {
     label: 'Заявителей',
+    labelLines: splitLabel('Заявителей'),
     value: countValue(applicantsCount.value)
   },
   {
     label: 'Лимит мест',
+    labelLines: splitLabel('Лимит мест'),
     value: seatLimitValue.value ? countValue(seatLimitValue.value) : '—'
   },
   {
     label: capacityLabel.value,
+    labelLines: splitLabel(capacityLabel.value),
     value: capacityValue.value
   },
   {
     label: 'Оплачено',
+    labelLines: splitLabel('Оплачено'),
     value: monetaryValue(props.collected)
   },
   {
     label: 'Целевая сумма',
+    labelLines: splitLabel('Целевая сумма'),
     value: monetaryValue(props.required)
   },
   {
     label: moneyStatusLabel.value,
+    labelLines: splitLabel(moneyStatusLabel.value),
     value: moneyStatusAmountValue.value
   },
   {
     label: 'Возврат непринятым',
+    labelLines: splitLabel('Возврат непринятым'),
     value: monetaryValue(props.refundToOverlimit)
   },
   {
     label: 'Профицит к распределению',
+    labelLines: splitLabel('Профицит к распределению'),
     value: monetaryValue(props.surplusToDistribute)
   }
 ])
@@ -119,7 +145,9 @@ const metrics = computed(() => [
   <div :class="['summary-metrics-row', theme]">
     <div v-for="metric in metrics" :key="metric.label" class="metric-card">
       <div class="metric-label">
-        {{ metric.label }}
+        <div v-if="metric.labelLines[0]" class="label-line">{{ metric.labelLines[0] }}</div>
+        <div v-if="metric.labelLines[1]" class="label-line">{{ metric.labelLines[1] }}</div>
+        <div v-if="!metric.labelLines[1]" class="label-line-empty"></div>
       </div>
       <div class="metric-value">
         {{ metric.value }}
@@ -149,11 +177,11 @@ const metrics = computed(() => [
 
 .metric-card {
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid transparent;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
   min-height: 80px;
 }
 
@@ -168,26 +196,39 @@ const metrics = computed(() => [
 }
 
 .metric-label {
-  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+  min-height: 32px;
+}
+
+.label-line {
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
   opacity: 0.7;
 }
 
-.summary-metrics-row.light .metric-label {
+.label-line-empty {
+  height: 11px;
+}
+
+.summary-metrics-row.light .label-line {
   color: #475569;
 }
 
-.summary-metrics-row.dark .metric-label {
+.summary-metrics-row.dark .label-line {
   color: rgba(255, 255, 255, 0.7);
 }
 
 .metric-value {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.2;
+  margin-top: auto;
 }
 
 .summary-metrics-row.light .metric-value {
