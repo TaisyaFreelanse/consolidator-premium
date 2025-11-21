@@ -36,9 +36,21 @@ const columns = [
 
 // Проверка, является ли заявитель текущим пользователем (по логину)
 const isCurrentUser = (applicant: SnapshotApplicant): boolean => {
-  if (!auth.isAuthenticated || !auth.currentUser) return false
+  if (!auth.isAuthenticated || !auth.currentUser) {
+    console.log('isCurrentUser: not authenticated', { 
+      isAuthenticated: auth.isAuthenticated, 
+      currentUser: auth.currentUser 
+    })
+    return false
+  }
   // Сравниваем по логину (name пользователя = login заявителя)
-  return applicant.login === auth.currentUser.name
+  const isMatch = applicant.login === auth.currentUser.name
+  console.log('isCurrentUser check:', { 
+    applicantLogin: applicant.login, 
+    currentUserName: auth.currentUser.name, 
+    isMatch 
+  })
+  return isMatch
 }
 
 const sortedApplicants = computed(() => {
