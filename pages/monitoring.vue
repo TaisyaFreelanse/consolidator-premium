@@ -313,7 +313,7 @@ const handlePayment = async (paymentData: any) => {
     
     const requestBody = {
       eventId: ev.value.id,
-      userId: auth.userCode,
+      userId: auth.currentUser?.name || auth.userCode, // Используем логин (name), если доступен, иначе код
       cardNumber: cleanedCardNumber,
       expiry: paymentData.expiry,
       cvc: paymentData.cvc,
