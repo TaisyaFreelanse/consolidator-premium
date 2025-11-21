@@ -207,6 +207,25 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Функция для генерации детерминированного секретного кода на основе userId
+    // Используем простой хеш для создания кода вида "КонXX"
+    const generateSecretCode = (userId: string, eventId: string): string => {
+      if (userId === 'anonymous') {
+        return 'Аноним'
+      }
+      // Создаем детерминированный хеш на основе userId и eventId
+      let hash = 0
+      const str = `${userId}-${eventId}`
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+      }
+      // Генерируем код вида "КонXX", где XX - двузначное число от 01 до 99
+      const codeNum = Math.abs(hash) % 99 + 1
+      return `Кон${String(codeNum).padStart(2, '0')}`
+    }
+
     // Группируем платежи по пользователям (userId)
     const applicantsMap = new Map<string, Applicant>()
 
@@ -226,10 +245,10 @@ export default defineEventHandler(async (event) => {
         existing.payments.push(paymentRecord)
       } else {
         // ВАЖНО: userId теперь ВСЕГДА должен быть логином (name пользователя), а не кодом
-        // Для старых платежей, где userId - это код, логин будет показывать код
-        // Новые платежи должны создаваться с логином (auth.currentUser?.name)
+        // Генерируем секретный код для каждого заявителя
+        const secretCode = generateSecretCode(userId, eventId)
         applicantsMap.set(userId, {
-          code: userId, // Для обратной совместимости используем userId как code
+          code: secretCode, // Секретный код для анонимности
           seats: 1, // Один участник = одно место
           paidAmount: amount,
           payments: [paymentRecord],

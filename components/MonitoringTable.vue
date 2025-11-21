@@ -70,19 +70,25 @@ const isWithinLimit = (index: number) => {
 
 // Получить отображаемый код/логин заявителя
 const getApplicantDisplayCode = (applicant: SnapshotApplicant): string => {
-  // Если пользователь НЕ авторизован - всем показываем код
-  if (!auth.isAuthenticated || !auth.currentUser) {
+  // СТРОГАЯ проверка: если пользователь НЕ авторизован - ВСЕМ показываем ТОЛЬКО код
+  const isAuth = auth.isAuthenticated && auth.currentUser && auth.currentUser.name
+  if (!isAuth) {
+    // Для неавторизованных - всегда код, даже если есть login
     return applicant.code
   }
-  // Если это текущий пользователь - показываем его логин
+  // Если авторизован и это текущий пользователь - показываем его логин
   if (isCurrentUser(applicant) && applicant.login) {
     return applicant.login
   }
-  // Для остальных - показываем секретный код
+  // Для остальных авторизованных - показываем секретный код
   return applicant.code
 }
 
 const enrichedApplicants = computed(() => {
+  // Явная зависимость от auth для реактивности
+  const isAuth = auth.isAuthenticated
+  const currentUserName = auth.currentUser?.name
+  
   const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: 'short',
@@ -175,7 +181,7 @@ const formatMoney = (amount: number) => {
               <div class="flex items-center gap-2">
                 <span class="font-mono font-medium"
                       :class="isCurrentUser(row) ? 'text-[#34c759]' : 'text-white'">
-                  {{ row.displayCode || row.code }}
+                  {{ row.displayCode }}
                 </span>
                 <span v-if="isCurrentUser(row)" class="text-xs bg-[#34c759]/20 text-[#34c759] px-2 py-0.5 rounded-full font-semibold">
                   ВЫ

@@ -167,12 +167,21 @@
                           {{ formatPrice(getRefundAmount(applicant)) }}
                         </td>
                         <td class="py-2 px-3">
-                          <button
-                            @click="togglePayments(applicantKey(applicant))"
-                            class="text-blue-400 hover:text-blue-300 text-xs underline"
-                          >
-                            {{ expandedApplicantKey === applicantKey(applicant) ? 'Скрыть' : `Показать (${applicant.payments?.length || 0})` }}
-                          </button>
+                          <div class="flex items-center gap-2">
+                            <button
+                              @click="togglePayments(applicantKey(applicant))"
+                              class="text-blue-400 hover:text-blue-300 text-xs underline"
+                            >
+                              {{ expandedApplicantKey === applicantKey(applicant) ? 'Скрыть' : `Показать (${applicant.payments?.length || 0})` }}
+                            </button>
+                            <button
+                              @click="openPersonalCalc(applicant)"
+                              class="inline-flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-lg px-2 py-1 transition-all text-blue-400 hover:text-blue-300 text-xs"
+                              title="Персональная калькуляция"
+                            >
+                              <span class="font-medium">Перс.результ</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     </tbody>
@@ -243,6 +252,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно персональной калькуляции -->
+    <PersonalCalculation
+      v-if="currentEvent && monitoringData && selectedApplicantForCalc"
+      :event="currentEvent"
+      :snapshot="monitoringData"
+      :is-open="isPersonalCalcOpen"
+      :current-user-code="selectedApplicantForCalc.code"
+      @close="closePersonalCalc"
+    />
   </div>
 </template>
 
@@ -284,6 +303,8 @@ const monitoringData = ref<MonitoringSnapshot | null>(null)
 const expandedApplicantKey = ref<string | null>(null)
 const progressMessage = ref<string>('')
 const isGeneratingZip = ref(false)
+const selectedApplicantForCalc = ref<Applicant | null>(null)
+const isPersonalCalcOpen = ref(false)
 let progressStartTime: number | null = null
 let progressInterval: ReturnType<typeof setInterval> | null = null
 
@@ -722,13 +743,16 @@ const getRefundAmount = (applicant: Applicant): number => {
     share = 1 / withinLimitCount.value
   }
 
-  const refundFromSurplus = Math.round(surplus * share)
+  // Округляем до рублей (до 100 копеек)
+  const refundFromSurplus = Math.round((surplus * share) / 100) * 100
 
   if (extraContribution > 0) {
     if (surplus >= totalExtras.value && totalExtras.value > 0) {
-      return extraContribution
+      // Округляем до рублей
+      return Math.round(extraContribution / 100) * 100
     }
-    return Math.min(extraContribution, refundFromSurplus)
+    // Округляем до рублей
+    return Math.round(Math.min(extraContribution, refundFromSurplus) / 100) * 100
   }
 
   return refundFromSurplus
@@ -737,6 +761,18 @@ const getRefundAmount = (applicant: Applicant): number => {
 // Переключение отображения платежей
 const togglePayments = (key: string) => {
   expandedApplicantKey.value = expandedApplicantKey.value === key ? null : key
+}
+
+// Открытие персональной калькуляции
+const openPersonalCalc = (applicant: Applicant) => {
+  selectedApplicantForCalc.value = applicant
+  isPersonalCalcOpen.value = true
+}
+
+// Закрытие персональной калькуляции
+const closePersonalCalc = () => {
+  isPersonalCalcOpen.value = false
+  selectedApplicantForCalc.value = null
 }
 
 // Форматирование цены
