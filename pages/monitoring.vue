@@ -311,14 +311,22 @@ const handlePayment = async (paymentData: any) => {
     // Очищаем номер карты от пробелов
     const cleanedCardNumber = paymentData.cardNumber.replace(/\s/g, '')
     
+    // ВАЖНО: Используем ТОЛЬКО логин (name), а не код
+    const userLogin = auth.currentUser?.name
+    if (!userLogin) {
+      throw new Error('Логин пользователя не найден. Пожалуйста, войдите в систему заново.')
+    }
+    
     const requestBody = {
       eventId: ev.value.id,
-      userId: auth.currentUser?.name || auth.userCode, // Используем логин (name), если доступен, иначе код
+      userId: userLogin, // Используем ТОЛЬКО логин (name), никогда не используем код
       cardNumber: cleanedCardNumber,
       expiry: paymentData.expiry,
       cvc: paymentData.cvc,
       amount: paymentData.amount
     }
+    
+    console.log('💳 Creating payment with userId (login):', userLogin, 'NOT code:', auth.userCode)
     
     console.log('💳 Processing payment...', {
       ...requestBody,

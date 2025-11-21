@@ -225,13 +225,15 @@ export default defineEventHandler(async (event) => {
         existing.paidAmount += amount
         existing.payments.push(paymentRecord)
       } else {
-        // userId используется как code, а также может быть логином (на платформе все заявители авторизованы)
+        // ВАЖНО: userId теперь ВСЕГДА должен быть логином (name пользователя), а не кодом
+        // Для старых платежей, где userId - это код, логин будет показывать код
+        // Новые платежи должны создаваться с логином (auth.currentUser?.name)
         applicantsMap.set(userId, {
-          code: userId,
+          code: userId, // Для обратной совместимости используем userId как code
           seats: 1, // Один участник = одно место
           paidAmount: amount,
           payments: [paymentRecord],
-          login: userId !== 'anonymous' ? userId : undefined // userId может быть логином
+          login: userId !== 'anonymous' ? userId : undefined // userId должен быть логином (name), не кодом
         })
       }
     })
