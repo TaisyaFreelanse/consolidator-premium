@@ -307,7 +307,7 @@ export const generateApplicantPdf = async (
   event: SavedEvent,
   monitoringData: MonitoringSnapshot,
   applicant: Applicant,
-  applicantIndex: number,
+  initialApplicantIndex: number,
   seatLimit: number,
   effectiveCollected: number,
   required: number,
@@ -359,7 +359,8 @@ export const generateApplicantPdf = async (
     : sortedApplicants.length
   const withinLimitApplicants = sortedApplicants.slice(0, withinLimitCount)
   const applicantKeyValue = getApplicantKey(applicant)
-  const applicantIndex = sortedApplicants.findIndex(candidate => getApplicantKey(candidate) === applicantKeyValue)
+  const resolvedApplicantIndex = sortedApplicants.findIndex(candidate => getApplicantKey(candidate) === applicantKeyValue)
+  const applicantIndex = resolvedApplicantIndex !== -1 ? resolvedApplicantIndex : initialApplicantIndex
 
   const divisorForPrice = withinLimitCount > 0 ? withinLimitCount : sortedApplicants.length || 1
   const computedPricePerSeat = divisorForPrice > 0
