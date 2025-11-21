@@ -459,7 +459,6 @@ const handlePayment = async (paymentData: any) => {
             :seat-limit="ev.seatLimit || 0"
             :event="ev"
             @open-personal-calc="openPersonalCalculation"
-            @request-additional-payment="increaseBid"
           />
 
           <div class="table-note">

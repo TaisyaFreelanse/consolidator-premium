@@ -255,7 +255,7 @@
 
     <!-- Модальное окно персональной калькуляции -->
     <PersonalCalculation
-      v-if="currentEvent && monitoringData && selectedApplicantForCalc"
+      v-if="currentEvent && monitoringData && selectedApplicantForCalc && selectedApplicantForCalc.code"
       :event="currentEvent"
       :snapshot="monitoringData"
       :is-open="isPersonalCalcOpen"
@@ -743,16 +743,14 @@ const getRefundAmount = (applicant: Applicant): number => {
     share = 1 / withinLimitCount.value
   }
 
-  // Округляем до рублей (до 100 копеек)
-  const refundFromSurplus = Math.round((surplus * share) / 100) * 100
+  // Вычисляем возврат из профицита (точно как в PDF)
+  const refundFromSurplus = Math.round(surplus * share)
 
   if (extraContribution > 0) {
     if (surplus >= totalExtras.value && totalExtras.value > 0) {
-      // Округляем до рублей
-      return Math.round(extraContribution / 100) * 100
+      return extraContribution
     }
-    // Округляем до рублей
-    return Math.round(Math.min(extraContribution, refundFromSurplus) / 100) * 100
+    return Math.min(extraContribution, refundFromSurplus)
   }
 
   return refundFromSurplus
@@ -765,8 +763,18 @@ const togglePayments = (key: string) => {
 
 // Открытие персональной калькуляции
 const openPersonalCalc = (applicant: Applicant) => {
+  if (!applicant) {
+    console.error('openPersonalCalc: applicant is null or undefined')
+    return
+  }
+  console.log('openPersonalCalc:', { 
+    login: applicant.login, 
+    code: applicant.code, 
+    paidAmount: applicant.paidAmount 
+  })
   selectedApplicantForCalc.value = applicant
   isPersonalCalcOpen.value = true
+  console.log('isPersonalCalcOpen set to:', isPersonalCalcOpen.value)
 }
 
 // Закрытие персональной калькуляции
