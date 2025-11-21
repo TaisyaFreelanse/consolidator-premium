@@ -172,9 +172,10 @@ interface SavedEvent {
   lastUploadAttempt?: string
 }
 
-// Форматирование цены
-const formatPrice = (value: number): string => {
-  return `${value.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ₽`
+// Форматирование цены (ожидает значение в копейках)
+const formatPrice = (value: number | string): string => {
+  const rubles = normalizeNumber(value) / 100
+  return `${rubles.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ₽`
 }
 
 // Форматирование даты
@@ -228,6 +229,34 @@ const formatDateTime = (date?: string, time?: string, timezone?: string): string
   } catch {
     return date
   }
+}
+
+const normalizeNumber = (value: number | string | null | undefined): number => {
+  const num = typeof value === 'string' ? Number(value) : value
+  return Number.isFinite(num ?? NaN) ? Number(num) : 0
+}
+
+const getApplicantKey = (applicant: Applicant): string => {
+  return applicant.login || applicant.code || ''
+}
+
+const sanitizeFileNameComponent = (value: string): string => {
+  if (!value) return 'anonymous'
+  const trimmed = value.trim()
+  if (!trimmed) return 'anonymous'
+  return trimmed.replace(/[^a-zA-Z0-9._-]+/g, '_')
+}
+
+const formatMoneyPlain = (value?: number | string | null): string => {
+  const normalized = normalizeNumber(value)
+  if (normalized === null) return '—'
+  if (normalized === 0) return '0'
+  return (normalized / 100).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
+}
+
+const formatCountPlain = (value?: number | null): string => {
+  if (value === null || value === undefined) return '—'
+  return value.toString()
 }
 
 // Получение даты/времени первой успешной загрузки на платформу
@@ -315,21 +344,104 @@ export const generateApplicantPdf = async (
   setCyrillicFont(doc, 'normal')
   
   // Преобразование числовых значений
-  const seatLimitNum = typeof event.data.seatLimit === 'string' ? Number(event.data.seatLimit) : (event.data.seatLimit || 0)
-  const pricePerSeatNum = event.data.pricePerSeat 
-    ? (typeof event.data.pricePerSeat === 'string' ? Number(event.data.pricePerSeat) : event.data.pricePerSeat)
-    : null
-  const priceTotalNum = event.data.priceTotal
-    ? (typeof event.data.priceTotal === 'string' ? Number(event.data.priceTotal) : event.data.priceTotal)
-    : null
+  const normalizedSeatLimit = Math.max(0, Number(seatLimit) || 0)
+  const normalizedRequired = Math.max(0, normalizeNumber(required))
+  const normalizedCollected = Math.max(0, normalizeNumber(effectiveCollected))
+  const normalizedMoneyStatusAmount = Math.max(0, normalizeNumber(moneyStatusAmount))
+  const normalizedRefundToOverlimit = Math.max(0, normalizeNumber(refundToOverlimit))
+  const normalizedSurplusToDistribute = Math.max(0, normalizeNumber(surplusToDistribute))
+
+  const sortedApplicants = [...monitoringData.applicants].sort(
+    (a, b) => (b.paidAmount || 0) - (a.paidAmount || 0)
+  )
+  const withinLimitCount = normalizedSeatLimit > 0
+    ? Math.min(normalizedSeatLimit, sortedApplicants.length)
+    : sortedApplicants.length
+  const withinLimitApplicants = sortedApplicants.slice(0, withinLimitCount)
+  const applicantKeyValue = getApplicantKey(applicant)
+  const applicantIndex = sortedApplicants.findIndex(candidate => getApplicantKey(candidate) === applicantKeyValue)
+
+  const divisorForPrice = withinLimitCount > 0 ? withinLimitCount : sortedApplicants.length || 1
+  const computedPricePerSeat = divisorForPrice > 0
+    ? Math.round(normalizedRequired / divisorForPrice)
+    : 0
+
+  const extrasMap = new Map<string, { expected: number; extra: number }>()
+  withinLimitApplicants.forEach((candidate) => {
+    const key = getApplicantKey(candidate)
+    const seats = candidate.seats || 1
+    const expected = seats * computedPricePerSeat
+    const paidAmount = candidate.paidAmount || 0
+    extrasMap.set(key, {
+      expected,
+      extra: Math.max(0, paidAmount - expected)
+    })
+  })
+
+  const totalExtras = Array.from(extrasMap.values()).reduce((sum, data) => sum + data.extra, 0)
+  const defaultDeficit = Math.max(0, normalizedRequired - normalizedCollected)
+  const deficitAmount = typeof monitoringData.deficit === 'number' ? monitoringData.deficit : defaultDeficit
+  const eventSuccessful = !monitoringData.isCancelled && deficitAmount <= 0
+
+  const computeRefundAmount = (): number => {
+    const totalPaid = applicant.paidAmount || 0
+    if (!eventSuccessful) {
+      return totalPaid
+    }
+
+    if (applicantIndex === -1) {
+      return 0
+    }
+
+    if (applicantIndex >= withinLimitCount) {
+      return totalPaid
+    }
+
+    const extraData = extrasMap.get(applicantKeyValue)
+    const expected = extraData?.expected ?? (computedPricePerSeat * (applicant.seats || 1))
+    const extraContribution = extraData?.extra ?? Math.max(0, totalPaid - expected)
+
+    if (normalizedSurplusToDistribute <= 0) {
+      return 0
+    }
+
+    let share = 0
+    if (withinLimitCount === 1) {
+      share = 1
+    } else if (totalExtras > 0) {
+      share = extraContribution > 0 ? extraContribution / totalExtras : 0
+    } else if (withinLimitCount > 0) {
+      share = 1 / withinLimitCount
+    }
+
+    const refundFromSurplus = Math.round(normalizedSurplusToDistribute * share)
+
+    if (extraContribution > 0) {
+      if (normalizedSurplusToDistribute >= totalExtras && totalExtras > 0) {
+        return extraContribution
+      }
+      return Math.min(extraContribution, refundFromSurplus)
+    }
+
+    return refundFromSurplus
+  }
+
+  const refundAmount = computeRefundAmount()
+  const isInLimit = applicantIndex > -1 && applicantIndex < withinLimitCount
+  const applicantLogin = applicant.login?.trim() || '—'
+
+  const eventSeatLimit = normalizeNumber(event.data.seatLimit)
+  const seatLimitDisplay = eventSeatLimit > 0
+    ? String(eventSeatLimit)
+    : (normalizedSeatLimit > 0 ? String(normalizedSeatLimit) : '—')
   
   const eventInfo = [
     ['Название:', event.title || '—'],
     ['Автор:', event.data.authorName || '—'],
     ['Место проведения:', event.data.location || '—'],
-    ['Лимит мест:', seatLimitNum > 0 ? String(seatLimitNum) : '—'],
-    ['Цена за место:', pricePerSeatNum ? formatPrice(pricePerSeatNum) : '—'],
-    ['Общая цена:', priceTotalNum ? formatPrice(priceTotalNum) : '—']
+    ['Лимит мест:', seatLimitDisplay],
+    ['Цена за место:', computedPricePerSeat ? formatPrice(computedPricePerSeat) : '—'],
+    ['Общая цена:', normalizedRequired ? formatPrice(normalizedRequired) : '—']
   ]
 
   eventInfo.forEach(([label, value]) => {
@@ -431,22 +543,28 @@ export const generateApplicantPdf = async (
   doc.setFontSize(11)
   setCyrillicFont(doc, 'normal')
   
-  // Всегда показываем все составляющие расчета для единообразия структуры отчета
+  const totalApplicantsCount = sortedApplicants.length
+  const overflowCountDisplay = normalizedSeatLimit > 0
+    ? Math.max(totalApplicantsCount - normalizedSeatLimit, 0)
+    : 0
+  const freeSeatsDisplay = normalizedSeatLimit > 0
+    ? Math.max(normalizedSeatLimit - totalApplicantsCount, 0)
+    : 0
+  const capacityLabel = overflowCountDisplay > 0 ? 'Получат отказ' : 'Свободно мест'
+  const capacityValue = normalizedSeatLimit > 0
+    ? formatCountPlain(overflowCountDisplay > 0 ? overflowCountDisplay : freeSeatsDisplay)
+    : '—'
+
+  // Всегда показываем все восемь составляющих расчета для единообразия структуры отчета
   const financialInfo = [
-    ['Собрано:', formatPrice(effectiveCollected)],
-    ['Требуется:', formatPrice(required)],
-    [
-      moneyStatusType === 'deficit' ? 'Недобор:' : moneyStatusType === 'surplus' ? 'Профицит:' : 'Баланс:',
-      formatPrice(moneyStatusAmount)
-    ],
-    [
-      'Возврат сверхлимитчикам:',
-      refundToOverlimit > 0 ? formatPrice(refundToOverlimit) : '—'
-    ],
-    [
-      'Профицит к распределению:',
-      surplusToDistribute > 0 ? formatPrice(surplusToDistribute) : '—'
-    ]
+    ['Заявителей', formatCountPlain(totalApplicantsCount)],
+    ['Лимит мест', seatLimitDisplay],
+    [capacityLabel, capacityValue],
+    ['Оплачено', formatMoneyPlain(normalizedCollected)],
+    ['Целевая сумма', formatMoneyPlain(normalizedRequired)],
+    [moneyStatusType === 'deficit' ? 'Дефицит' : moneyStatusType === 'surplus' ? 'Профицит' : 'Баланс', formatMoneyPlain(normalizedMoneyStatusAmount)],
+    ['Возврат непринятым', formatMoneyPlain(normalizedRefundToOverlimit)],
+    ['Профицит к распределению', formatMoneyPlain(normalizedSurplusToDistribute)]
   ]
 
   financialInfo.forEach(([label, value]) => {
@@ -465,11 +583,8 @@ export const generateApplicantPdf = async (
   yPos += 7
 
   doc.setFontSize(11)
-  const isInLimit = applicantIndex < seatLimit
-  const refundAmount = isInLimit ? 0 : (applicant.paidAmount || 0)
-
   const applicantInfo = [
-    ['Логин/Код:', applicant.login || applicant.code || '—'],
+    ['Логин:', applicantLogin],
     ['Оплачено:', formatPrice(applicant.paidAmount || 0)],
     ['Статус:', isInLimit ? 'В лимите' : 'Вне лимита'],
     ['Возврат:', formatPrice(refundAmount)]
@@ -602,12 +717,11 @@ export const generateZipArchive = async (
       surplusToDistribute
     )
 
-    // Формирование имени файла (используем логин, если доступен, иначе код)
+    // Формирование имени файла (используем только логин)
     const now = DateTime.now()
     const dateStr = now.toFormat('ddMMyyyy')
     const timeStr = now.toFormat('HHmm')
-    // Приоритет логину: на платформе все заявители авторизованы, логин всегда должен быть
-    const login = applicant.login || applicant.code || `applicant_${i + 1}`
+    const login = sanitizeFileNameComponent(applicant.login || `applicant_${i + 1}`)
     const fileName = `Cons_${dateStr}_${timeStr}_${login}.pdf`
 
     // Добавление PDF в ZIP

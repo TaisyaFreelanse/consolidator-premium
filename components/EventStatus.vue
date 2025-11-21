@@ -10,6 +10,7 @@ import {
   getSeatsStatus,
   getCountdownTimer 
 } from '~/utils/statusMessages'
+import SummaryMetricsRow from '~/components/SummaryMetricsRow.vue'
 
 interface Props {
   event: EventItem
@@ -90,6 +91,8 @@ const statusMessage = computed(() => {
 const moneyStatus = computed(() => {
   return getMoneyStatus(effectiveCollected.value, props.event.priceTotal)
 })
+
+const totalApplicants = computed(() => props.snapshot?.applicants.length || 0)
 
 // Расчет "Возврат сверхлимитчикам" - сумма всех платежей от заявителей вне лимита
 const refundToOverlimit = computed(() => {
@@ -404,57 +407,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Участники и средства (компактный вид) -->
-    <div class="status-section compact">
-      <div class="section-header">
-        <span class="section-title">Участники и средства</span>
-      </div>
-
-      <div class="stats-line">
-        <div class="stat-pill">
-          <span class="pill-label">Участники</span>
-          <span class="pill-value">{{ snapshot?.applicants.length || 0 }} / {{ event.seatLimit || 20 }}</span>
-        </div>
-        <div class="stat-pill">
-          <span class="pill-label">Места</span>
-          <span class="pill-value">
-            <template v-if="seatsStatus.type === 'available'">Свободно {{ seatsStatus.freeSeats }}</template>
-            <template v-else-if="seatsStatus.type === 'full'">Заполнено</template>
-            <template v-else>Перебор +{{ seatsStatus.overflowCount }}</template>
-          </span>
-          <span v-if="paidSeatsCount > 0" class="pill-extra">Оплачено: {{ paidSeatsCount }}</span>
-        </div>
-        <div class="stat-pill">
-          <span class="pill-label">Собрано</span>
-          <span class="pill-value">{{ formatMoney(effectiveCollected) }} ₽</span>
-        </div>
-        <div class="stat-pill">
-          <span class="pill-label">Требуется</span>
-          <span class="pill-value">{{ formatMoney(props.event.priceTotal) }} ₽</span>
-        </div>
-        <div class="stat-pill" :class="moneyStatus.type">
-          <span class="pill-label">
-            <template v-if="moneyStatus.type === 'deficit'">Недобор</template>
-            <template v-else-if="moneyStatus.type === 'surplus'">Профицит</template>
-            <template v-else>Баланс</template>
-          </span>
-          <span class="pill-value">
-            <template v-if="moneyStatus.type === 'deficit'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
-            <template v-else-if="moneyStatus.type === 'surplus'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
-            <template v-else>Достигнут</template>
-          </span>
-        </div>
-        <div v-if="moneyStatus.type === 'surplus' && refundToOverlimit > 0" class="stat-pill refund-pill">
-          <span class="pill-label">Возврат сверхлимитчикам</span>
-          <span class="pill-value">{{ formatMoney(refundToOverlimit) }} ₽</span>
-        </div>
-        <div v-if="moneyStatus.type === 'surplus'" class="stat-pill surplus-pill">
-          <span class="pill-label">Профицит к распределению</span>
-          <span class="pill-value">{{ formatMoney(surplusToDistribute) }} ₽</span>
-        </div>
-      </div>
-    </div>
-
     <!-- Извещения о текущем статусе (из таблицы) -->
     <div v-if="statusMessage && !compact" class="messages-section">
       <div class="section-header">
@@ -477,15 +429,21 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Информация о правилах -->
-    <div v-if="!compact" class="rules-info">
-      <div class="section-title">Правила отбора участников</div>
-      <p class="hint">
-        • Если участников больше лимита — побеждают те, кто внес больше средств<br>
-        • Мероприятие состоится только при достижении требуемой суммы<br>
-        • После подведения итогов излишне собранные деньги возвращаются участникам
-      </p>
+    <!-- Участники и средства (компактный вид) -->
+    <div class="status-section compact">
+      <SummaryMetricsRow
+        :theme="'light'"
+        :total-applicants="totalApplicants"
+        :seat-limit="event.seatLimit"
+        :collected="effectiveCollected"
+        :required="event.priceTotal"
+        :money-status-type="moneyStatus.type"
+        :money-status-amount="moneyStatus.amount"
+        :refund-to-overlimit="refundToOverlimit"
+        :surplus-to-distribute="surplusToDistribute"
+      />
     </div>
+
   </div>
 </template>
 

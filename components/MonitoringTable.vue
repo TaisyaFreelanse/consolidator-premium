@@ -3,7 +3,6 @@
 import { computed } from 'vue'
 import type { MonitoringSnapshot, EventItem } from '~/types'
 import { useAuthStore } from '~/stores/auth'
-import { getMoneyStatus } from '~/utils/statusMessages'
 
 const auth = useAuthStore()
 const props = defineProps<{ 
@@ -11,7 +10,7 @@ const props = defineProps<{
   seatLimit?: number
   event?: EventItem // Добавляем event для расчета всех чисел
 }>()
-const emit = defineEmits<{ openPersonalCalc: [] }>()
+const emit = defineEmits<{ openPersonalCalc: []; requestAdditionalPayment: [] }>()
 
 type SnapshotApplicant = MonitoringSnapshot['applicants'][number]
 type LastPaymentInfo = {
@@ -65,34 +64,6 @@ const isWithinLimit = (index: number) => {
   if (!seatLimit.value) return true
   return index < seatLimit.value
 }
-
-// Расчет effectiveCollected
-const effectiveCollected = computed(() => {
-  // "Собрано" - это сумма ВСЕХ платежей всех заявителей, независимо от лимита мест
-  // Лимит мест влияет только на то, кто попадает в лимит (для расчета возврата)
-  return props.data.collected || 0
-})
-
-// Расчет "Возврат сверхлимитчикам"
-const refundToOverlimit = computed(() => {
-  const limit = seatLimit.value
-  if (limit <= 0) return 0
-  
-  const overflowApplicants = sortedApplicants.value.slice(limit)
-  return overflowApplicants.reduce((sum, applicant) => sum + applicant.paidAmount, 0)
-})
-
-// Расчет moneyStatus
-const moneyStatus = computed(() => {
-  if (!props.event) return null
-  return getMoneyStatus(effectiveCollected.value, props.event.priceTotal)
-})
-
-// Расчет "Профицит к распределению"
-const surplusToDistribute = computed(() => {
-  if (!moneyStatus.value || moneyStatus.value.type !== 'surplus') return 0
-  return Math.max(0, moneyStatus.value.amount - refundToOverlimit.value)
-})
 
 // Получить отображаемый код/логин заявителя
 const getApplicantDisplayCode = (applicant: SnapshotApplicant): string => {
@@ -163,47 +134,8 @@ const formatMoney = (amount: number) => {
 
 <template>
   <div class="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
-    <!-- Заголовок таблицы -->
-    <div class="p-8 border-b border-white/10">
-      <h3 class="text-2xl font-bold text-white mb-4" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
-        Список заявителей
-      </h3>
-      
-      <!-- Отображение всех пяти чисел -->
-      <div v-if="event" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
-          <div class="text-white/60 text-xs mb-1">Собрано</div>
-          <div class="text-lg font-bold text-green-400">{{ formatMoney(effectiveCollected) }} ₽</div>
-        </div>
-        <div class="bg-white/5 rounded-xl p-3 border border-white/10">
-          <div class="text-white/60 text-xs mb-1">Требуется</div>
-          <div class="text-lg font-bold text-blue-400">{{ formatMoney(event.priceTotal) }} ₽</div>
-        </div>
-        <div class="bg-white/5 rounded-xl p-3 border border-white/10" :class="moneyStatus?.type === 'surplus' ? 'border-green-500/30' : moneyStatus?.type === 'deficit' ? 'border-red-500/30' : ''">
-          <div class="text-white/60 text-xs mb-1">
-            <template v-if="moneyStatus?.type === 'deficit'">Недобор</template>
-            <template v-else-if="moneyStatus?.type === 'surplus'">Профицит</template>
-            <template v-else>Баланс</template>
-          </div>
-          <div class="text-lg font-bold" :class="moneyStatus?.type === 'surplus' ? 'text-green-400' : moneyStatus?.type === 'deficit' ? 'text-red-400' : 'text-white'">
-            <template v-if="moneyStatus?.type === 'deficit'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
-            <template v-else-if="moneyStatus?.type === 'surplus'">{{ formatMoney(moneyStatus.amount) }} ₽</template>
-            <template v-else>Достигнут</template>
-          </div>
-        </div>
-        <div v-if="moneyStatus?.type === 'surplus' && refundToOverlimit > 0" class="bg-white/5 rounded-xl p-3 border border-yellow-500/30">
-          <div class="text-white/60 text-xs mb-1">Возврат сверхлимитчикам</div>
-          <div class="text-lg font-bold text-yellow-400">{{ formatMoney(refundToOverlimit) }} ₽</div>
-        </div>
-        <div v-if="moneyStatus?.type === 'surplus'" class="bg-white/5 rounded-xl p-3 border border-green-500/30">
-          <div class="text-white/60 text-xs mb-1">Профицит к распределению</div>
-          <div class="text-lg font-bold text-green-400">{{ formatMoney(surplusToDistribute) }} ₽</div>
-        </div>
-      </div>
-    </div>
-
     <!-- Таблица -->
-    <div class="overflow-x-auto">
+    <div class="table-container overflow-x-auto">
       <table class="w-full text-sm" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
         <thead>
           <tr class="bg-white/5 border-b border-white/10">
@@ -258,17 +190,28 @@ const formatMoney = (amount: number) => {
                   </svg>
                   <span class="font-semibold text-green-400">{{ (row.paidAmount/100).toLocaleString('ru-RU') }} ₽</span>
                 </div>
-                <button
-                  v-if="isCurrentUser(row.code)"
-                  @click="emit('openPersonalCalc')"
-                  class="inline-flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-3 py-2 transition-all text-blue-400 hover:text-blue-300"
-                  title="Персональная калькуляция"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  <span class="text-sm font-medium">Персональные результаты</span>
-                </button>
+                <div v-if="isCurrentUser(row.code)" class="action-buttons">
+                  <button
+                    @click="emit('openPersonalCalc')"
+                    class="inline-flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-3 py-2 transition-all text-blue-400 hover:text-blue-300"
+                    title="Персональная калькуляция"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-sm font-medium">Персональные результаты</span>
+                  </button>
+                  <button
+                    @click="emit('requestAdditionalPayment')"
+                    class="inline-flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-xl px-3 py-2 transition-all text-amber-300 hover:text-amber-200"
+                    title="Дополнительная оплата"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span class="text-sm font-medium">Дополнительная оплата</span>
+                  </button>
+                </div>
               </div>
             </td>
           </tr>
@@ -311,6 +254,22 @@ const formatMoney = (amount: number) => {
 .overflow-row:hover {
   background: linear-gradient(90deg, rgba(255, 95, 109, 0.16) 0%, rgba(255, 195, 113, 0.1) 100%) !important;
   box-shadow: inset 0 0 25px rgba(255, 95, 109, 0.12);
+}
+
+.table-container {
+  padding: 32px;
+}
+
+@media (max-width: 768px) {
+  .table-container {
+    padding: 20px;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* Ранги */

@@ -115,52 +115,30 @@
                 </button>
               </div>
               
-              <!-- Общая информация - все пять чисел -->
-              <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-                <div class="bg-black/30 rounded-xl p-4">
-                  <div class="text-white/60 text-xs mb-1">Собрано</div>
-                  <div class="text-2xl font-bold text-green-400">
-                    {{ formatPrice(effectiveCollected) }}
-                  </div>
-                </div>
-                <div class="bg-black/30 rounded-xl p-4">
-                  <div class="text-white/60 text-xs mb-1">Требуется</div>
-                  <div class="text-2xl font-bold text-blue-400">
-                    {{ formatPrice(currentEvent.data.priceTotal || 0) }}
-                  </div>
-                </div>
-                <div class="bg-black/30 rounded-xl p-4" :class="moneyStatusType === 'surplus' ? 'border-green-500/30 border-2' : moneyStatusType === 'deficit' ? 'border-red-500/30 border-2' : ''">
-                  <div class="text-white/60 text-xs mb-1">
-                    <template v-if="moneyStatusType === 'deficit'">Недобор</template>
-                    <template v-else-if="moneyStatusType === 'surplus'">Профицит</template>
-                    <template v-else>Баланс</template>
-                  </div>
-                  <div class="text-2xl font-bold" :class="moneyStatusType === 'surplus' ? 'text-green-400' : moneyStatusType === 'deficit' ? 'text-red-400' : 'text-white'">
-                    {{ formatPrice(moneyStatusAmount) }}
-                  </div>
-                </div>
-                <div v-if="moneyStatusType === 'surplus' && refundToOverlimit > 0" class="bg-black/30 rounded-xl p-4 border-2 border-yellow-500/30">
-                  <div class="text-white/60 text-xs mb-1">Возврат сверхлимитчикам</div>
-                  <div class="text-2xl font-bold text-yellow-400">
-                    {{ formatPrice(refundToOverlimit) }}
-                  </div>
-                </div>
-                <div v-if="moneyStatusType === 'surplus'" class="bg-black/30 rounded-xl p-4 border-2 border-green-500/30">
-                  <div class="text-white/60 text-xs mb-1">Профицит к распределению</div>
-                  <div class="text-2xl font-bold text-green-400">
-                    {{ formatPrice(surplusToDistribute) }}
-                  </div>
-                </div>
+              <div class="mb-6">
+                <SummaryMetricsRow
+                  theme="dark"
+                  :total-applicants="monitoringData?.applicants?.length || 0"
+                  :seat-limit="currentEvent.data.seatLimit"
+                  :collected="effectiveCollected"
+                  :required="currentEvent.data.priceTotal"
+                  :money-status-type="moneyStatusType"
+                  :money-status-amount="moneyStatusAmount"
+                  :refund-to-overlimit="refundToOverlimit"
+                  :surplus-to-distribute="surplusToDistribute"
+                />
               </div>
 
               <!-- Таблица заявителей -->
               <div class="mb-4">
-                <h4 class="text-lg font-semibold mb-3">Заявители ({{ monitoringData.applicants?.length || 0 }})</h4>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs uppercase tracking-[0.2em] text-white/50">Участников: {{ monitoringData?.applicants?.length || 0 }}</span>
+                </div>
                 <div class="overflow-x-auto">
                   <table class="w-full text-sm">
                     <thead>
                       <tr class="border-b border-white/10">
-                        <th class="text-left py-2 px-3 text-white/70">Код/Логин</th>
+                        <th class="text-left py-2 px-3 text-white/70">Логин/Код</th>
                         <th class="text-right py-2 px-3 text-white/70">Мест</th>
                         <th class="text-right py-2 px-3 text-white/70">Оплачено</th>
                         <th class="text-left py-2 px-3 text-white/70">Статус</th>
@@ -171,10 +149,10 @@
                     <tbody>
                       <tr 
                         v-for="(applicant, index) in sortedApplicants" 
-                        :key="applicant.code || index"
+                        :key="applicantKey(applicant) || index"
                         class="border-b border-white/5 hover:bg-white/5"
                       >
-                        <td class="py-2 px-3 font-mono text-xs">{{ applicant.login || applicant.code || '—' }}</td>
+                        <td class="py-2 px-3 font-mono text-xs">{{ getApplicantDisplayLabel(applicant) }}</td>
                         <td class="py-2 px-3 text-right">{{ applicant.seats || 0 }}</td>
                         <td class="py-2 px-3 text-right font-medium">{{ formatPrice(applicant.paidAmount || 0) }}</td>
                         <td class="py-2 px-3">
@@ -190,10 +168,10 @@
                         </td>
                         <td class="py-2 px-3">
                           <button
-                            @click="togglePayments(index)"
+                            @click="togglePayments(applicantKey(applicant))"
                             class="text-blue-400 hover:text-blue-300 text-xs underline"
                           >
-                            {{ expandedPayments.has(index) ? 'Скрыть' : `Показать (${applicant.payments?.length || 0})` }}
+                            {{ expandedApplicantKey === applicantKey(applicant) ? 'Скрыть' : `Показать (${applicant.payments?.length || 0})` }}
                           </button>
                         </td>
                       </tr>
@@ -203,9 +181,9 @@
 
                 <!-- Детали платежей -->
                 <div v-for="(applicant, index) in sortedApplicants" :key="`payments-${index}`" class="mt-4">
-                  <div v-if="expandedPayments.has(index)" class="bg-black/30 rounded-xl p-4">
+                  <div v-if="expandedApplicantKey === applicantKey(applicant)" class="bg-black/30 rounded-xl p-4">
                     <h5 class="font-semibold mb-2 text-sm">
-                      Платежи заявителя: {{ applicant.login || applicant.code || '—' }}
+                      Платежи заявителя: {{ getApplicantDisplayLabel(applicant) }}
                     </h5>
                     <div v-if="applicant.payments && applicant.payments.length > 0" class="space-y-2">
                       <div 
@@ -269,9 +247,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { DateTime } from 'luxon'
 import type { MonitoringSnapshot, Applicant } from '~/types/index'
+import SummaryMetricsRow from '~/components/SummaryMetricsRow.vue'
 
 const config = useRuntimeConfig()
 const apiBaseUrl = config?.public?.apiBaseUrl || ''
@@ -302,7 +281,7 @@ const selectedEventId = ref<string | null>(null)
 const isLoading = ref(false)
 const error = ref<any>(null)
 const monitoringData = ref<MonitoringSnapshot | null>(null)
-const expandedPayments = ref<Set<number>>(new Set())
+const expandedApplicantKey = ref<string | null>(null)
 const progressMessage = ref<string>('')
 const isGeneratingZip = ref(false)
 let progressStartTime: number | null = null
@@ -528,8 +507,17 @@ const sortedApplicants = computed(() => {
 
 // Получение лимита мест
 const seatLimit = computed(() => {
-  return currentEvent.value?.data?.seatLimit || 0
+  const raw = currentEvent.value?.data?.seatLimit
+  if (typeof raw === 'string') {
+    const parsed = Number(raw)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+  return raw || 0
 })
+
+const applicantKey = (applicant: Applicant) => applicant.login || applicant.code || ''
+const getApplicantDisplayLabel = (applicant: Applicant) => applicant.login || applicant.code || '—'
+const findApplicantIndexByKey = (key: string) => sortedApplicants.value.findIndex(a => applicantKey(a) === key)
 
 // Расчет effectiveCollected
 const effectiveCollected = computed(() => {
@@ -574,14 +562,72 @@ const surplusToDistribute = computed(() => {
   return Math.max(0, moneyStatusAmount.value - refundToOverlimit.value)
 })
 
+const withinLimitCount = computed(() => {
+  if (seatLimit.value > 0) {
+    return Math.min(seatLimit.value, sortedApplicants.value.length)
+  }
+  return sortedApplicants.value.length
+})
+
+const withinLimitApplicants = computed(() => sortedApplicants.value.slice(0, withinLimitCount.value))
+const overflowApplicants = computed(() => sortedApplicants.value.slice(withinLimitCount.value))
+
+const pricePerSeat = computed(() => {
+  const eventData = currentEvent.value?.data
+  if (!eventData) return 0
+  const rawPrice = eventData.pricePerSeat
+  const priceNumber = typeof rawPrice === 'string' ? Number(rawPrice) : rawPrice
+  if (priceNumber && !Number.isNaN(priceNumber) && priceNumber > 0) {
+    return priceNumber
+  }
+  const required = typeof eventData.priceTotal === 'string'
+    ? Number(eventData.priceTotal)
+    : (eventData.priceTotal || 0)
+  const divisor = withinLimitCount.value > 0 ? withinLimitCount.value : sortedApplicants.value.length || 1
+  if (divisor <= 0) return required
+  return Math.round(required / divisor)
+})
+
+const extrasMap = computed(() => {
+  const map = new Map<string, { expected: number; extra: number; deficit: number }>()
+  withinLimitApplicants.value.forEach((applicant) => {
+    const key = applicantKey(applicant)
+    const seats = applicant.seats || 1
+    const expected = seats * pricePerSeat.value
+    const paidAmount = applicant.paidAmount || 0
+    const extra = Math.max(0, paidAmount - expected)
+    const deficit = Math.max(0, expected - paidAmount)
+    map.set(key, { expected, extra, deficit })
+  })
+  return map
+})
+
+const totalExtras = computed(() => {
+  let sum = 0
+  for (const data of extrasMap.value.values()) {
+    sum += data.extra
+  }
+  return sum
+})
+
+const eventSuccessful = computed(() => {
+  if (!monitoringData.value) return false
+  if (monitoringData.value.isCancelled) return false
+  const required = typeof currentEvent.value?.data?.priceTotal === 'string'
+    ? Number(currentEvent.value?.data?.priceTotal)
+    : (currentEvent.value?.data?.priceTotal || 0)
+  const deficit = monitoringData.value.deficit ?? Math.max(0, required - (monitoringData.value.collected || 0))
+  return deficit <= 0
+})
+
 // Проверка вхождения в лимит
 const isInLimit = (applicant: Applicant, index: number): boolean => {
-  return index < seatLimit.value
+  return index < withinLimitCount.value
 }
 
 // Получение статуса заявителя
 const getStatusText = (applicant: Applicant): string => {
-  const index = sortedApplicants.value.findIndex(a => a.code === applicant.code)
+  const index = findApplicantIndexByKey(applicantKey(applicant))
   if (index < 0) return 'Неизвестно'
   if (isInLimit(applicant, index)) {
     return 'В лимите'
@@ -590,7 +636,7 @@ const getStatusText = (applicant: Applicant): string => {
 }
 
 const getStatusClass = (applicant: Applicant): string => {
-  const index = sortedApplicants.value.findIndex(a => a.code === applicant.code)
+  const index = findApplicantIndexByKey(applicantKey(applicant))
   if (index < 0) return 'bg-gray-500/20 text-gray-300'
   if (isInLimit(applicant, index)) {
     return 'bg-green-500/20 text-green-300'
@@ -600,27 +646,61 @@ const getStatusClass = (applicant: Applicant): string => {
 
 // Расчет возвращаемой суммы
 const getRefundAmount = (applicant: Applicant): number => {
-  const index = sortedApplicants.value.findIndex(a => a.code === applicant.code)
+  if (!monitoringData.value) return 0
+  const key = applicantKey(applicant)
+  const index = findApplicantIndexByKey(key)
   if (index < 0) return 0
-  if (isInLimit(applicant, index)) {
-    return 0 // В лимите - возврат не требуется
+
+  const totalPaid = applicant.paidAmount || 0
+
+  if (!eventSuccessful.value) {
+    return totalPaid
   }
-  // Вне лимита - возвращаем всю сумму оплаты
-  return applicant.paidAmount || 0
+
+  if (index >= withinLimitCount.value) {
+    return totalPaid
+  }
+
+  const extraData = extrasMap.value.get(key)
+  const expected = extraData?.expected ?? (pricePerSeat.value * (applicant.seats || 1))
+  const extraContribution = extraData?.extra ?? Math.max(0, totalPaid - expected)
+
+  const surplus = surplusToDistribute.value
+  if (surplus <= 0) {
+    return 0
+  }
+
+  let share = 0
+  if (withinLimitCount.value === 1) {
+    share = 1
+  } else if (totalExtras.value > 0) {
+    share = extraContribution > 0 ? extraContribution / totalExtras.value : 0
+  } else if (withinLimitCount.value > 0) {
+    share = 1 / withinLimitCount.value
+  }
+
+  const refundFromSurplus = Math.round(surplus * share)
+
+  if (extraContribution > 0) {
+    if (surplus >= totalExtras.value && totalExtras.value > 0) {
+      return extraContribution
+    }
+    return Math.min(extraContribution, refundFromSurplus)
+  }
+
+  return refundFromSurplus
 }
 
 // Переключение отображения платежей
-const togglePayments = (index: number) => {
-  if (expandedPayments.value.has(index)) {
-    expandedPayments.value.delete(index)
-  } else {
-    expandedPayments.value.add(index)
-  }
+const togglePayments = (key: string) => {
+  expandedApplicantKey.value = expandedApplicantKey.value === key ? null : key
 }
 
 // Форматирование цены
-const formatPrice = (value: number): string => {
-  return `${value.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ₽`
+const formatPrice = (value: number | string | null | undefined): string => {
+  const amountNumber = Number(value) || 0
+  const rubles = amountNumber / 100
+  return `${rubles.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ₽`
 }
 
 // Форматирование даты
@@ -693,6 +773,14 @@ onMounted(() => {
   // Восстанавливаем ранее выбранный Ивент
   if (typeof window !== 'undefined') {
     const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
+    if (!apiKey.value) {
+      if (lastId) {
+        localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
+      }
+      selectedEventId.value = null
+      monitoringData.value = null
+      return
+    }
     if (lastId) {
       const exists = savedEvents.value.some(e => e.id === lastId)
       if (exists) {
@@ -704,5 +792,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopProgress()
+})
+
+watch(monitoringData, () => {
+  expandedApplicantKey.value = null
 })
 </script>

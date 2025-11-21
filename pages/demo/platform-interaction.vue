@@ -678,6 +678,13 @@ onMounted(() => {
   // Восстанавливаем ранее выбранный Ивент при навигации между формами
   if (typeof window !== 'undefined') {
     const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
+    if (!apiKey.value) {
+      if (lastId) {
+        localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
+      }
+      selectedEventId.value = null
+      return
+    }
     if (lastId) {
       // Устанавливаем только если такой Ивент существует в локальном списке
       const exists = savedEvents.value.some(e => e.id === lastId)

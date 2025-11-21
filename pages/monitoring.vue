@@ -448,34 +448,24 @@ const handlePayment = async (paymentData: any) => {
         <div v-if="snap && snap.applicants.length > 0" class="participants-section">
           <div class="section-header">
             <div class="header-left">
-              <h2 class="section-title">Зарегистрированные участники</h2>
               <span class="participants-count">{{ snap.applicants.length }} чел.</span>
             </div>
-            
-            <!-- КНОПКА ДОПОЛНИТЕЛЬНОЙ ОПЛАТЫ (видна всегда) -->
-            <button 
-              class="additional-payment-btn"
-            :class="{ 'disabled': !canSubmitApplications || isModeratorUser }"
-            :disabled="!canSubmitApplications || isModeratorUser"
-              @click="increaseBid"
-            :title="isModeratorUser ? 'Модератор не может вносить оплату' : canSubmitApplications ? 'Увеличить ставку' : 'Прием заявок завершен'"
-            >
-              <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
-              </svg>
-              <span>Дополнительная оплата</span>
-            </button>
           </div>
 
-          <MonitoringTable :data="snap" :seat-limit="ev.seatLimit || 0" :event="ev" @open-personal-calc="openPersonalCalculation" />
+          <MonitoringTable
+            :data="snap"
+            :seat-limit="ev.seatLimit || 0"
+            :event="ev"
+            @open-personal-calc="openPersonalCalculation"
+            @request-additional-payment="increaseBid"
+          />
 
           <div class="table-note">
             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span>
-              Один участник = одно место. 
-              При переборе участников побеждают те, кто внес больше средств.
+              Один участник = одно место. При переборе побеждают те, кто внес больше средств. Мероприятие состоится только при достижении целевой суммы. После подведения итогов излишне собранные деньги возвращаются участникам.
             </span>
           </div>
         </div>
@@ -824,41 +814,6 @@ const handlePayment = async (paymentData: any) => {
   box-shadow: 0 10px 25px rgba(14, 165, 233, 0.25);
 }
 
-/* КНОПКА ДОПОЛНИТЕЛЬНОЙ ОПЛАТЫ */
-.additional-payment-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
-}
-
-.additional-payment-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 149, 0, 0.4);
-}
-
-.additional-payment-btn:disabled,
-.additional-payment-btn.disabled {
-  background: linear-gradient(135deg, #999 0%, #777 100%);
-  cursor: not-allowed;
-  opacity: 0.6;
-  box-shadow: none;
-}
-
-.additional-payment-btn .icon {
-  width: 18px;
-  height: 18px;
-}
-
 .table-note {
   display: flex;
   align-items: flex-start;
@@ -1019,9 +974,5 @@ const handlePayment = async (paymentData: any) => {
     flex-wrap: wrap;
   }
 
-  .additional-payment-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 </style>
