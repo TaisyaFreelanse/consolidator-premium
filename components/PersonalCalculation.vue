@@ -171,7 +171,12 @@ const ownerApplicant = computed(() => {
   
   // Сначала ищем по логину (предпочтительно)
   if (props.currentUserLogin) {
-    const foundByLogin = sortedApplicants.value.find(applicant => applicant.login === props.currentUserLogin)
+    // Нормализуем логин (убираем пробелы, приводим к нижнему регистру для сравнения)
+    const normalizedLogin = props.currentUserLogin.trim().toLowerCase()
+    const foundByLogin = sortedApplicants.value.find(applicant => {
+      if (!applicant.login) return false
+      return applicant.login.trim().toLowerCase() === normalizedLogin
+    })
     if (foundByLogin) {
       if (process.client) {
         console.log('✅ PersonalCalculation: found by login', foundByLogin)
@@ -181,14 +186,23 @@ const ownerApplicant = computed(() => {
     if (process.client) {
       console.log('❌ PersonalCalculation: not found by login', {
         searchedLogin: props.currentUserLogin,
-        availableLogins: sortedApplicants.value.map(a => a.login).filter(Boolean)
+        normalizedLogin,
+        availableLogins: sortedApplicants.value.map(a => ({
+          original: a.login,
+          normalized: a.login?.trim().toLowerCase()
+        })).filter(a => a.original)
       })
     }
   }
   
   // Если не нашли по логину, ищем по коду
   if (props.currentUserCode) {
-    const foundByCode = sortedApplicants.value.find(applicant => applicant.code === props.currentUserCode)
+    // Нормализуем код (убираем пробелы)
+    const normalizedCode = props.currentUserCode.trim()
+    const foundByCode = sortedApplicants.value.find(applicant => {
+      if (!applicant.code) return false
+      return applicant.code.trim() === normalizedCode
+    })
     if (foundByCode) {
       if (process.client) {
         console.log('✅ PersonalCalculation: found by code', foundByCode)
@@ -198,6 +212,7 @@ const ownerApplicant = computed(() => {
     if (process.client) {
       console.log('❌ PersonalCalculation: not found by code', {
         searchedCode: props.currentUserCode,
+        normalizedCode,
         availableCodes: sortedApplicants.value.map(a => a.code)
       })
     }

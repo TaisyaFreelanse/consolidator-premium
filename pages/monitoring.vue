@@ -315,6 +315,42 @@ const openPersonalCalculation = () => {
     alert('ℹ️ Персональная калькуляция доступна только участникам.\n\nВойдите под кодом участника, чтобы просмотреть расчёт.')
     return
   }
+  
+  // Логируем данные для отладки
+  const userCode = auth.userCode || undefined
+  const userLogin = auth.currentUser?.name || undefined
+  
+  console.log('🔍 openPersonalCalculation: opening modal', {
+    userCode,
+    userLogin,
+    currentUser: auth.currentUser,
+    isAuthenticated: auth.isAuthenticated,
+    applicants: snap.value.applicants.map((a: any) => ({
+      code: a.code,
+      login: a.login,
+      paidAmount: a.paidAmount,
+      hasLogin: !!a.login,
+      loginType: typeof a.login
+    }))
+  })
+  
+  // Проверяем, есть ли заявитель с таким логином или кодом
+  const foundApplicant = snap.value.applicants.find((a: any) => {
+    if (userLogin && a.login) {
+      return a.login.trim().toLowerCase() === userLogin.trim().toLowerCase()
+    }
+    if (userCode && a.code) {
+      return a.code.trim() === userCode.trim()
+    }
+    return false
+  })
+  
+  if (foundApplicant) {
+    console.log('✅ Found applicant in snap:', foundApplicant)
+  } else {
+    console.warn('⚠️ Applicant NOT found in snap! This might be the issue.')
+  }
+  
   showPersonalCalc.value = true
 }
 
