@@ -34,23 +34,82 @@ const columns = [
   { key: 'paidAmount', label: 'Внесенная сумма, ₽', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c1.11 0 2.08-.402 2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
 ]
 
-// Проверка, является ли заявитель текущим пользователем (по логину)
-const isCurrentUser = (applicant: SnapshotApplicant): boolean => {
+// Проверка, является ли заявитель текущим пользователем (по логину или коду)
+const isCurrentUser = (applicant: SnapshotApplicant | any): boolean => {
   if (!auth.isAuthenticated || !auth.currentUser) {
-    console.log('isCurrentUser: not authenticated', { 
-      isAuthenticated: auth.isAuthenticated, 
-      currentUser: auth.currentUser 
-    })
     return false
   }
-  // Сравниваем по логину (name пользователя = login заявителя)
-  const isMatch = applicant.login === auth.currentUser.name
-  console.log('isCurrentUser check:', { 
-    applicantLogin: applicant.login, 
-    currentUserName: auth.currentUser.name, 
-    isMatch 
-  })
-  return isMatch
+  
+  const applicantLogin = applicant.login
+  const applicantCode = applicant.code
+  const currentUserName = auth.currentUser.name
+  const currentUserCode = auth.currentUser.code
+  
+  // Всегда логируем для отладки
+  if (process.client) {
+    console.log('isCurrentUser: full check', {
+      applicantLogin: applicantLogin || 'undefined',
+      applicantCode: applicantCode || 'undefined',
+      currentUserName: currentUserName || 'undefined',
+      currentUserCode: currentUserCode || 'undefined',
+      hasLogin: !!applicantLogin,
+      hasCode: !!applicantCode,
+      hasCurrentName: !!currentUserName,
+      hasCurrentCode: !!currentUserCode
+    })
+  }
+  
+  // Сначала проверяем по логину (предпочтительный способ)
+  if (applicantLogin && currentUserName) {
+    const isMatch = applicantLogin === currentUserName
+    if (process.client && isMatch) {
+      console.log('✅ isCurrentUser: MATCHED by login!', {
+        applicantLogin,
+        currentUserName
+      })
+    }
+    if (isMatch) return true
+  }
+  
+  // Если логина нет, проверяем по коду (для обратной совместимости со старыми данными)
+  if (applicantCode && currentUserCode) {
+    const isMatch = applicantCode === currentUserCode
+    if (process.client) {
+      console.log('isCurrentUser: checking by code', {
+        applicantCode,
+        currentUserCode,
+        isMatch
+      })
+      if (isMatch) {
+        console.log('✅ isCurrentUser: MATCHED by code!')
+      }
+    }
+    if (isMatch) return true
+  }
+  
+  // Также проверяем, может быть login заявителя совпадает с code пользователя (старые данные)
+  if (applicantLogin && currentUserCode && applicantLogin === currentUserCode) {
+    if (process.client) {
+      console.log('✅ isCurrentUser: MATCHED by login===code (legacy)!', {
+        applicantLogin,
+        currentUserCode
+      })
+    }
+    return true
+  }
+  
+  // И наоборот: code заявителя может совпадать с name пользователя (если userId был кодом)
+  if (applicantCode && currentUserName && applicantCode === currentUserName) {
+    if (process.client) {
+      console.log('✅ isCurrentUser: MATCHED by code===name (legacy)!', {
+        applicantCode,
+        currentUserName
+      })
+    }
+    return true
+  }
+  
+  return false
 }
 
 const sortedApplicants = computed(() => {
@@ -124,6 +183,7 @@ const enrichedApplicants = computed(() => {
     if (!payments.length) {
       return {
         ...applicant,
+        login: applicant.login, // Явно сохраняем login для проверки isCurrentUser
         lastPayment: null as LastPaymentInfo | null,
         displayCode: getApplicantDisplayCode(applicant)
       }
@@ -134,6 +194,7 @@ const enrichedApplicants = computed(() => {
     if (Number.isNaN(paymentDate.getTime())) {
       return {
         ...applicant,
+        login: applicant.login, // Явно сохраняем login для проверки isCurrentUser
         lastPayment: null as LastPaymentInfo | null,
         displayCode: getApplicantDisplayCode(applicant)
       }
@@ -141,6 +202,7 @@ const enrichedApplicants = computed(() => {
 
     return {
       ...applicant,
+      login: applicant.login, // Явно сохраняем login для проверки isCurrentUser
       lastPayment: {
         date: dateFormatter.format(paymentDate),
         time: timeFormatter.format(paymentDate),
