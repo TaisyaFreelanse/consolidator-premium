@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import type { EventItem, MonitoringSnapshot, Applicant, PersonalCalculationResult } from '~/types'
 
 const props = defineProps<{
@@ -12,39 +12,77 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
+// Логирование для отладки
+if (process.client) {
+  watch(() => props.isOpen, (newVal) => {
+    console.log('🔔 PersonalCalculation: isOpen changed to', newVal)
+    console.log('📋 PersonalCalculation props:', {
+      isOpen: props.isOpen,
+      hasEvent: !!props.event,
+      hasSnapshot: !!props.snapshot,
+      currentUserCode: props.currentUserCode,
+      currentUserLogin: props.currentUserLogin,
+      hasPersonalCalculations: !!props.snapshot.personalCalculations,
+      personalCalculationsCount: props.snapshot.personalCalculations?.length || 0
+    })
+  }, { immediate: true })
+}
+
 // Находим персональный расчет для текущего пользователя из готовых данных API
-const personalResult = computed<PersonalCalculationResult | null>(() => {
+const personalCalculation = computed<PersonalCalculationResult | null>(() => {
   if (!props.snapshot.personalCalculations || props.snapshot.personalCalculations.length === 0) {
+    if (process.client) {
+      console.warn('PersonalCalculation: personalCalculations not found in snapshot')
+    }
     return null
   }
 
-  // Ищем по логину (предпочтительно)
+  // Сначала ищем по логину (предпочтительно)
   if (props.currentUserLogin) {
     const normalizedLogin = props.currentUserLogin.trim().toLowerCase()
     const found = props.snapshot.personalCalculations.find(calc => {
       if (!calc.applicantLogin) return false
       return calc.applicantLogin.trim().toLowerCase() === normalizedLogin
     })
-    if (found) return found
+    if (found) {
+      if (process.client) {
+        console.log('✅ PersonalCalculation: found by login', found)
+      }
+      return found
+    }
   }
 
-  // Ищем по коду (для обратной совместимости)
+  // Если не нашли по логину, ищем по коду
   if (props.currentUserCode) {
     const normalizedCode = props.currentUserCode.trim()
     const found = props.snapshot.personalCalculations.find(calc => {
+      if (!calc.applicantCode) return false
       return calc.applicantCode.trim() === normalizedCode
     })
-    if (found) return found
+    if (found) {
+      if (process.client) {
+        console.log('✅ PersonalCalculation: found by code', found)
+      }
+      return found
+    }
   }
 
+  if (process.client) {
+    console.warn('❌ PersonalCalculation: calculation not found for user', {
+      currentUserCode: props.currentUserCode,
+      currentUserLogin: props.currentUserLogin,
+      availableCodes: props.snapshot.personalCalculations.map(c => c.applicantCode),
+      availableLogins: props.snapshot.personalCalculations.map(c => c.applicantLogin).filter(Boolean)
+    })
+  }
   return null
 })
 
-// Находим данные заявителя для отображения платежей
+// Находим заявителя для отображения дополнительной информации
 const ownerApplicant = computed<Applicant | null>(() => {
-  if (!personalResult.value) return null
+  if (!props.currentUserCode && !props.currentUserLogin) return null
 
-  // Ищем по логину (предпочтительно)
+  // Сначала ищем по логину
   if (props.currentUserLogin) {
     const normalizedLogin = props.currentUserLogin.trim().toLowerCase()
     const found = props.snapshot.applicants.find(applicant => {
@@ -55,9 +93,11 @@ const ownerApplicant = computed<Applicant | null>(() => {
   }
 
   // Ищем по коду
-  if (personalResult.value.applicantCode) {
+  if (props.currentUserCode) {
+    const normalizedCode = props.currentUserCode.trim()
     const found = props.snapshot.applicants.find(applicant => {
-      return applicant.code.trim() === personalResult.value!.applicantCode.trim()
+      if (!applicant.code) return false
+      return applicant.code.trim() === normalizedCode
     })
     if (found) return found
   }
@@ -67,27 +107,30 @@ const ownerApplicant = computed<Applicant | null>(() => {
 
 // Проверяем, является ли просматривающий участником
 const isViewerParticipant = computed(() => {
-  return personalResult.value !== null
+  return !!personalCalculation.value || !!ownerApplicant.value
 })
 
-// Получаем цену за место из персонального расчета или из события
-const pricePerSeat = computed(() => {
-  return personalResult.value?.pricePerSeat ?? props.event.pricePerSeat ?? 0
-})
-
-// Проверяем, состоялось ли событие
+// Статус сбора мероприятия
 const eventSuccessful = computed(() => {
   if (props.snapshot.isCancelled) return false
-  const deficit = props.snapshot.deficit ?? 0
+  const deficit = props.snapshot.deficit ?? Math.max(0, (props.event.priceTotal || 0) - (props.snapshot.collected || 0))
   return deficit <= 0
 })
 
-// Получаем количество мест из события
-const seatLimit = computed(() => {
-  return props.event.seatLimit ?? props.snapshot.applicants.length
+// Цена за место из персонального расчета или события
+const pricePerSeat = computed(() => {
+  if (personalCalculation.value?.pricePerSeat) {
+    return personalCalculation.value.pricePerSeat
+  }
+  if (props.event.pricePerSeat && props.event.pricePerSeat > 0) {
+    return props.event.pricePerSeat
+  }
+  return 0
 })
 
-const formatMoney = (amount: number) => {
+// Утилиты форматирования
+const formatMoney = (amount: number | undefined | null) => {
+  if (amount === undefined || amount === null) return '0.00'
   return (amount / 100).toLocaleString('ru-RU', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -104,8 +147,8 @@ const formatDateTime = (iso: string) => {
   })
 }
 
-const formatTimestamp = (timestamp: number | null) => {
-  if (timestamp === null) return '—'
+const formatTimestamp = (timestamp: number | null | undefined) => {
+  if (timestamp === null || timestamp === undefined) return '—'
   return new Date(timestamp).toLocaleString('ru-RU', {
     day: '2-digit',
     month: 'long',
@@ -118,6 +161,15 @@ const formatTimestamp = (timestamp: number | null) => {
 const closeModal = () => {
   emit('close')
 }
+
+// Получаем платежи из заявителя
+const payments = computed(() => {
+  if (!ownerApplicant.value?.payments) return []
+  return ownerApplicant.value.payments.map(payment => ({
+    amount: payment.amount,
+    createdAt: payment.createdAt
+  }))
+})
 </script>
 
 <template>
@@ -169,7 +221,7 @@ const closeModal = () => {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="info-card">
                 <span class="label">Мест всего</span>
-                <span class="value">{{ seatLimit }}</span>
+                <span class="value">{{ props.event.seatLimit ?? snapshot.applicants.length }}</span>
               </div>
               <div class="info-card">
                 <span class="label">Базовая цена за место</span>
@@ -185,7 +237,7 @@ const closeModal = () => {
               Вы еще не подавали заявку на это мероприятие. Подайте заявку, чтобы увидеть персональный расчет.
             </div>
 
-            <div v-else-if="ownerApplicant" class="p-6 rounded-2xl border border-white/10 bg-white/5 text-white/80 text-sm space-y-2">
+            <div v-else-if="ownerApplicant && !personalCalculation" class="p-6 rounded-2xl border border-white/10 bg-white/5 text-white/80 text-sm space-y-2">
               <div class="flex justify-between">
                 <span>Ваш логин</span>
                 <span class="font-mono text-white">{{ ownerApplicant.login || '—' }}</span>
@@ -194,13 +246,27 @@ const closeModal = () => {
                 <span>Всего оплачено</span>
                 <span class="font-semibold text-white">{{ formatMoney(ownerApplicant.paidAmount) }} ₽</span>
               </div>
+              <div class="mt-4 text-yellow-400 text-sm">
+                ⏳ Персональный расчет появится после обработки ваших платежей на платформе.
+              </div>
             </div>
 
-            <div v-if="personalResult" class="space-y-5">
+            <div v-else-if="personalCalculation" class="space-y-5">
+              <div v-if="ownerApplicant" class="p-6 rounded-2xl border border-white/10 bg-white/5 text-white/80 text-sm space-y-2">
+                <div class="flex justify-between">
+                  <span>Ваш логин</span>
+                  <span class="font-mono text-white">{{ ownerApplicant.login || personalCalculation.applicantLogin || '—' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Всего оплачено</span>
+                  <span class="font-semibold text-white">{{ formatMoney(personalCalculation.totalPaid) }} ₽</span>
+                </div>
+              </div>
+
               <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
                 <h3 class="section-title">Платежи заявителя</h3>
-                <div v-if="ownerApplicant && ownerApplicant.payments && ownerApplicant.payments.length > 0" class="space-y-3">
-                  <div v-for="(payment, index) in ownerApplicant.payments" :key="index" class="flex items-center justify-between">
+                <div v-if="payments.length > 0" class="space-y-3">
+                  <div v-for="(payment, index) in payments" :key="index" class="flex items-center justify-between">
                     <span class="text-white/60">{{ formatDateTime(payment.createdAt) }}</span>
                     <span class="text-white font-semibold">{{ formatMoney(payment.amount) }} ₽</span>
                   </div>
@@ -208,25 +274,27 @@ const closeModal = () => {
                 <div v-else class="text-white/60 text-sm">Нет детальной информации о платежах</div>
               </div>
 
-              <div v-if="personalResult.status === 'failed'" class="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+              <!-- Статус: Сбор не состоялся -->
+              <div v-if="personalCalculation.status === 'failed'" class="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
                 <h3 class="section-title text-red-400">Сбор не состоялся</h3>
                 <p class="text-white/80 text-sm mb-4">
                   Недостаточно собранных средств. Все платежи будут возвращены в полном объеме.
                 </p>
                 <div class="flex justify-between text-white/80 text-sm">
                   <span>Общая сумма взносов</span>
-                  <span class="font-semibold text-white">{{ formatMoney(personalResult.totalPaid) }} ₽</span>
+                  <span class="font-semibold text-white">{{ formatMoney(personalCalculation.totalPaid) }} ₽</span>
                 </div>
-                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="personalResult.deficit !== undefined">
+                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="personalCalculation.deficit !== undefined && personalCalculation.deficit > 0">
                   <span>Дефицит:</span>
-                  <span>{{ formatMoney(personalResult.deficit) }} ₽</span>
+                  <span>{{ formatMoney(personalCalculation.deficit) }} ₽</span>
                 </div>
               </div>
 
-              <div v-else-if="personalResult.status === 'overflow'" class="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6">
+              <!-- Статус: Сверх лимита -->
+              <div v-else-if="personalCalculation.status === 'overflow'" class="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6">
                 <h3 class="section-title text-yellow-300">Вы не вошли в список участников</h3>
                 <p class="text-white/80 text-sm mb-4">
-                  <template v-if="personalResult.reason === 'late'">
+                  <template v-if="personalCalculation.reason === 'late'">
                     Ваша ставка поступила позже других участников с такой же суммой. Все внесенные средства будут возвращены полностью.
                   </template>
                   <template v-else>
@@ -235,52 +303,53 @@ const closeModal = () => {
                 </p>
                 <div class="flex justify-between text-white/80 text-sm">
                   <span>Общая сумма взносов</span>
-                  <span class="font-semibold text-white">{{ formatMoney(personalResult.totalPaid) }} ₽</span>
+                  <span class="font-semibold text-white">{{ formatMoney(personalCalculation.totalPaid) }} ₽</span>
                 </div>
-                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="personalResult.thresholdAmount !== null && personalResult.thresholdAmount !== undefined">
+                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="personalCalculation.thresholdAmount !== null && personalCalculation.thresholdAmount !== undefined">
                   <span>Пороговая ставка</span>
-                  <span>{{ formatMoney(personalResult.thresholdAmount) }} ₽</span>
+                  <span>{{ formatMoney(personalCalculation.thresholdAmount) }} ₽</span>
                 </div>
-                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="personalResult.reason === 'late' && personalResult.thresholdTime !== null && personalResult.thresholdTime !== undefined">
+                <div class="flex justify-between text-white/60 text-xs mt-2" v-if="personalCalculation.reason === 'late' && personalCalculation.thresholdTime !== null && personalCalculation.thresholdTime !== undefined">
                   <span>Время порогового платежа</span>
-                  <span>{{ formatTimestamp(personalResult.thresholdTime) }}</span>
+                  <span>{{ formatTimestamp(personalCalculation.thresholdTime) }}</span>
                 </div>
-                <div class="flex justify-between text-white/60 text-xs mt-1" v-if="personalResult.reason === 'late' && personalResult.selectedTime !== null && personalResult.selectedTime !== undefined">
+                <div class="flex justify-between text-white/60 text-xs mt-1" v-if="personalCalculation.reason === 'late' && personalCalculation.selectedTime !== null && personalCalculation.selectedTime !== undefined">
                   <span>Ваш платеж поступил</span>
-                  <span>{{ formatTimestamp(personalResult.selectedTime) }}</span>
+                  <span>{{ formatTimestamp(personalCalculation.selectedTime) }}</span>
                 </div>
               </div>
 
-              <div v-else-if="personalResult.status === 'success'" class="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 space-y-3">
+              <!-- Статус: Успешно в лимите -->
+              <div v-else-if="personalCalculation.status === 'success'" class="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 space-y-3">
                 <h3 class="section-title text-blue-300">Событие состоится</h3>
-                <div class="flex justify-between text-white/70 text-sm" v-if="personalResult.expectedPayment !== undefined">
-                  <span>Минимальный взнос ({{ (ownerApplicant?.seats || 1) }} × {{ formatMoney(pricePerSeat) }} ₽)</span>
-                  <span class="text-white font-semibold">{{ formatMoney(personalResult.expectedPayment) }} ₽</span>
+                <div class="flex justify-between text-white/70 text-sm" v-if="personalCalculation.expectedPayment !== undefined">
+                  <span>Минимальный взнос ({{ ownerApplicant?.seats || 1 }} × {{ formatMoney(pricePerSeat) }} ₽)</span>
+                  <span class="text-white font-semibold">{{ formatMoney(personalCalculation.expectedPayment) }} ₽</span>
                 </div>
                 <div class="flex justify-between text-white/70 text-sm">
                   <span>Фактически внесено</span>
-                  <span class="text-white font-semibold">{{ formatMoney(personalResult.totalPaid) }} ₽</span>
+                  <span class="text-white font-semibold">{{ formatMoney(personalCalculation.totalPaid) }} ₽</span>
                 </div>
-                <div class="flex justify-between text-white/70 text-sm" v-if="personalResult.extraContribution !== undefined">
+                <div class="flex justify-between text-white/70 text-sm" v-if="personalCalculation.extraContribution !== undefined && personalCalculation.extraContribution > 0">
                   <span>Переплата</span>
-                  <span class="text-white font-semibold">{{ formatMoney(personalResult.extraContribution) }} ₽</span>
+                  <span class="text-white font-semibold">{{ formatMoney(personalCalculation.extraContribution) }} ₽</span>
                 </div>
-                <div class="flex justify-between text-white/70 text-sm" v-if="personalResult.deficit !== undefined && personalResult.deficit > 0">
+                <div class="flex justify-between text-white/70 text-sm" v-if="personalCalculation.deficit !== undefined && personalCalculation.deficit > 0">
                   <span>Недоплата</span>
-                  <span class="text-white font-semibold">{{ formatMoney(personalResult.deficit) }} ₽</span>
+                  <span class="text-white font-semibold">{{ formatMoney(personalCalculation.deficit) }} ₽</span>
                 </div>
-                <div class="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70" v-if="personalResult.refundFromSurplus !== undefined && personalResult.refundFromSurplus > 0">
-                  <div class="flex justify-between" v-if="personalResult.share !== undefined">
+                <div class="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70" v-if="personalCalculation.refundFromSurplus !== undefined && personalCalculation.refundFromSurplus > 0">
+                  <div class="flex justify-between" v-if="personalCalculation.share !== undefined">
                     <span>Доля в распределении профицита</span>
-                    <span class="text-white font-semibold">{{ (personalResult.share * 100).toFixed(2) }}%</span>
+                    <span class="text-white font-semibold">{{ (personalCalculation.share * 100).toFixed(2) }}%</span>
                   </div>
-                  <div class="flex justify-between mt-2" v-if="personalResult.surplusAvailable !== undefined">
+                  <div class="flex justify-between mt-2" v-if="personalCalculation.surplusAvailable !== undefined">
                     <span>Профицит для распределения</span>
-                    <span class="text-white font-semibold">{{ formatMoney(personalResult.surplusAvailable) }} ₽</span>
+                    <span class="text-white font-semibold">{{ formatMoney(personalCalculation.surplusAvailable) }} ₽</span>
                   </div>
                   <div class="flex justify-between mt-2">
                     <span>Возврат из профицита</span>
-                    <span class="text-white font-semibold">{{ formatMoney(personalResult.refundFromSurplus) }} ₽</span>
+                    <span class="text-white font-semibold">{{ formatMoney(personalCalculation.refundFromSurplus) }} ₽</span>
                   </div>
                 </div>
                 <div v-else class="text-white/60 text-sm">
@@ -290,12 +359,8 @@ const closeModal = () => {
 
               <div class="summary-card">
                 <div class="summary-label">Итого к возврату</div>
-                <div class="summary-value">{{ formatMoney(personalResult.refundTotal) }} ₽</div>
+                <div class="summary-value">{{ formatMoney(personalCalculation.refundTotal) }} ₽</div>
               </div>
-            </div>
-
-            <div v-else-if="isViewerParticipant" class="text-center py-12 text-white/60">
-              Персональный расчет появится после обработки ваших платежей.
             </div>
 
             <div class="flex justify-end">
