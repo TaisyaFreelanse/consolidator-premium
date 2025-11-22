@@ -120,7 +120,31 @@ const isModeratorUser = computed(() => auth.isModerator)
 
 const userApplication = computed(() => {
   if (!auth.isAuthenticated || !snap.value || !snap.value.applicants) return null
-  return snap.value.applicants.find((a: any) => a.code === auth.userCode)
+  
+  // Сначала ищем по логину (предпочтительно)
+  if (auth.currentUser?.name) {
+    const foundByLogin = snap.value.applicants.find((a: any) => a.login === auth.currentUser.name)
+    if (foundByLogin) {
+      console.log('✅ userApplication: found by login', foundByLogin)
+      return foundByLogin
+    }
+  }
+  
+  // Если не нашли по логину, ищем по коду
+  if (auth.userCode) {
+    const foundByCode = snap.value.applicants.find((a: any) => a.code === auth.userCode)
+    if (foundByCode) {
+      console.log('✅ userApplication: found by code', foundByCode)
+      return foundByCode
+    }
+  }
+  
+  console.log('❌ userApplication: not found', {
+    userCode: auth.userCode,
+    userLogin: auth.currentUser?.name,
+    applicants: snap.value.applicants.map((a: any) => ({ code: a.code, login: a.login }))
+  })
+  return null
 })
 
 // Позиция пользователя в рейтинге (отсортированном по убыванию взноса)

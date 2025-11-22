@@ -149,20 +149,63 @@ const isViewerParticipant = computed(() => {
 })
 
 const ownerApplicant = computed(() => {
-  if (!props.currentUserCode && !props.currentUserLogin) return null
+  if (!props.currentUserCode && !props.currentUserLogin) {
+    if (process.client) {
+      console.log('PersonalCalculation: no currentUserCode or currentUserLogin provided')
+    }
+    return null
+  }
+  
+  if (process.client) {
+    console.log('PersonalCalculation: searching for applicant', {
+      currentUserCode: props.currentUserCode,
+      currentUserLogin: props.currentUserLogin,
+      applicantsCount: sortedApplicants.value.length,
+      applicants: sortedApplicants.value.map(a => ({
+        code: a.code,
+        login: a.login,
+        paidAmount: a.paidAmount
+      }))
+    })
+  }
   
   // Сначала ищем по логину (предпочтительно)
   if (props.currentUserLogin) {
     const foundByLogin = sortedApplicants.value.find(applicant => applicant.login === props.currentUserLogin)
-    if (foundByLogin) return foundByLogin
+    if (foundByLogin) {
+      if (process.client) {
+        console.log('✅ PersonalCalculation: found by login', foundByLogin)
+      }
+      return foundByLogin
+    }
+    if (process.client) {
+      console.log('❌ PersonalCalculation: not found by login', {
+        searchedLogin: props.currentUserLogin,
+        availableLogins: sortedApplicants.value.map(a => a.login).filter(Boolean)
+      })
+    }
   }
   
   // Если не нашли по логину, ищем по коду
   if (props.currentUserCode) {
     const foundByCode = sortedApplicants.value.find(applicant => applicant.code === props.currentUserCode)
-    if (foundByCode) return foundByCode
+    if (foundByCode) {
+      if (process.client) {
+        console.log('✅ PersonalCalculation: found by code', foundByCode)
+      }
+      return foundByCode
+    }
+    if (process.client) {
+      console.log('❌ PersonalCalculation: not found by code', {
+        searchedCode: props.currentUserCode,
+        availableCodes: sortedApplicants.value.map(a => a.code)
+      })
+    }
   }
   
+  if (process.client) {
+    console.log('❌ PersonalCalculation: applicant not found')
+  }
   return null
 })
 
