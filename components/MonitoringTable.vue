@@ -94,23 +94,42 @@ const isWithinLimit = (index: number) => {
 // Получить отображаемый код/логин заявителя
 const getApplicantDisplayCode = (applicant: SnapshotApplicant): string => {
   // СТРОГАЯ проверка: если пользователь НЕ авторизован - ВСЕМ показываем ТОЛЬКО код
-  const isAuth = auth.isAuthenticated && auth.currentUser && auth.currentUser.name
-  if (!isAuth) {
+  if (!auth.isAuthenticated || !auth.currentUser || !auth.currentUser.name) {
     // Для неавторизованных - всегда код, даже если есть login
-    return applicant.code
+    return applicant.code || '—'
   }
+  
+  // Проверяем, является ли это текущим пользователем
+  const isCurrent = isCurrentUser(applicant)
+  
+  if (process.client) {
+    console.log('🔍 getApplicantDisplayCode check:', {
+      applicantLogin: applicant.login,
+      applicantCode: applicant.code,
+      currentUserName: auth.currentUser?.name,
+      isCurrent,
+      result: isCurrent && applicant.login ? applicant.login : applicant.code
+    })
+  }
+  
   // Если авторизован и это текущий пользователь - показываем его логин
-  if (isCurrentUser(applicant) && applicant.login) {
+  if (isCurrent && applicant.login) {
     return applicant.login
   }
-  // Для остальных авторизованных - показываем секретный код
-  return applicant.code
+  
+  // Для ВСЕХ остальных (даже если у них есть login) - показываем секретный код
+  return applicant.code || '—'
 }
 
 const enrichedApplicants = computed(() => {
-  // Явная зависимость от auth для реактивности
+  // Явная зависимость от auth для реактивности - это заставляет computed пересчитываться при изменении авторизации
   const isAuth = auth.isAuthenticated
   const currentUserName = auth.currentUser?.name
+  const currentUserCode = auth.currentUser?.code
+  // Явно используем эти значения, чтобы computed был реактивным
+  void isAuth
+  void currentUserName
+  void currentUserCode
   
   const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
