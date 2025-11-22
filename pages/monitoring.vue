@@ -458,7 +458,9 @@ const handlePayment = async (paymentData: any) => {
             :data="snap"
             :seat-limit="ev.seatLimit || 0"
             :event="ev"
+            :can-submit-applications="canSubmitApplications"
             @open-personal-calc="openPersonalCalculation"
+            @request-additional-payment="increaseBid"
           />
 
           <div class="table-note">
@@ -507,6 +509,7 @@ const handlePayment = async (paymentData: any) => {
       :snapshot="snap"
       :is-open="showPersonalCalc"
       :current-user-code="auth.userCode || undefined"
+      :current-user-login="auth.currentUser?.name || undefined"
       @close="closePersonalCalculation"
     />
   </section>

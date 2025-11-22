@@ -7,6 +7,7 @@ const props = defineProps<{
   snapshot: MonitoringSnapshot
   isOpen: boolean
   currentUserCode?: string
+  currentUserLogin?: string // Добавляем поддержку логина
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -133,13 +134,36 @@ const closeModal = () => {
 }
 
 const isViewerParticipant = computed(() => {
-  if (!props.currentUserCode) return false
-  return sortedApplicants.value.some(applicant => applicant.code === props.currentUserCode)
+  if (!props.currentUserCode && !props.currentUserLogin) return false
+  return sortedApplicants.value.some(applicant => {
+    // Проверяем по логину (предпочтительно)
+    if (props.currentUserLogin && applicant.login) {
+      return applicant.login === props.currentUserLogin
+    }
+    // Проверяем по коду (для обратной совместимости)
+    if (props.currentUserCode && applicant.code) {
+      return applicant.code === props.currentUserCode
+    }
+    return false
+  })
 })
 
 const ownerApplicant = computed(() => {
-  if (!props.currentUserCode) return null
-  return sortedApplicants.value.find(applicant => applicant.code === props.currentUserCode) ?? null
+  if (!props.currentUserCode && !props.currentUserLogin) return null
+  
+  // Сначала ищем по логину (предпочтительно)
+  if (props.currentUserLogin) {
+    const foundByLogin = sortedApplicants.value.find(applicant => applicant.login === props.currentUserLogin)
+    if (foundByLogin) return foundByLogin
+  }
+  
+  // Если не нашли по логину, ищем по коду
+  if (props.currentUserCode) {
+    const foundByCode = sortedApplicants.value.find(applicant => applicant.code === props.currentUserCode)
+    if (foundByCode) return foundByCode
+  }
+  
+  return null
 })
 
 const resultForOwner = computed(() => {

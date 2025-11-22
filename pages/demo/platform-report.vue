@@ -260,6 +260,7 @@
       :snapshot="monitoringData"
       :is-open="isPersonalCalcOpen"
       :current-user-code="selectedApplicantForCalc.code"
+      :current-user-login="selectedApplicantForCalc.login || undefined"
       @close="closePersonalCalc"
     />
   </div>
