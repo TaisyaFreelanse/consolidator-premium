@@ -86,6 +86,32 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Функция для генерации детерминированного секретного кода на основе userId
+    // Используем тот же формат, что и при регистрации: 6-8 символов из букв и цифр
+    const generateSecretCode = (userId: string, eventId: string): string => {
+      if (userId === 'anonymous') {
+        return 'Аноним'
+      }
+      // Создаем детерминированный хеш на основе userId и eventId
+      let hash = 0
+      const str = `${userId}-${eventId}`
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+      }
+      // Генерируем код вида "ABCD12" (6-8 символов из букв и цифр)
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      const length = 6 + (Math.abs(hash) % 3) // 6-8 символов
+      let code = ''
+      let seed = Math.abs(hash)
+      for (let i = 0; i < length; i++) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff // Linear congruential generator
+        code += chars.charAt(seed % chars.length)
+      }
+      return code
+    }
+
     // Группируем платежи по пользователям (userId)
     const applicantsMap = new Map<string, Applicant>()
 
@@ -102,30 +128,20 @@ export default defineEventHandler(async (event) => {
         existing.paidAmount += amount
         existing.payments.push(paymentRecord)
       } else {
-        // ВАЖНО: userId может быть либо логином (name), либо кодом (старые данные)
-        // В новых платежах userId должен быть логином (name пользователя)
-        // В старых платежах userId может быть кодом
-        // Для обратной совместимости: если userId выглядит как код (например, "4E3WK5"),
-        // то это старые данные, и login будет undefined
-        // Если userId - это логин (например, "admin"), то login будет установлен
-        const looksLikeCode = /^[A-Z0-9]{5,7}$/.test(userId)
+        // ВАЖНО: userId теперь ВСЕГДА должен быть логином (name пользователя), а не кодом
+        // Генерируем секретный код для каждого заявителя
+        const secretCode = generateSecretCode(userId, eventId)
+        
+        // Определяем, является ли userId логином или кодом (для обратной совместимости)
+        const looksLikeCode = /^[A-Z0-9]{5,8}$/.test(userId)
         const isLogin = !looksLikeCode && userId !== 'anonymous'
         
         applicantsMap.set(userId, {
-          code: userId, // userId используется как код
+          code: secretCode, // Секретный код для анонимности (генерируется детерминированно)
           seats: 1, // Один участник = одно место
           paidAmount: amount,
           payments: [paymentRecord],
-          login: isLogin ? userId : undefined // Устанавливаем login только если userId - это логин, а не код
-        })
-        
-        // Логируем для отладки
-        console.log('📝 Creating applicant from payment:', {
-          userId,
-          code: userId,
-          login: isLogin ? userId : undefined,
-          looksLikeCode,
-          isLogin
+          login: isLogin ? userId : undefined // userId должен быть логином (name), не кодом
         })
       }
     })

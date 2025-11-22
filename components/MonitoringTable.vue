@@ -102,16 +102,6 @@ const getApplicantDisplayCode = (applicant: SnapshotApplicant): string => {
   // Проверяем, является ли это текущим пользователем
   const isCurrent = isCurrentUser(applicant)
   
-  if (process.client) {
-    console.log('🔍 getApplicantDisplayCode check:', {
-      applicantLogin: applicant.login,
-      applicantCode: applicant.code,
-      currentUserName: auth.currentUser?.name,
-      isCurrent,
-      result: isCurrent && applicant.login ? applicant.login : applicant.code
-    })
-  }
-  
   // Если авторизован и это текущий пользователь - показываем его логин
   if (isCurrent && applicant.login) {
     return applicant.login
