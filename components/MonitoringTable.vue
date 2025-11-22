@@ -30,7 +30,7 @@ const getLastPaymentTimestamp = (applicant: SnapshotApplicant): number | null =>
 
 const columns = [
   { key: 'rank', label: 'Место', icon: 'M12 8l1.176 3.618h3.804l-3.078 2.239 1.176 3.618L12 15.236l-3.078 2.237 1.176-3.618-3.078-2.239h3.804L12 8z' },
-  { key: 'code', label: 'Код заявителя', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2' },
+  { key: 'code', label: 'КОД ЗАЯВИТЕЛЯ', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2' },
   { key: 'lastPayment', label: 'Последний платёж', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
   { key: 'paidAmount', label: 'Внесенная сумма, ₽', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c1.11 0 2.08-.402 2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
 ]
@@ -41,72 +41,23 @@ const isCurrentUser = (applicant: SnapshotApplicant | any): boolean => {
     return false
   }
   
-  const applicantLogin = applicant.login
-  const applicantCode = applicant.code
-  const currentUserName = auth.currentUser.name
-  const currentUserCode = auth.currentUser.code
-  
-  // Всегда логируем для отладки
-  if (process.client) {
-    console.log('isCurrentUser: full check', {
-      applicantLogin: applicantLogin || 'undefined',
-      applicantCode: applicantCode || 'undefined',
-      currentUserName: currentUserName || 'undefined',
-      currentUserCode: currentUserCode || 'undefined',
-      hasLogin: !!applicantLogin,
-      hasCode: !!applicantCode,
-      hasCurrentName: !!currentUserName,
-      hasCurrentCode: !!currentUserCode
-    })
-  }
+  const applicantLogin = applicant.login?.trim().toLowerCase()
+  const applicantCode = applicant.code?.trim()
+  const currentUserName = auth.currentUser.name?.trim().toLowerCase()
+  const currentUserCode = auth.currentUser.code?.trim()
   
   // Сначала проверяем по логину (предпочтительный способ)
-  if (applicantLogin && currentUserName) {
-    const isMatch = applicantLogin === currentUserName
-    if (process.client && isMatch) {
-      console.log('✅ isCurrentUser: MATCHED by login!', {
-        applicantLogin,
-        currentUserName
-      })
-    }
-    if (isMatch) return true
-  }
-  
-  // Если логина нет, проверяем по коду (для обратной совместимости со старыми данными)
-  if (applicantCode && currentUserCode) {
-    const isMatch = applicantCode === currentUserCode
-    if (process.client) {
-      console.log('isCurrentUser: checking by code', {
-        applicantCode,
-        currentUserCode,
-        isMatch
-      })
-      if (isMatch) {
-        console.log('✅ isCurrentUser: MATCHED by code!')
-      }
-    }
-    if (isMatch) return true
-  }
-  
-  // Также проверяем, может быть login заявителя совпадает с code пользователя (старые данные)
-  if (applicantLogin && currentUserCode && applicantLogin === currentUserCode) {
-    if (process.client) {
-      console.log('✅ isCurrentUser: MATCHED by login===code (legacy)!', {
-        applicantLogin,
-        currentUserCode
-      })
-    }
+  if (applicantLogin && currentUserName && applicantLogin === currentUserName) {
     return true
   }
   
-  // И наоборот: code заявителя может совпадать с name пользователя (если userId был кодом)
-  if (applicantCode && currentUserName && applicantCode === currentUserName) {
-    if (process.client) {
-      console.log('✅ isCurrentUser: MATCHED by code===name (legacy)!', {
-        applicantCode,
-        currentUserName
-      })
-    }
+  // Если логина нет или не совпал, проверяем по коду
+  if (applicantCode && currentUserCode && applicantCode === currentUserCode) {
+    return true
+  }
+  
+  // Для обратной совместимости: code заявителя может совпадать с name пользователя (если userId был кодом)
+  if (applicantCode && currentUserName && applicantCode.toLowerCase() === currentUserName) {
     return true
   }
   
