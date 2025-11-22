@@ -8,6 +8,7 @@ interface Applicant {
   seats: number
   paidAmount: number
   payments: { amount: number; createdAt: string }[]
+  login?: string // Добавляем поле login
 }
 
 function resolveControlPoint(eventData: any): { current: ControlPointCode; nextDeadline: string | null } {
@@ -101,11 +102,30 @@ export default defineEventHandler(async (event) => {
         existing.paidAmount += amount
         existing.payments.push(paymentRecord)
       } else {
+        // ВАЖНО: userId может быть либо логином (name), либо кодом (старые данные)
+        // В новых платежах userId должен быть логином (name пользователя)
+        // В старых платежах userId может быть кодом
+        // Для обратной совместимости: если userId выглядит как код (например, "4E3WK5"),
+        // то это старые данные, и login будет undefined
+        // Если userId - это логин (например, "admin"), то login будет установлен
+        const looksLikeCode = /^[A-Z0-9]{5,7}$/.test(userId)
+        const isLogin = !looksLikeCode && userId !== 'anonymous'
+        
         applicantsMap.set(userId, {
-          code: userId,
+          code: userId, // userId используется как код
           seats: 1, // Один участник = одно место
           paidAmount: amount,
-          payments: [paymentRecord]
+          payments: [paymentRecord],
+          login: isLogin ? userId : undefined // Устанавливаем login только если userId - это логин, а не код
+        })
+        
+        // Логируем для отладки
+        console.log('📝 Creating applicant from payment:', {
+          userId,
+          code: userId,
+          login: isLogin ? userId : undefined,
+          looksLikeCode,
+          isLogin
         })
       }
     })

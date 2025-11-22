@@ -157,13 +157,16 @@ const ownerApplicant = computed(() => {
   }
   
   if (process.client) {
-    console.log('PersonalCalculation: searching for applicant', {
+    console.log('🔍 PersonalCalculation: searching for applicant', {
       currentUserCode: props.currentUserCode,
       currentUserLogin: props.currentUserLogin,
       applicantsCount: sortedApplicants.value.length,
       applicants: sortedApplicants.value.map(a => ({
         code: a.code,
+        codeType: typeof a.code,
+        codeLength: a.code?.length,
         login: a.login,
+        loginType: typeof a.login,
         paidAmount: a.paidAmount
       }))
     })
@@ -213,7 +216,12 @@ const ownerApplicant = computed(() => {
       console.log('❌ PersonalCalculation: not found by code', {
         searchedCode: props.currentUserCode,
         normalizedCode,
-        availableCodes: sortedApplicants.value.map(a => a.code)
+        availableCodes: sortedApplicants.value.map(a => ({
+          code: a.code,
+          codeType: typeof a.code,
+          codeLength: a.code?.length,
+          matches: a.code?.trim() === normalizedCode
+        }))
       })
     }
   }
