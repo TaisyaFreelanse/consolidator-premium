@@ -53,6 +53,26 @@ export interface Applicant {
   paidAmount: number
   payments?: PaymentEntry[]
 }
+export interface PersonalCalculationResult {
+  applicantCode: string
+  applicantLogin?: string
+  status: 'success' | 'failed' | 'overflow'
+  totalPaid: number
+  expectedPayment?: number
+  extraContribution?: number
+  deficit?: number
+  share?: number
+  refundFromSurplus?: number
+  refundTotal: number
+  pricePerSeat: number
+  surplusAvailable?: number
+  overflowTotal?: number
+  reason?: 'lower' | 'late'
+  thresholdAmount?: number | null
+  thresholdTime?: number | null
+  selectedTime?: number | null
+}
+
 export interface MonitoringSnapshot {
   eventId: string
   nowPoint: ControlPointCode
@@ -62,4 +82,5 @@ export interface MonitoringSnapshot {
   isCancelled?: boolean
   applicants: Applicant[]
   deadlineNext?: string
+  personalCalculations?: PersonalCalculationResult[] // Готовые персональные расчеты для всех участников
 }
