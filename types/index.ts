@@ -43,6 +43,8 @@ export interface FavoriteItem { eventId: string; pinnedAt: string }
 export interface PaymentEntry {
   amount: number
   createdAt: string
+  paymentId?: string // ID платежа (опционально)
+  status?: string // Статус платежа (опционально)
 }
 export interface Applicant {
   code: string

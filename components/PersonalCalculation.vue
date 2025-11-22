@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import type { EventItem, MonitoringSnapshot, Applicant } from '~/types'
 
 const props = defineProps<{
@@ -11,6 +11,20 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ close: [] }>()
+
+// Логирование для отладки
+if (process.client) {
+  watch(() => props.isOpen, (newVal) => {
+    console.log('🔔 PersonalCalculation: isOpen changed to', newVal)
+    console.log('📋 PersonalCalculation props:', {
+      isOpen: props.isOpen,
+      hasEvent: !!props.event,
+      hasSnapshot: !!props.snapshot,
+      currentUserCode: props.currentUserCode,
+      currentUserLogin: props.currentUserLogin
+    })
+  }, { immediate: true })
+}
 
 const getLastPaymentTimestamp = (applicant: Applicant): number | null => {
   const payments = applicant.payments ?? []

@@ -255,12 +255,12 @@
 
     <!-- Модальное окно персональной калькуляции -->
     <PersonalCalculation
-      v-if="currentEvent && monitoringData && selectedApplicantForCalc && selectedApplicantForCalc.code"
-      :event="currentEvent"
-      :snapshot="monitoringData"
+      v-if="canShowPersonalCalc && adaptedEventForPersonalCalc"
+      :event="adaptedEventForPersonalCalc"
+      :snapshot="monitoringData!"
       :is-open="isPersonalCalcOpen"
-      :current-user-code="selectedApplicantForCalc.code"
-      :current-user-login="selectedApplicantForCalc.login || undefined"
+      :current-user-code="selectedApplicantForCalc?.code"
+      :current-user-login="selectedApplicantForCalc?.login || undefined"
       @close="closePersonalCalc"
     />
   </div>
@@ -269,8 +269,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { DateTime } from 'luxon'
-import type { MonitoringSnapshot, Applicant } from '~/types/index'
+import type { MonitoringSnapshot, Applicant, EventItem } from '~/types/index'
 import SummaryMetricsRow from '~/components/SummaryMetricsRow.vue'
+import PersonalCalculation from '~/components/PersonalCalculation.vue'
 
 const config = useRuntimeConfig()
 const apiBaseUrl = config?.public?.apiBaseUrl || ''
@@ -637,6 +638,51 @@ const withinLimitCount = computed(() => {
 const withinLimitApplicants = computed(() => sortedApplicants.value.slice(0, withinLimitCount.value))
 const overflowApplicants = computed(() => sortedApplicants.value.slice(withinLimitCount.value))
 
+// Адаптация события для PersonalCalculation (преобразуем SavedEvent в EventItem)
+const adaptedEventForPersonalCalc = computed<EventItem | null>(() => {
+  if (!currentEvent.value) return null
+  const eventData = currentEvent.value.data
+  return {
+    id: currentEvent.value.id,
+    title: currentEvent.value.title,
+    author: eventData?.author || '',
+    location: eventData?.location || '',
+    startAt: eventData?.startAt || '',
+    endAt: eventData?.endAt,
+    seatLimit: eventData?.seatLimit,
+    priceTotal: eventData?.priceTotal || 0,
+    pricePerSeat: eventData?.pricePerSeat,
+    controlPlan: eventData?.controlPlan || [],
+    category: eventData?.category,
+    description: eventData?.description,
+    activities: eventData?.activities,
+    startApplicationsAt: eventData?.startApplicationsAt,
+    endApplicationsAt: eventData?.endApplicationsAt,
+    startContractsAt: eventData?.startContractsAt,
+    status: currentEvent.value.isPublished ? 'published' : 'draft',
+    timezone: eventData?.timezone,
+    createdAt: currentEvent.value.createdAt,
+    updatedAt: eventData?.updatedAt
+  } as EventItem
+})
+
+// Проверка условий для отображения модального окна персональной калькуляции
+const canShowPersonalCalc = computed(() => {
+  const result = !!(currentEvent.value && monitoringData.value && selectedApplicantForCalc.value && selectedApplicantForCalc.value.code && adaptedEventForPersonalCalc.value)
+  if (process.client && isPersonalCalcOpen.value) {
+    console.log('🎯 canShowPersonalCalc check:', {
+      result,
+      hasCurrentEvent: !!currentEvent.value,
+      hasMonitoringData: !!monitoringData.value,
+      hasSelectedApplicant: !!selectedApplicantForCalc.value,
+      hasCode: !!selectedApplicantForCalc.value?.code,
+      hasAdaptedEvent: !!adaptedEventForPersonalCalc.value,
+      isPersonalCalcOpen: isPersonalCalcOpen.value
+    })
+  }
+  return result
+})
+
 const pricePerSeat = computed(() => {
   const eventData = currentEvent.value?.data
   if (!eventData) return 0
@@ -768,14 +814,33 @@ const openPersonalCalc = (applicant: Applicant) => {
     console.error('openPersonalCalc: applicant is null or undefined')
     return
   }
-  console.log('openPersonalCalc:', { 
+  console.log('🔓 openPersonalCalc: opening for applicant', { 
     login: applicant.login, 
     code: applicant.code, 
     paidAmount: applicant.paidAmount 
   })
+  
+  // Проверяем условия перед открытием
+  console.log('🔍 Checking conditions:', {
+    hasCurrentEvent: !!currentEvent.value,
+    hasMonitoringData: !!monitoringData.value,
+    hasApplicant: !!applicant,
+    hasCode: !!applicant.code
+  })
+  
   selectedApplicantForCalc.value = applicant
   isPersonalCalcOpen.value = true
-  console.log('isPersonalCalcOpen set to:', isPersonalCalcOpen.value)
+  
+  console.log('✅ State updated:', {
+    isPersonalCalcOpen: isPersonalCalcOpen.value,
+    selectedApplicantForCalc: selectedApplicantForCalc.value,
+    currentEvent: !!currentEvent.value,
+    monitoringData: !!monitoringData.value
+  })
+  
+  // Проверяем условие v-if
+  const canShow = currentEvent.value && monitoringData.value && selectedApplicantForCalc.value && selectedApplicantForCalc.value.code
+  console.log('🎯 v-if condition result:', canShow)
 }
 
 // Закрытие персональной калькуляции
