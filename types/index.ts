@@ -83,4 +83,5 @@ export interface MonitoringSnapshot {
   applicants: Applicant[]
   deadlineNext?: string
   personalCalculations?: PersonalCalculationResult[] // Готовые персональные расчеты для всех участников
+  totalParticipantsExtras?: number // Суммарная переплата всех участников, вошедших в лимит
 }

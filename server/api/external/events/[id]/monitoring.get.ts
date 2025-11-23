@@ -456,7 +456,8 @@ export default defineEventHandler(async (event) => {
         surplus,
         isCancelled: isCancelled,
         applicants,
-        personalCalculations // Готовые персональные расчеты для всех участников
+        personalCalculations, // Готовые персональные расчеты для всех участников
+        totalParticipantsExtras: totalExtras // Суммарная переплата всех участников, вошедших в лимит
       }
     }
   } catch (error: any) {
