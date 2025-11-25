@@ -210,14 +210,14 @@ const expandedErrors = ref<Set<string>>(new Set()) // Отслеживание �
 const response = ref<any>(null)
 const error = ref<any>(null)
 
-// Загрузка API ключа
+// Загрузка имени сайта
 const loadApiKey = () => {
   if (typeof window !== 'undefined') {
     siteName.value = localStorage.getItem('demo_site_name') || ''
   }
 }
 
-// Копирование API ключа
+// Копирование имени сайта
 const copyApiKey = async () => {
   if (siteName.value && typeof navigator !== 'undefined' && navigator.clipboard) {
     await navigator.clipboard.writeText(siteName.value)
@@ -226,11 +226,11 @@ const copyApiKey = async () => {
   }
 }
 
-// Очистка API ключа
+// Очистка имени сайта
 const clearApiKey = () => {
-  if (confirm('Вы уверены, что хотите очистить API ключ?')) {
+  if (confirm('Вы уверены, что хотите очистить имя сайта?')) {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('external_api_key')
+      localStorage.removeItem('demo_site_name')
       siteName.value = ''
     }
   }
@@ -461,7 +461,7 @@ const getHeaders = () => {
 // Загрузка Ивента на платформу
 const uploadEventToPlatform = async () => {
   if (!siteName.value) {
-    error.value = { message: 'API ключ не установлен' }
+    error.value = { message: 'Имя сайта не установлено. Перейдите в настройки и укажите имя сайта.' }
     return
   }
 
@@ -491,6 +491,7 @@ const uploadEventToPlatform = async () => {
   try {
     const payload = {
       id: eventData.id || undefined,
+      siteName: siteName.value, // Добавляем siteName для системы белых списков
       title: eventData.title,
       authorName: eventData.authorName,
       location: eventData.location,
@@ -607,7 +608,7 @@ const refreshEventStatus = async (eventId: string) => {
   }
 
   if (!siteName.value) {
-    error.value = { message: 'API ключ не установлен' }
+    error.value = { message: 'Имя сайта не установлено. Перейдите в настройки и укажите имя сайта.' }
     return
   }
 
