@@ -193,22 +193,6 @@ export function validateExternalEvent(
   return errors
 }
 
-/**
- * Проверка, прошла ли контрольная точка ti20 (окончание приема заявок)
- */
-export function isTi20Passed(event: { endApplicationsAt: string | Date | null }): boolean {
-  if (!event.endApplicationsAt) {
-    return false
-  }
-
-  const ti20Date = event.endApplicationsAt instanceof Date
-    ? event.endApplicationsAt
-    : new Date(event.endApplicationsAt)
-
-  if (Number.isNaN(ti20Date.getTime())) {
-    return false
-  }
-
-  return new Date() >= ti20Date
-}
+// Функция isTi20Passed перенесена в server/utils/moderationTimeRestrictions.ts
+// для централизованного управления временными ограничениями модерации
 

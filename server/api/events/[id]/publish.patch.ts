@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../../utils/prisma'
+import { canModerateEvent, createTi20ExpiredError } from '../../../utils/moderationTimeRestrictions'
 
 const prisma = getPrismaClient()
 
@@ -36,11 +37,23 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // 3. Обновляем статус на published
+    // 3. Проверяем возможность модерации события (временные ограничения)
+    if (!canModerateEvent(eventData)) {
+      console.warn('🚫 Attempt to publish event outside moderation window:', {
+        eventId: eventId,
+        title: eventData.title,
+        status: eventData.status,
+        endApplicationsAt: eventData.endApplicationsAt
+      })
+      throw createError(createTi20ExpiredError('publish'))
+    }
+
+    // 4. Обновляем статус на published и устанавливаем publishedAt
     const updatedEvent = await prisma.event.update({
       where: { id: eventId },
       data: {
         status: 'published',
+        publishedAt: new Date(), // Устанавливаем время публикации
         currentControlPoint: 't0' // Начинаем с начальной точки
       }
     })
@@ -70,7 +83,10 @@ export default defineEventHandler(async (event) => {
         id: updatedEvent.id,
         title: updatedEvent.title,
         status: updatedEvent.status,
-        currentControlPoint: updatedEvent.currentControlPoint
+        requiresModeration: updatedEvent.requiresModeration,
+        publishedAt: updatedEvent.publishedAt?.toISOString(),
+        currentControlPoint: updatedEvent.currentControlPoint,
+        siteAlias: updatedEvent.siteAlias
       }
     }
   } catch (error: any) {

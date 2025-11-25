@@ -1,6 +1,5 @@
 import type { ControlPointCode } from '~/types'
 import { getPrismaClient } from '../../../../utils/prisma'
-import { extractApiKeyFromHeader, getProducerByApiKey } from '../../../../utils/apiKey'
 
 const prisma = getPrismaClient()
 
@@ -112,37 +111,6 @@ export default defineEventHandler(async (event) => {
   
   console.log('📥 GET /api/external/events/[id]/monitoring - Monitoring request received')
   
-  // Получаем API ключ из заголовка Authorization
-  const authHeader = getRequestHeader(event, 'authorization')
-  const apiKey = extractApiKeyFromHeader(authHeader)
-  
-  if (!apiKey) {
-    setResponseStatus(event, 401)
-    return {
-      success: false,
-      errors: [{
-        field: 'authorization',
-        message: 'API ключ не предоставлен. Используйте заголовок Authorization: Bearer <api_key>'
-      }]
-    }
-  }
-
-  // Получаем информацию о продюсере по API ключу
-  const producerInfo = await getProducerByApiKey(apiKey)
-  if (!producerInfo) {
-    setResponseStatus(event, 401)
-    return {
-      success: false,
-      errors: [{
-        field: 'authorization',
-        message: 'Неверный или неактивный API ключ'
-      }]
-    }
-  }
-
-  const producerCode = producerInfo.producerCode
-  console.log('🔑 API key validated for producer:', producerCode)
-  
   // Получаем ID из параметров маршрута
   const eventId = getRouterParam(event, 'id')
   
@@ -184,18 +152,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Проверка прав: только владелец может запрашивать мониторинг
-    if (eventData.producerCode && eventData.producerCode !== producerCode) {
-      console.warn('🚫 Producer code mismatch')
-      setResponseStatus(event, 403)
-      return {
-        success: false,
-        errors: [{
-          field: 'authorization',
-          message: 'Недостаточно прав для просмотра мониторинга этого мероприятия'
-        }]
-      }
-    }
+    // Мониторинг доступен для всех после Ti20
 
     // Проверка контрольной точки Ти20
     const { current, nextDeadline } = resolveControlPoint(eventData)

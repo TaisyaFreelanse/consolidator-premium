@@ -26,10 +26,8 @@ export const useEventsStore = defineStore('events', {
           if (auth.isModerator) {
             isModerator = true
             console.log('👮 Fetching events for moderator (all drafts visible)')
-          } else if (auth.isProducer && auth.currentUser) {
-            producerCode = auth.currentUser.name
-            console.log('🔑 Fetching events for producer:', producerCode)
           }
+          // Продюсеры удалены - теперь используется система белых списков сайтов
         }
         
         // Load events from backend API

@@ -1,6 +1,7 @@
 import { getPrismaClient } from '../../../utils/prisma'
-import { validateExternalEvent, isTi20Passed, type ExternalEventData } from '../../../utils/externalEventValidation'
-import { extractApiKeyFromHeader, getProducerByApiKey } from '../../../utils/apiKey'
+import { validateExternalEvent, type ExternalEventData } from '../../../utils/externalEventValidation'
+import { isTi20Passed } from '../../../utils/moderationTimeRestrictions'
+import { getSiteByName, isSiteWhitelisted } from '../../../utils/whitelist'
 
 const prisma = getPrismaClient()
 
@@ -13,7 +14,7 @@ const prisma = getPrismaClient()
  * публикуются при создании/обновлении (статус 'published').
  * 
  * Если автомодерация отключена, мероприятия создаются в статусе 'draft'.
- * Для публикации используйте отдельный эндпоинт /api/external/events/publish.
+ * Публикация происходит автоматически или через модерацию (в зависимости от настроек сайта).
  */
 export default defineEventHandler(async (event) => {
   // CORS заголовки для внешнего API
@@ -43,44 +44,57 @@ export default defineEventHandler(async (event) => {
   
   console.log('📥 POST /api/external/events - External API request received')
   
-  // Получаем API ключ из заголовка Authorization
-  const authHeader = getRequestHeader(event, 'authorization')
-  const apiKey = extractApiKeyFromHeader(authHeader)
-  
-  if (!apiKey) {
-    setResponseStatus(event, 401)
-    return {
-      success: false,
-      errors: [{
-        field: 'authorization',
-        message: 'API ключ не предоставлен. Используйте заголовок Authorization: Bearer <api_key>'
-      }]
-    }
-  }
-
-  // Получаем информацию о продюсере по API ключу
-  const producerInfo = await getProducerByApiKey(apiKey)
-  if (!producerInfo) {
-    setResponseStatus(event, 401)
-    return {
-      success: false,
-      errors: [{
-        field: 'authorization',
-        message: 'Неверный или неактивный API ключ'
-      }]
-    }
-  }
-
-  const producerCode = producerInfo.producerCode
-  console.log('🔑 API key validated for producer:', producerCode)
-  
-  const body = await readBody<Partial<ExternalEventData>>(event)
+  const body = await readBody<Partial<ExternalEventData & { siteName: string }>>(event)
   console.log('📦 Request body:', { 
     id: body.id,
-    title: body.title
+    title: body.title,
+    siteName: body.siteName
   })
 
-  // Валидация входных данных (без producerCode, так как он берется из API ключа)
+  // Проверяем наличие siteName
+  if (!body.siteName || typeof body.siteName !== 'string' || !body.siteName.trim()) {
+    setResponseStatus(event, 400)
+    return {
+      success: false,
+      errors: [{
+        field: 'siteName',
+        message: 'Поле "siteName" обязательно для указания'
+      }]
+    }
+  }
+
+  const siteName = body.siteName.trim()
+
+  // Проверяем, находится ли сайт в белом списке
+  const isWhitelisted = await isSiteWhitelisted(siteName)
+  if (!isWhitelisted) {
+    console.warn('🚫 Site not whitelisted:', siteName)
+    setResponseStatus(event, 403)
+    return {
+      success: false,
+      errors: [{
+        field: 'siteName',
+        message: 'Сайт не найден в белом списке или деактивирован'
+      }]
+    }
+  }
+
+  // Получаем информацию о сайте для определения настроек модерации
+  const siteInfo = await getSiteByName(siteName)
+  if (!siteInfo) {
+    setResponseStatus(event, 403)
+    return {
+      success: false,
+      errors: [{
+        field: 'siteName',
+        message: 'Сайт не найден в белом списке'
+      }]
+    }
+  }
+
+  console.log('✅ Site whitelisted:', siteName, 'alias:', siteInfo.siteAlias)
+
+  // Валидация входных данных (без producerCode, так как он заменен на siteAlias)
   const validationErrors = validateExternalEvent(body, { skipProducerCode: true })
   if (validationErrors.length > 0) {
     console.error('❌ Validation errors:', validationErrors)
@@ -92,8 +106,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const data = body as ExternalEventData
-  // Добавляем producerCode из API ключа
-  data.producerCode = producerCode
+  // Добавляем siteAlias из белого списка
+  data.producerCode = siteInfo.siteAlias
 
   // Проверка ti20: после окончания приема заявок нельзя создавать/обновлять черновики
   if (isTi20Passed({ endApplicationsAt: data.endApplicationsAt })) {
@@ -113,43 +127,24 @@ export default defineEventHandler(async (event) => {
     const pricePerSeatKopecks = Math.round(Number(data.pricePerSeat) * 100)
     const priceTotalKopecks = Math.round(Number(data.seatLimit) * pricePerSeatKopecks)
 
-    // Проверяем, включена ли автомодерация
-    // Проверяем из runtimeConfig (из nuxt.config.ts) или напрямую из process.env
-    // В Nitro переменные окружения доступны напрямую через process.env
-    const config = useRuntimeConfig()
-    const envValue = process.env.AUTO_MODERATION_ENABLED
-    const configValue = config.autoModerationEnabled
+    // Определяем необходимость модерации на основе настроек сайта
+    const requiresModeration = siteInfo.requiresModeration
     
-    // Функция для проверки значения на true
-    const isTrue = (value: any): boolean => {
-      if (value === true) return true
-      if (value === false) return false
-      if (value === undefined || value === null) return false
-      const str = String(value).toLowerCase().trim()
-      return str === 'true' || str === '1' || str === 'yes' || str === 'on'
-    }
-    
-    // Проверяем все возможные варианты значения (приоритет у envValue)
-    const autoModerationEnabled = isTrue(envValue) || isTrue(configValue)
-    
-    console.log('🔍 Auto-moderation check:', {
-      configValue: configValue,
-      configType: typeof configValue,
-      envValue: envValue,
-      envType: typeof envValue,
-      enabled: autoModerationEnabled,
-      isTrueEnv: isTrue(envValue),
-      isTrueConfig: isTrue(configValue)
+    // Определяем статус и publishedAt в зависимости от настроек модерации сайта
+    const eventStatus: 'draft' | 'published' = requiresModeration ? 'draft' : 'published'
+    const publishedAt = requiresModeration ? undefined : new Date()
+
+    console.log('🔍 Moderation check:', {
+      siteName: siteName,
+      siteAlias: siteInfo.siteAlias,
+      requiresModeration: requiresModeration,
+      eventStatus: eventStatus
     })
 
-    // Определяем статус и publishedAt в зависимости от автомодерации
-    const eventStatus: 'draft' | 'published' = autoModerationEnabled ? 'published' : 'draft'
-    const publishedAt = autoModerationEnabled ? new Date() : undefined
-
-    if (autoModerationEnabled) {
-      console.log('🤖 Auto-moderation enabled: event will be published immediately')
+    if (requiresModeration) {
+      console.log('⏸️ Site requires moderation: event will be saved as draft')
     } else {
-      console.log('⏸️ Auto-moderation disabled: event will be saved as draft')
+      console.log('🚀 Site does not require moderation: event will be published immediately')
     }
 
     const eventData: any = {
@@ -166,8 +161,9 @@ export default defineEventHandler(async (event) => {
       endApplicationsAt: new Date(data.endApplicationsAt),
       startContractsAt: new Date(data.startContractsAt),
       status: eventStatus,
-      producerName: data.producerName?.trim() || data.producerCode.trim() || null, // Используем producerName если есть, иначе producerCode, иначе null
-      producerCode: data.producerCode.trim(),
+      requiresModeration: requiresModeration,
+      producerName: data.producerName?.trim() || siteInfo.siteAlias || null, // Используем producerName если есть, иначе siteAlias
+      siteAlias: siteInfo.siteAlias,
       timezone: data.timezone.trim(),
       createdAtClient: new Date(data.createdAtClient),
       // Стандартный controlPlan для всех событий
@@ -189,7 +185,7 @@ export default defineEventHandler(async (event) => {
       
       const existing = await prisma.event.findUnique({ 
         where: { id: data.id },
-        select: { id: true, status: true, producerCode: true, endApplicationsAt: true }
+        select: { id: true, status: true, siteAlias: true, endApplicationsAt: true }
       })
 
       if (!existing) {
@@ -203,21 +199,21 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Проверка прав: только владелец может обновлять черновик
-      if (existing.producerCode && existing.producerCode !== producerCode) {
-        console.warn('🚫 Producer code mismatch')
+      // Проверка прав: только сайт-владелец может обновлять событие
+      if (existing.siteAlias && existing.siteAlias !== siteInfo.siteAlias) {
+        console.warn('🚫 Site alias mismatch:', existing.siteAlias, 'vs', siteInfo.siteAlias)
         setResponseStatus(event, 403)
         return {
           success: false,
           errors: [{
-            field: 'authorization',
+            field: 'siteName',
             message: 'Недостаточно прав для обновления этого мероприятия'
           }]
         }
       }
 
-      // Опубликованные события нельзя обновлять через внешний API (если автомодерация отключена)
-      if (!autoModerationEnabled && existing.status === 'published') {
+      // Опубликованные события нельзя обновлять через внешний API (если сайт требует модерации)
+      if (requiresModeration && existing.status === 'published') {
         console.warn('🚫 Attempt to update published event via external API')
         setResponseStatus(event, 409)
         return {
@@ -229,9 +225,9 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Если автомодерация включена и событие уже опубликовано, разрешаем обновление
-      // (но только если это тот же продюсер и не прошло ti20)
-      if (autoModerationEnabled && existing.status === 'published') {
+      // Если сайт не требует модерации и событие уже опубликовано, разрешаем обновление
+      // (но только если не прошло ti20)
+      if (!requiresModeration && existing.status === 'published') {
         // Проверяем, что не прошло ti20
         if (existing.endApplicationsAt && isTi20Passed({ endApplicationsAt: existing.endApplicationsAt })) {
           console.warn('🚫 Attempt to update published event after ti20')
@@ -252,8 +248,8 @@ export default defineEventHandler(async (event) => {
         data: eventData
       })
     } else {
-      // Создание нового черновика (или опубликованного, если автомодерация включена)
-      console.log(`✨ Creating new ${autoModerationEnabled ? 'published' : 'draft'} event`)
+      // Создание нового черновика (или опубликованного, если сайт не требует модерации)
+      console.log(`✨ Creating new ${requiresModeration ? 'draft' : 'published'} event`)
       savedEvent = await prisma.event.create({
         data: eventData
       })

@@ -28,8 +28,9 @@ model Event {
   endApplicationsAt    DateTime? // ti20
   startContractsAt     DateTime? // ti30
   status               String   @default("draft") // draft | published
+  requiresModeration   Boolean  @default(false) // Требует ли событие модерации
   producerName         String?
-  producerCode         String?
+  siteAlias            String?  // Псевдоним сайта (заменяет producerCode)
   timezone             String?   @db.Text // IANA timezone identifier (например, "Europe/Moscow", "Asia/Sakhalin")
   createdAtClient      DateTime? // Время создания события на клиентском сайте (t0)
   publishedAt          DateTime? // Время публикации события
@@ -82,18 +83,18 @@ model Payment {
   @@index([userId])
 }
 
-model ApiKey {
-  id           String   @id @default(uuid())
-  key          String   @unique // API ключ (например, "sk_live_...")
-  producerCode String   // Внутренний код продюсера
-  clientName   String?  // Название клиентского сайта (для удобства)
-  clientUrl    String?  // URL клиентского сайта (опционально)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  lastUsedAt   DateTime? // Последнее использование ключа
+model WhitelistedSite {
+  id                String   @id @default(cuid())
+  siteName          String   @unique  // Имя сайта (URL или идентификатор)
+  siteAlias         String   @unique  // Псевдоним для отображения
+  requiresModeration Boolean @default(false) // Требует ли модерации
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   
-  @@index([key])
-  @@index([producerCode])
-  @@map("api_keys")
+  @@map("whitelisted_sites")
 }
+
+// Таблица ApiKey удалена в рамках перехода на систему белых списков
+// Миграция: 20251125120000_add_whitelist_system
 

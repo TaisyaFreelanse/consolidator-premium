@@ -494,8 +494,8 @@
                   <p class="text-white/80 mb-2">
                     После сохранения Ивента перейдите на страницу 
                     <NuxtLink to="/demo/platform-interaction" class="text-blue-400 hover:text-blue-300 underline font-medium">"Загрузить на платформу"</NuxtLink> 
-                    для отправки данных на сервер. Убедитесь, что у вас установлен API-ключ (страница 
-                    <NuxtLink to="/demo/settings" class="text-blue-400 hover:text-blue-300 underline font-medium">"Настройки/регистр"</NuxtLink>).
+                    для отправки данных на сервер. Убедитесь, что у вас указано имя сайта (страница 
+                    <NuxtLink to="/demo/settings" class="text-blue-400 hover:text-blue-300 underline font-medium">"Настройки"</NuxtLink>).
                   </p>
                 </div>
 
@@ -605,8 +605,8 @@ import { DateTime } from 'luxon'
 const config = useRuntimeConfig()
 const apiBaseUrl = config.public.apiBaseUrl
 
-// API Key management
-const apiKey = ref<string>('')
+// Site Name management  
+const siteName = ref<string>('')
 const copied = ref(false)
 
 // Управление эскизами (пред-черновики на клиенте)
@@ -725,12 +725,12 @@ const saveEventsList = (events: SavedEvent[]) => {
   loadEventsList()
 }
 
-// Функция для загрузки API ключа из localStorage
-const loadApiKey = () => {
+// Функция для загрузки имени сайта из localStorage
+const loadSiteName = () => {
   if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('external_api_key')
+    const stored = localStorage.getItem('demo_site_name')
     if (stored) {
-      apiKey.value = stored
+      siteName.value = stored
     }
   }
 }
@@ -784,9 +784,9 @@ const resetForm = () => {
   }
 }
 
-// Загрузка API ключа и списка Ивентов при монтировании
+// Загрузка имени сайта и списка Ивентов при монтировании
 onMounted(() => {
-  loadApiKey()
+  loadSiteName()
   
   // Загружаем список Ивентов
   loadEventsList()
@@ -815,25 +815,25 @@ onMounted(() => {
 })
 
 
-// Сохранение API ключа
-const saveApiKey = (key: string) => {
-  apiKey.value = key
-  localStorage.setItem('external_api_key', key)
+// Сохранение имени сайта
+const saveSiteName = (name: string) => {
+  siteName.value = name
+  localStorage.setItem('demo_site_name', name)
 }
 
-// Очистка API ключа
-const clearApiKey = () => {
-  apiKey.value = ''
-  localStorage.removeItem('external_api_key')
+// Очистка имени сайта
+const clearSiteName = () => {
+  siteName.value = ''
+  localStorage.removeItem('demo_site_name')
   response.value = null
   error.value = null
 }
 
-// Копирование API ключа
-const copyApiKey = async () => {
-  if (apiKey.value) {
+// Копирование имени сайта
+const copySiteName = async () => {
+  if (siteName.value) {
     try {
-      await navigator.clipboard.writeText(apiKey.value)
+      await navigator.clipboard.writeText(siteName.value)
       copied.value = true
       setTimeout(() => {
         copied.value = false
@@ -1541,14 +1541,10 @@ const toISOString = (date: string, time: string, timezone: string): string => {
   }
 }
 
-// Получение заголовков с API ключом
+// Получение заголовков для запросов
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
-  }
-  
-  if (apiKey.value) {
-    headers['Authorization'] = `Bearer ${apiKey.value}`
   }
   
   return headers

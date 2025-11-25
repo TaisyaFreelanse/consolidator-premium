@@ -5,27 +5,11 @@ export interface User {
   code: string
   name: string
   password: string
-  role: UserRole // 'applicant' | 'producer'
+  role: UserRole // 'applicant' | 'moderator'
   createdAt: string
 }
 
-// Предустановленные продюсеры
-const PRESET_PRODUCERS: User[] = [
-  {
-    code: 'PROD001',
-    name: 'прод1',
-    password: 'пар1',
-    role: 'producer',
-    createdAt: new Date('2025-01-01').toISOString()
-  },
-  {
-    code: 'PROD002',
-    name: 'прод2',
-    password: 'пар2',
-    role: 'producer',
-    createdAt: new Date('2025-01-01').toISOString()
-  }
-]
+// Предустановленные продюсеры удалены - теперь используется система белых списков сайтов
 
 // Предустановленный модератор
 const PRESET_MODERATOR: User = {
@@ -45,8 +29,9 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.currentUser,
+    isLoggedIn: (state) => !!state.currentUser, // Alias для isAuthenticated
     userCode: (state) => state.currentUser?.code || null,
-    isProducer: (state) => state.currentUser?.role === 'producer',
+    isApplicant: (state) => state.currentUser?.role === 'applicant',
     isModerator: (state) => state.currentUser?.role === 'moderator'
   },
 
@@ -77,20 +62,30 @@ export const useAuthStore = defineStore('auth', {
           }
 
           const LEGACY_NAME_MAP: Record<string, string> = {
-            producer1: 'прод1',
-            producer2: 'прод2',
+            producer1: 'прод1', // Будет удален при миграции
+            producer2: 'прод2', // Будет удален при миграции
             moderator: 'мод1'
           }
 
           let usersChanged = false
 
-          this.users = this.users.map((user) => {
-            if (LEGACY_NAME_MAP[user.name]) {
-              usersChanged = true
-              return { ...user, name: LEGACY_NAME_MAP[user.name] }
-            }
-            return user
-          })
+          // Миграция: удаляем старых продюсеров и обновляем имена
+          this.users = this.users
+            .filter(user => user.role !== 'producer') // Удаляем всех продюсеров
+            .map((user) => {
+              if (LEGACY_NAME_MAP[user.name]) {
+                usersChanged = true
+                return { ...user, name: LEGACY_NAME_MAP[user.name] }
+              }
+              return user
+            })
+          
+          // Если были удалены продюсеры, помечаем как изменено
+          const originalUsersCount = stored ? JSON.parse(stored).length : 0
+          if (this.users.length < originalUsersCount) {
+            usersChanged = true
+            console.log('🗑️ Removed legacy producer accounts during migration')
+          }
 
           const ensurePresetUser = (preset: User) => {
             const index = this.users.findIndex(u => u.code === preset.code)
@@ -115,7 +110,7 @@ export const useAuthStore = defineStore('auth', {
             }
           }
 
-          PRESET_PRODUCERS.forEach(ensurePresetUser)
+          // Обеспечиваем наличие предустановленного модератора
           ensurePresetUser(PRESET_MODERATOR)
 
           if (usersChanged) {

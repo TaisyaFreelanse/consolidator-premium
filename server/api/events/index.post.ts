@@ -23,6 +23,7 @@ interface CreateEventBody {
   status: 'draft' | 'published'
   producerName?: string
   producerCode?: string
+  siteAlias?: string // Псевдоним сайта (для связи с белым списком)
   timezone?: string // IANA timezone identifier
   createdAtClient?: string // ISO string - время создания на клиенте
 }
@@ -45,6 +46,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields: title, author, location, startAt, seatLimit, priceTotal' })
   }
 
+  // Проверяем права на публикацию
   if (body.status === 'published') {
     console.warn('🚫 Attempt to publish event via POST /api/events. Publication is restricted to moderators.')
     throw createError({
@@ -53,9 +55,36 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Определяем необходимость модерации
+  // Для внутренних событий (создаваемых через платформу) модерация не требуется по умолчанию
+  // Но если событие связано с внешним сайтом (siteAlias), проверяем настройки сайта
+  let requiresModeration = false
+  let siteInfo = null
+
+  if (body.producerCode) {
+    // Если указан producerCode, пытаемся найти соответствующий сайт в белом списке
+    const { getSiteByName } = await import('../../utils/whitelist')
+    siteInfo = await getSiteByName(body.producerCode)
+    if (siteInfo) {
+      requiresModeration = siteInfo.requiresModeration
+      console.log('🔍 Found site for producerCode:', body.producerCode, 'requiresModeration:', requiresModeration)
+    }
+  }
+
   try {
+    // Определяем статус события в зависимости от настроек модерации
+    const eventStatus: 'draft' | 'published' = requiresModeration ? 'draft' : 'draft' // Всегда создаем как draft для внутренних событий
+    const publishedAt = (!requiresModeration && body.status === 'published') ? new Date() : undefined
+
+    console.log('🔍 Event creation moderation check:', {
+      requiresModeration: requiresModeration,
+      requestedStatus: body.status,
+      finalStatus: eventStatus,
+      siteAlias: siteInfo?.siteAlias
+    })
+
     // Преобразуем данные для БД
-    const eventData = {
+    const eventData: any = {
       title: body.title,
       author: body.author,
       location: body.location,
@@ -72,13 +101,20 @@ export default defineEventHandler(async (event) => {
       startApplicationsAt: body.startApplicationsAt ? new Date(body.startApplicationsAt) : null,
       endApplicationsAt: body.endApplicationsAt ? new Date(body.endApplicationsAt) : null,
       startContractsAt: body.startContractsAt ? new Date(body.startContractsAt) : null,
-      status: 'draft',
+      status: eventStatus,
+      requiresModeration: requiresModeration,
       producerName: body.producerName || null,
       producerCode: body.producerCode || null,
+      siteAlias: siteInfo?.siteAlias || null,
       timezone: body.timezone || null,
       createdAtClient: body.createdAtClient ? new Date(body.createdAtClient) : null,
       currentControlPoint: 't0', // По умолчанию начальная точка
       isCancelled: false
+    }
+
+    // Добавляем publishedAt только если событие автоматически публикуется
+    if (publishedAt) {
+      eventData.publishedAt = publishedAt
     }
 
     let savedEvent
@@ -172,12 +208,15 @@ export default defineEventHandler(async (event) => {
         endApplicationsAt: savedEvent.endApplicationsAt?.toISOString(),
         startContractsAt: savedEvent.startContractsAt?.toISOString(),
         status: savedEvent.status,
+        requiresModeration: savedEvent.requiresModeration,
         producerName: savedEvent.producerName,
         producerCode: savedEvent.producerCode,
+        siteAlias: savedEvent.siteAlias,
         timezone: savedEvent.timezone,
         authorName: savedEvent.author, // Для совместимости с внешним API
         createdAt: savedEvent.createdAt.toISOString(),
-        updatedAt: savedEvent.updatedAt.toISOString()
+        updatedAt: savedEvent.updatedAt.toISOString(),
+        ...(savedEvent.publishedAt && { publishedAt: savedEvent.publishedAt.toISOString() })
       }
     }
   } catch (error: any) {

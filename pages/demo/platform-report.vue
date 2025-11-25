@@ -47,15 +47,15 @@
               </div>
             </div>
 
-            <!-- Предупреждение об отсутствии API-ключа -->
-            <div v-if="!apiKey" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
+            <!-- Предупреждение об отсутствии имени сайта -->
+            <div v-if="!siteName" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
               <div class="flex items-center gap-2 text-red-300 font-medium mb-1">
-                <span>🔑</span>
-                <span>API-ключ не установлен</span>
+                <span>🌐</span>
+                <span>Имя сайта не установлено</span>
               </div>
               <div class="text-red-200/70 text-sm">
-                Для запроса данных мониторинга необходим API-ключ. Получите его на странице 
-                <NuxtLink to="/demo/settings" class="text-blue-400 hover:text-blue-300 underline">Настройки/регистр</NuxtLink>.
+                Для запроса данных мониторинга необходимо указать имя сайта. Настройте его на странице 
+                <NuxtLink to="/demo/settings" class="text-blue-400 hover:text-blue-300 underline">Настройки</NuxtLink>.
               </div>
             </div>
         
@@ -277,7 +277,7 @@ const config = useRuntimeConfig()
 const apiBaseUrl = config?.public?.apiBaseUrl || ''
 
 // API Key management
-const apiKey = ref<string>('')
+const siteName = ref<string>('')
 
 // Управление эскизами
 const EVENTS_STORAGE_KEY = 'external_events_list'
@@ -313,7 +313,7 @@ let progressInterval: ReturnType<typeof setInterval> | null = null
 // Загрузка API ключа
 const loadApiKey = () => {
   if (typeof window !== 'undefined') {
-    apiKey.value = localStorage.getItem('external_api_key') || ''
+    siteName.value = localStorage.getItem('demo_site_name') || ''
   }
 }
 
@@ -422,7 +422,7 @@ const formatTi20DateTime = computed(() => {
 const canRequestMonitoring = computed(() => {
   return hasTi20Passed.value && 
          !!currentEvent.value?.serverId && 
-         !!apiKey.value &&
+         !!siteName.value &&
          !isLoading.value
 })
 
@@ -453,8 +453,7 @@ const stopProgress = () => {
 // Заголовки для API запросов
 const getHeaders = () => {
   return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey.value}`
+    'Content-Type': 'application/json'
   }
 }
 
@@ -469,8 +468,8 @@ const requestMonitoringData = async () => {
       error.value = { message: 'Ивент не загружен на платформу' }
       return
     }
-    if (!apiKey.value) {
-      error.value = { message: 'API-ключ не установлен' }
+    if (!siteName.value) {
+      error.value = { message: 'Имя сайта не установлено' }
       return
     }
     return
@@ -889,7 +888,7 @@ onMounted(() => {
   // Восстанавливаем ранее выбранный Ивент
   if (typeof window !== 'undefined') {
     const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
-    if (!apiKey.value) {
+    if (!siteName.value) {
       if (lastId) {
         localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
       }

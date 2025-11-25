@@ -1,5 +1,4 @@
 import { getPrismaClient } from '../../../utils/prisma'
-import { extractApiKeyFromHeader, getProducerByApiKey } from '../../../utils/apiKey'
 
 const prisma = getPrismaClient()
 
@@ -47,37 +46,6 @@ export default defineEventHandler(async (event) => {
   
   console.log('📥 GET /api/external/events/[id] - Status request received')
   
-  // Получаем API ключ из заголовка Authorization
-  const authHeader = getRequestHeader(event, 'authorization')
-  const apiKey = extractApiKeyFromHeader(authHeader)
-  
-  if (!apiKey) {
-    setResponseStatus(event, 401)
-    return {
-      success: false,
-      errors: [{
-        field: 'authorization',
-        message: 'API ключ не предоставлен. Используйте заголовок Authorization: Bearer <api_key>'
-      }]
-    }
-  }
-
-  // Получаем информацию о продюсере по API ключу
-  const producerInfo = await getProducerByApiKey(apiKey)
-  if (!producerInfo) {
-    setResponseStatus(event, 401)
-    return {
-      success: false,
-      errors: [{
-        field: 'authorization',
-        message: 'Неверный или неактивный API ключ'
-      }]
-    }
-  }
-
-  const producerCode = producerInfo.producerCode
-  console.log('🔑 API key validated for producer:', producerCode)
-  
   // Получаем ID из параметров маршрута
   const eventId = getRouterParam(event, 'id')
   
@@ -100,7 +68,8 @@ export default defineEventHandler(async (event) => {
         id: true,
         title: true,
         status: true,
-        producerCode: true,
+        requiresModeration: true,
+        siteAlias: true,
         createdAt: true,
         updatedAt: true,
         startApplicationsAt: true,
@@ -122,19 +91,6 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Проверка прав: только владелец может запрашивать статус
-    if (foundEvent.producerCode && foundEvent.producerCode !== producerCode) {
-      console.warn('🚫 Producer code mismatch')
-      setResponseStatus(event, 403)
-      return {
-        success: false,
-        errors: [{
-          field: 'authorization',
-          message: 'Недостаточно прав для просмотра этого мероприятия'
-        }]
-      }
-    }
-
     console.log('✅ Event found:', foundEvent.id, foundEvent.status)
 
     return {
@@ -143,6 +99,8 @@ export default defineEventHandler(async (event) => {
         id: foundEvent.id,
         title: foundEvent.title,
         status: foundEvent.status, // 'draft' | 'published'
+        requiresModeration: foundEvent.requiresModeration,
+        siteAlias: foundEvent.siteAlias,
         uploadedAtServer: foundEvent.createdAt.toISOString(),
         updatedAtServer: foundEvent.updatedAt.toISOString(),
         isPublished: foundEvent.status === 'published',

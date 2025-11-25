@@ -21,42 +21,48 @@ const showAuthModal = ref(false)
 
 // Event status
 const eventStatus = ref<EventStatus>('draft')
-const eventProducerName = ref<string>('')
-const eventProducerCode = ref<string>('')
+const eventSiteAlias = ref<string>('')
+const eventRequiresModeration = ref<boolean>(false)
 const isPublished = ref(false)
 const isPublishing = ref(false)
 
 // Roles & permissions
 const isModerator = computed(() => auth.isModerator)
 const isModeratorReview = computed(() => isModerator.value && editMode.value)
-const currentProducerName = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.name : '')
-const currentProducerCode = computed(() => (auth.isProducer && auth.currentUser) ? auth.currentUser.code : '')
-const isProducerOwner = computed(() => {
-  if (!editMode.value) {
-    return auth.isProducer
-  }
-  if (!auth.isProducer || !auth.currentUser) {
-    return false
-  }
-  if (eventProducerCode.value) {
-    return auth.currentUser.code === eventProducerCode.value
-  }
-  if (eventProducerName.value) {
-    return auth.currentUser.name === eventProducerName.value
-  }
-  // Если информация о владельце отсутствует (устаревшие данные), разрешаем первому продюсеру.
-  return true
+
+// Для внутренних событий (создаваемых через платформу) не используем концепцию сайтов
+// События создаются модераторами или авторизованными пользователями
+const canCreateEvent = computed(() => {
+  return auth.isLoggedIn && (auth.isModerator || auth.isApplicant)
 })
+
+const isEventOwner = computed(() => {
+  if (!editMode.value) {
+    return canCreateEvent.value
+  }
+  
+  // В режиме редактирования проверяем права:
+  // - Модератор может редактировать любые черновики
+  // - Создатель может редактировать свои черновики
+  if (isModerator.value) {
+    return true
+  }
+  
+  // Для обычных пользователей - пока разрешаем редактирование всех черновиков
+  // В будущем можно добавить проверку по создателю события
+  return auth.isLoggedIn && !isPublished.value
+})
+
 const isFormReadOnly = computed(() => {
   // Модератор может редактировать черновики (но не опубликованные события)
   if (isModerator.value && editMode.value) {
-    // Модератор может редактировать только черновики, не опубликованные события
     return isPublished.value
   }
-  // Для продюсеров: только владелец может редактировать свои черновики
-  if (!editMode.value) return false
+  
+  // Для обычных пользователей
+  if (!editMode.value) return !canCreateEvent.value
   if (isPublished.value) return true
-  return !isProducerOwner.value
+  return !isEventOwner.value
 })
 
 const toLocalInputValue = (value?: string | null) => {
@@ -287,8 +293,8 @@ const loadEvent = async () => {
         createdAt.value = event.createdAt || ''
         updatedAt.value = event.updatedAt || ''
         eventStatus.value = event.status || 'draft'
-        eventProducerName.value = event.producerName || ''
-        eventProducerCode.value = event.producerCode || ''
+        eventSiteAlias.value = event.siteAlias || ''
+        eventRequiresModeration.value = event.requiresModeration || false
         isPublished.value = event.status === 'published'
         eventTimezone.value = event.timezone || ''
         
@@ -341,8 +347,9 @@ const loadEvent = async () => {
       createdAt.value = event.createdAt || ''
       updatedAt.value = event.updatedAt || ''
       eventStatus.value = event.status || 'draft'
-      eventProducerName.value = event.producerName || ''
-      eventProducerCode.value = event.producerCode || ''
+      // Старые поля продюсера больше не используются - заменены на siteAlias
+      // eventProducerName.value = event.producerName || ''
+      // eventProducerCode.value = event.producerCode || ''
       isPublished.value = event.status === 'published'
       eventTimezone.value = event.timezone || ''
       
@@ -447,12 +454,9 @@ const saveEvent = async (status: EventStatus, options?: { skipRedirect?: boolean
   const pricePerSeatInKopeks = Math.round(pricePerSeatParsed * 100)
   const priceTotalInKopeks = pricePerSeatInKopeks * seatLimitValue
 
-  const resolvedProducerName = editMode.value
-    ? (eventProducerName.value || currentProducerName.value || null)
-    : (currentProducerName.value || null)
-  const resolvedProducerCode = editMode.value
-    ? (eventProducerCode.value || currentProducerCode.value || null)
-    : (currentProducerCode.value || null)
+  // Для внутренних событий не используем siteAlias
+  // События создаются напрямую через платформу без привязки к внешним сайтам
+  const resolvedSiteAlias = editMode.value ? eventSiteAlias.value || null : null
 
   // Create event object for API
   const eventData = {
@@ -474,16 +478,19 @@ const saveEvent = async (status: EventStatus, options?: { skipRedirect?: boolean
     endApplicationsAt: formData.value.endApplicationsAt ? new Date(formData.value.endApplicationsAt).toISOString() : undefined,
     startContractsAt: formData.value.startContractsAt ? new Date(formData.value.startContractsAt).toISOString() : undefined,
     status,
-    producerName: resolvedProducerName || undefined,
-    producerCode: resolvedProducerCode || undefined
+    siteAlias: resolvedSiteAlias || undefined,
+    // Для внутренних событий модерация не требуется по умолчанию
+    // Модератор может опубликовать событие напрямую
+    timezone: eventTimezone.value || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    createdAtClient: new Date().toISOString()
   }
 
   console.log('💾 Saving event to server:', {
     id: eventData.id,
     title: eventData.title,
     status: eventData.status,
-    producerName: eventData.producerName,
-    producerCode: eventData.producerCode,
+    siteAlias: eventData.siteAlias,
+    timezone: eventData.timezone,
     seatLimit: eventData.seatLimit,
     pricePerSeat: eventData.pricePerSeat,
     priceTotal: eventData.priceTotal
@@ -535,7 +542,7 @@ const saveEvent = async (status: EventStatus, options?: { skipRedirect?: boolean
   }
 }
 
-// Submit form - проверка доступа продюсера или модератора
+// Submit form - проверка доступа для создания событий
 const submitForm = async (status: EventStatus = 'draft') => {
   if (isFormReadOnly.value) {
     alert('ℹ️ Редактирование недоступно.\n\nЭто опубликованное мероприятие или у вас нет прав на редактирование.')
@@ -550,17 +557,16 @@ const submitForm = async (status: EventStatus = 'draft') => {
     return
   }
 
-  // Модератор может редактировать и публиковать черновики всех продюсеров
-  if (!auth.isProducer && !auth.isModerator) {
+  // Проверяем права на создание событий
+  if (!canCreateEvent.value) {
     showAuthModal.value = true
-    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только продюсерам или модераторам.\n\nВойдите под учетной записью продюсера (прод1/пар1) или модератора (мод1/пар0).')
+    alert('❌ Доступ запрещен!\n\nСоздание мероприятий доступно только авторизованным пользователям.\n\nВойдите в систему для продолжения.')
     return
   }
 
-  // Для продюсеров: проверяем владельца черновика
-  // Модератор может редактировать любые черновики
-  if (editMode.value && auth.isProducer && !isProducerOwner.value) {
-    alert('❌ Вы не являетесь автором этого черновика.\n\nРедактирование доступно только продюсеру, который создал мероприятие.')
+  // Проверяем права на редактирование
+  if (editMode.value && !isEventOwner.value) {
+    alert('❌ Вы не можете редактировать это мероприятие.\n\nРедактирование доступно только создателю или модератору.')
     return
   }
 
@@ -582,12 +588,8 @@ const submitForm = async (status: EventStatus = 'draft') => {
     return
   }
 
-  // Для продюсеров: проверяем наличие producerCode
-  // Для модераторов: используем producerCode из события (если редактируем) или оставляем пустым
-  if (auth.isProducer && (!currentProducerName.value || !currentProducerCode.value)) {
-    alert('❌ Не удалось определить учетную запись продюсера. Попробуйте выйти и войти снова.')
-    return
-  }
+  // Для внутренних событий дополнительные проверки не требуются
+  // События создаются напрямую через платформу
 
   await saveEvent(status)
 }
@@ -689,7 +691,7 @@ onMounted(async () => {
         </div>
 
         <div 
-          v-if="editMode && !isModeratorReview && !isProducerOwner" 
+          v-if="editMode && !isModeratorReview && !isEventOwner" 
           class="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3"
         >
           <svg class="w-6 h-6 text-amber-300 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -700,7 +702,7 @@ onMounted(async () => {
               Черновик защищён владельцем
             </h3>
             <p class="text-white/80 text-sm">
-              Изменения может вносить только продюсер, создавший мероприятие. Вы можете просмотреть данные, но сохранение недоступно.
+              Изменения может вносить только создатель мероприятия или модератор. Вы можете просмотреть данные, но сохранение недоступно.
             </p>
           </div>
         </div>
@@ -718,7 +720,7 @@ onMounted(async () => {
                 Режим модератора
               </h3>
               <p class="text-white/80 text-sm">
-                Вы можете редактировать и публиковать черновики всех продюсеров. После публикации редактирование будет заблокировано.
+                Вы можете редактировать и публиковать любые черновики событий. После публикации редактирование будет заблокировано.
               </p>
             </div>
           </div>
@@ -921,7 +923,7 @@ onMounted(async () => {
 
           <!-- Event Info (for edit mode) -->
           <div v-if="editMode && createdAt" class="border-t border-white/10 pt-6 space-y-4">
-            <!-- Статус и продюсер -->
+            <!-- Статус и информация о событии -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div class="bg-white/5 rounded-xl p-4">
                 <div class="text-white/60 mb-1">Статус:</div>
@@ -935,8 +937,24 @@ onMounted(async () => {
                 </div>
               </div>
               <div class="bg-white/5 rounded-xl p-4">
-                <div class="text-white/60 mb-1">Продюсер:</div>
-                <div class="text-white font-semibold">{{ eventProducerName || '—' }}</div>
+                <div class="text-white/60 mb-1">Источник:</div>
+                <div class="text-white font-semibold">
+                  <span v-if="eventSiteAlias">🌐 {{ eventSiteAlias }}</span>
+                  <span v-else>🏢 Платформа</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Модерация (если требуется) -->
+            <div v-if="eventRequiresModeration" class="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+              <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                  <div class="text-orange-400 font-semibold">Требует модерации</div>
+                  <div class="text-orange-300/80 text-sm">Событие будет опубликовано после одобрения модератором</div>
+                </div>
               </div>
             </div>
             

@@ -150,9 +150,9 @@ const formatMoney = (amount: number) => {
                 <span class="info-value">{{ formatMoney(event.priceTotal) }} ₽</span>
               </div>
               
-              <div class="draft-info-row" v-if="event.producerName">
-                <span class="info-label">Продюсер:</span>
-                <span class="info-value">{{ event.producerName }}</span>
+              <div class="draft-info-row" v-if="event.siteAlias">
+                <span class="info-label">Источник:</span>
+                <span class="info-value">{{ event.siteAlias }}</span>
               </div>
               
               <div class="draft-info-row" v-if="event.createdAt">

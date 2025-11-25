@@ -18,7 +18,7 @@
       <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <!-- Левая колонка: Действия с Ивентом -->
         <div class="lg:col-span-2">
-          <div v-if="apiKey" class="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div v-if="siteName" class="bg-white/5 border border-white/10 rounded-2xl p-6">
             <h2 class="text-2xl font-semibold mb-4">Действия с Ивентом</h2>
         
         <!-- Предупреждение о блокировке -->
@@ -147,7 +147,7 @@ const config = useRuntimeConfig()
 const apiBaseUrl = config.public.apiBaseUrl
 
 // API Key management
-const apiKey = ref<string>('')
+const siteName = ref<string>('')
 const copied = ref(false)
 
 // Прогресс длительных операций
@@ -213,14 +213,14 @@ const error = ref<any>(null)
 // Загрузка API ключа
 const loadApiKey = () => {
   if (typeof window !== 'undefined') {
-    apiKey.value = localStorage.getItem('external_api_key') || ''
+    siteName.value = localStorage.getItem('demo_site_name') || ''
   }
 }
 
 // Копирование API ключа
 const copyApiKey = async () => {
-  if (apiKey.value && typeof navigator !== 'undefined' && navigator.clipboard) {
-    await navigator.clipboard.writeText(apiKey.value)
+  if (siteName.value && typeof navigator !== 'undefined' && navigator.clipboard) {
+    await navigator.clipboard.writeText(siteName.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
   }
@@ -231,7 +231,7 @@ const clearApiKey = () => {
   if (confirm('Вы уверены, что хотите очистить API ключ?')) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('external_api_key')
-      apiKey.value = ''
+      siteName.value = ''
     }
   }
 }
@@ -454,13 +454,13 @@ const toISOString = (date: string, time: string, timezone: string): string | und
 const getHeaders = () => {
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey.value}`
+    // Авторизация больше не требуется - используется система белых списков
   }
 }
 
 // Загрузка Ивента на платформу
 const uploadEventToPlatform = async () => {
-  if (!apiKey.value) {
+  if (!siteName.value) {
     error.value = { message: 'API ключ не установлен' }
     return
   }
@@ -606,7 +606,7 @@ const refreshEventStatus = async (eventId: string) => {
     return
   }
 
-  if (!apiKey.value) {
+  if (!siteName.value) {
     error.value = { message: 'API ключ не установлен' }
     return
   }
@@ -678,7 +678,7 @@ onMounted(() => {
   // Восстанавливаем ранее выбранный Ивент при навигации между формами
   if (typeof window !== 'undefined') {
     const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
-    if (!apiKey.value) {
+    if (!siteName.value) {
       if (lastId) {
         localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
       }

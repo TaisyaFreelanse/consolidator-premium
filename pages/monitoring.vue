@@ -196,7 +196,7 @@ const submitApplication = async () => {
   if (!ev.value) return
 
   if (isModeratorUser.value) {
-    alert('❌ Модератор не может подавать заявки или оплачивать участие.\n\nВойдите под учетной записью участника или продюсера.')
+    alert('❌ Модератор не может подавать заявки или оплачивать участие.\n\nВойдите под учетной записью участника.')
     return
   }
 
@@ -214,7 +214,7 @@ ${startMessage}`
     if (!auth.isAuthenticated) {
       message += `
 
-Создайте личный кабинет продюсера или участника, чтобы вернуться и подать заявку.`
+Создайте личный кабинет участника, чтобы вернуться и подать заявку.`
     }
 
     message += copied
@@ -444,6 +444,7 @@ const handlePayment = async (paymentData: any) => {
         <select :value="eventId" @change="(e) => switchEvent((e.target as HTMLSelectElement).value)" class="selector-dropdown">
           <option v-for="event in publishedEvents" :key="event.id" :value="event.id">
             {{ event.title }} - {{ getDisplayAuthorName(event.author) }}
+            <template v-if="event.siteAlias"> ({{ event.siteAlias }})</template>
           </option>
         </select>
       </div>
