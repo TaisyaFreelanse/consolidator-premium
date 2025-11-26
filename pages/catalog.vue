@@ -61,6 +61,45 @@ const goToModerate = (eventId: string) => {
   router.push(`/create-event?id=${eventId}`)
 }
 
+// Удаление события (только для модераторов)
+const deleteEvent = async (eventId: string, eventTitle: string) => {
+  if (!auth.isModerator) {
+    toastMessage.value = 'Недостаточно прав для удаления события'
+    showToast.value = true
+    return
+  }
+
+  const confirmed = confirm(`⚠️ ВНИМАНИЕ!\n\nВы действительно хотите ПОЛНОСТЬЮ УДАЛИТЬ событие "${eventTitle}"?\n\nЭто действие:\n• Удалит событие навсегда\n• Удалит все заявки и платежи\n• Удалит всю историю\n• НЕ МОЖЕТ БЫТЬ ОТМЕНЕНО\n\nПродолжить?`)
+  
+  if (!confirmed) return
+
+  try {
+    const response = await fetch(`/api/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Failed to delete event')
+    }
+
+    toastMessage.value = `✅ Событие "${eventTitle}" полностью удалено`
+    showToast.value = true
+    
+    // Обновляем список событий
+    await events.fetch()
+    
+  } catch (error: any) {
+    console.error('Error deleting event:', error)
+    toastMessage.value = `❌ Ошибка удаления: ${error.message}`
+    showToast.value = true
+  }
+}
+
 // Проверка, является ли ивент кастомным (созданным пользователем)
 const isCustomEvent = (eventId: string) => {
   return eventId.startsWith('event-')
@@ -199,6 +238,18 @@ onMounted(async () => {
             >
               <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+
+            <!-- Кнопка удаления (для модераторов) -->
+            <button
+              v-if="auth.isModerator"
+              @click.stop="deleteEvent(event.id, event.title)"
+              class="delete-corner-btn"
+              title="Полностью удалить событие"
+            >
+              <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
           </div>
@@ -744,6 +795,34 @@ onMounted(async () => {
 }
 
 .moderate-corner-btn .icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Кнопка удаления */
+.delete-corner-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 2px solid #ff3b30;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #ff3b30;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.delete-corner-btn:hover {
+  background: #ffe8e7;
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(255, 59, 48, 0.3);
+}
+
+.delete-corner-btn .icon {
   width: 24px;
   height: 24px;
 }
