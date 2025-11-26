@@ -10,8 +10,14 @@ const props = defineProps<{
   seatLimit?: number
   event?: EventItem // Добавляем event для расчета всех чисел
   canSubmitApplications?: boolean // Можно ли доплачивать (прием заявок еще не закончен)
+  canViewPersonalResults?: boolean // Можно ли просматривать персональные результаты (после Ti20)
 }>()
 const emit = defineEmits<{ openPersonalCalc: []; requestAdditionalPayment: [] }>()
+
+// Показать предупреждение о недоступности персональных результатов до Ti20
+const showTi20Warning = () => {
+  alert('⏳ Персональные результаты будут доступны после окончания приема заявок (Ti20)\n\nСейчас участники еще могут делать ставки, поэтому результаты могут измениться.')
+}
 
 type SnapshotApplicant = MonitoringSnapshot['applicants'][number]
 type LastPaymentInfo = {
@@ -240,9 +246,15 @@ const formatMoney = (amount: number) => {
                 </div>
                 <div v-if="isCurrentUser(row)" class="action-buttons">
                   <button
-                    @click="emit('openPersonalCalc')"
-                    class="inline-flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-3 py-2 transition-all text-blue-400 hover:text-blue-300"
-                    title="Персональная калькуляция"
+                    @click="canViewPersonalResults ? emit('openPersonalCalc') : showTi20Warning()"
+                    :class="[
+                      'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition-all',
+                      canViewPersonalResults 
+                        ? 'bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 text-blue-400 hover:text-blue-300 cursor-pointer'
+                        : 'bg-gray-500/10 border border-gray-500/20 text-gray-500 cursor-not-allowed'
+                    ]"
+                    :title="canViewPersonalResults ? 'Персональная калькуляция' : 'Персональные результаты будут доступны после окончания приема заявок (Ti20)'"
+                    :disabled="!canViewPersonalResults"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>

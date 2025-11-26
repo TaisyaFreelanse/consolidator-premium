@@ -253,6 +253,14 @@ const canSubmitApplications = computed(() => {
   return new Date() < new Date(ti20)
 })
 
+// Проверка: можно ли просматривать персональные результаты (после ti20)
+const canViewPersonalResults = computed(() => {
+  if (!ev.value) return false
+  const ti20 = ev.value.endApplicationsAt
+  if (!ti20) return false // Если нет ti20, то результаты недоступны
+  return new Date() >= new Date(ti20) // Доступны только после ti20
+})
+
 const applicationsStartDate = computed(() => {
   if (!ev.value?.startApplicationsAt) return null
   return new Date(ev.value.startApplicationsAt)
@@ -520,6 +528,7 @@ const handlePayment = async (paymentData: any) => {
             :seat-limit="ev.seatLimit || 0"
             :event="ev"
             :can-submit-applications="canSubmitApplications"
+            :can-view-personal-results="canViewPersonalResults"
             @open-personal-calc="openPersonalCalculation"
             @request-additional-payment="increaseBid"
           />
