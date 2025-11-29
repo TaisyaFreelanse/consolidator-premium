@@ -1,7 +1,7 @@
 import { getPrismaClient } from '../../../utils/prisma'
 import { validateExternalEvent, type ExternalEventData } from '../../../utils/externalEventValidation'
 import { isTi20Passed } from '../../../utils/moderationTimeRestrictions'
-import { getSiteByName, isSiteWhitelisted } from '../../../utils/whitelist'
+import { getAllWhitelistedSites, normalizeSiteName } from '../../../utils/whitelist'
 
 const prisma = getPrismaClient()
 
@@ -44,53 +44,64 @@ export default defineEventHandler(async (event) => {
   
   console.log('📥 POST /api/external/events - External API request received')
   
-  const body = await readBody<Partial<ExternalEventData & { siteName: string }>>(event)
+  const body = await readBody<Partial<ExternalEventData>>(event)
   console.log('📦 Request body:', { 
     id: body.id,
-    title: body.title,
-    siteName: body.siteName
+    title: body.title
   })
 
-  // Проверяем наличие siteName
-  if (!body.siteName || typeof body.siteName !== 'string' || !body.siteName.trim()) {
+  // Автоматически определяем сайт по заголовкам Origin или Referer
+  const origin = getRequestHeader(event, 'origin')
+  const referer = getRequestHeader(event, 'referer')
+  
+  console.log('🌐 Request headers:', { origin, referer })
+  
+  // Используем Origin, если есть, иначе Referer
+  const requestUrl = origin || referer || ''
+  
+  if (!requestUrl) {
+    console.warn('🚫 No Origin or Referer header found')
     setResponseStatus(event, 400)
     return {
       success: false,
       errors: [{
-        field: 'siteName',
-        message: 'Поле "siteName" обязательно для указания'
+        field: 'origin',
+        message: 'Не удалось определить источник запроса. Убедитесь, что запрос отправляется с разрешенного домена.'
       }]
     }
   }
 
-  const siteName = body.siteName.trim()
+  // Нормализуем URL для сравнения
+  const normalizedRequestUrl = normalizeSiteName(requestUrl)
+  
+  console.log('🔍 Normalized request URL:', normalizedRequestUrl)
 
-  // Проверяем, находится ли сайт в белом списке
-  const isWhitelisted = await isSiteWhitelisted(siteName)
-  if (!isWhitelisted) {
-    console.warn('🚫 Site not whitelisted:', siteName)
-    setResponseStatus(event, 403)
-    return {
-      success: false,
-      errors: [{
-        field: 'siteName',
-        message: 'Сайт не найден в белом списке или деактивирован'
-      }]
+  // Получаем все сайты из белого списка и сравниваем нормализованные URL
+  const allSites = await getAllWhitelistedSites(false) // Только активные
+  
+  // Ищем совпадение по нормализованному siteName
+  let siteInfo = null
+  for (const site of allSites) {
+    const normalizedSiteName = normalizeSiteName(site.siteName)
+    if (normalizedSiteName === normalizedRequestUrl) {
+      siteInfo = site
+      break
     }
   }
 
-  // Получаем информацию о сайте для определения настроек модерации
-  const siteInfo = await getSiteByName(siteName)
   if (!siteInfo) {
+    console.warn('🚫 Site not whitelisted:', normalizedRequestUrl)
     setResponseStatus(event, 403)
     return {
       success: false,
       errors: [{
-        field: 'siteName',
-        message: 'Сайт не найден в белом списке'
+        field: 'origin',
+        message: `Сайт "${requestUrl}" не найден в белом списке или деактивирован. Обратитесь к модератору платформы для добавления вашего домена в белый список.`
       }]
     }
   }
+
+  const siteName = siteInfo.siteName // Используем оригинальное имя из БД для логирования
 
   console.log('✅ Site whitelisted:', siteName, 'alias:', siteInfo.siteAlias)
 

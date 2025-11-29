@@ -14,61 +14,19 @@
         </div>
       </div>
 
-      <!-- Раздел 1: Настройки сайта -->
+      <!-- Раздел 1: Информация о сайте -->
       <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-        <h2 class="text-2xl font-semibold mb-4">🏢 Настройки сайта</h2>
-        <p class="text-white/60 text-sm mb-4">
-          Укажите имя вашего сайта для идентификации в системе белых списков платформы.
-        </p>
-        
-        <!-- Текущее имя сайта -->
-        <div v-if="siteName" class="mb-6 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-green-300 text-sm font-medium">Текущее имя сайта:</p>
-            <div class="flex gap-2">
-              <button
-                @click="copySiteName"
-                class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/70 text-xs transition-colors"
-              >
-                {{ copied ? '✓ Скопировано' : '📋 Копировать' }}
-              </button>
-              <button
-                @click="clearSiteName"
-                class="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-300 text-xs transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            </div>
-          </div>
-          <pre class="text-green-200 text-xs font-mono break-all bg-black/30 p-2 rounded">{{ siteName }}</pre>
-        </div>
-
-        <!-- Форма настройки имени сайта -->
-        <form @submit.prevent="saveSiteName" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
-              Имя сайта <span class="text-red-400">*</span>
-            </label>
-            <input 
-              v-model="siteNameForm.siteName"
-              type="text" 
-              required
-              placeholder="demo-site-1"
-              class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-            >
-            <p class="text-xs text-white/50 mt-1">Уникальное имя вашего сайта для идентификации в системе</p>
-          </div>
-
-          <button
-            type="submit"
-            class="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Сохранить имя сайта
-          </button>
-        </form>
-
-        <div v-if="saveSuccess" class="mt-4 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-          <p class="text-green-300 text-sm font-medium">Имя сайта успешно сохранено!</p>
+        <h2 class="text-2xl font-semibold mb-4">ℹ️ Информация о сайте</h2>
+        <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+          <p class="text-blue-300 text-sm font-medium mb-2">Автоматическая идентификация</p>
+          <p class="text-white/70 text-sm mb-3">
+            API автоматически определяет ваш сайт по заголовку <code class="bg-white/10 px-1 rounded">Origin</code> или <code class="bg-white/10 px-1 rounded">Referer</code> из HTTP-запроса. 
+            Указывать имя сайта в запросах не требуется.
+          </p>
+          <p class="text-white/70 text-sm">
+            <strong>Важно:</strong> Убедитесь, что ваш домен добавлен в белый список платформы модератором. 
+            Для этого обратитесь к администратору платформы с запросом на добавление вашего домена в таблицу "Белые списки".
+          </p>
         </div>
       </div>
 
@@ -85,7 +43,7 @@
                 <strong class="text-white">Базовый URL:</strong> <code class="bg-white/10 px-2 py-1 rounded">{{ apiBaseUrl }}/api/external</code>
               </p>
               <p class="text-white/80">
-                <strong class="text-white">Авторизация:</strong> Все запросы требуют указание <code class="bg-white/10 px-2 py-1 rounded">siteName</code> в теле запроса. Сайт должен быть добавлен в белый список платформы модератором. API-ключи больше не используются.
+                <strong class="text-white">Авторизация:</strong> API автоматически определяет сайт по заголовку <code class="bg-white/10 px-2 py-1 rounded">Origin</code> или <code class="bg-white/10 px-2 py-1 rounded">Referer</code> из HTTP-запроса. Сайт должен быть добавлен в белый список платформы модератором (указан домен в таблице "Белые списки"). Указывать <code class="bg-white/10 px-2 py-1 rounded">siteName</code> в теле запроса не требуется.
               </p>
               <p class="text-white/80">
                 <strong class="text-white">Формат данных:</strong> JSON (Content-Type: application/json)
@@ -102,13 +60,12 @@
             <div class="bg-black/30 rounded-xl p-4 space-y-3">
               <div>
                 <p class="text-white font-medium mb-2">POST <code class="bg-white/10 px-2 py-1 rounded">/api/external/events</code></p>
-                <p class="text-white/70 text-sm mb-3">Создает новое событие или обновляет существующее (если передан <code class="bg-white/10 px-1 rounded">id</code>). Требует указание имени сайта в белом списке.</p>
+                <p class="text-white/70 text-sm mb-3">Создает новое событие или обновляет существующее (если передан <code class="bg-white/10 px-1 rounded">id</code>). API автоматически определяет сайт по заголовку <code class="bg-white/10 px-1 rounded">Origin</code> или <code class="bg-white/10 px-1 rounded">Referer</code> из HTTP-запроса.</p>
               </div>
 
               <div>
                 <p class="text-white font-medium mb-2">Параметры запроса:</p>
                 <pre class="bg-black/50 rounded-lg p-3 text-xs overflow-x-auto"><code>{
-  "siteName": "string",              // Имя сайта из белого списка (обязательно)
   "id": "string",                    // ID события (опционально, для обновления)
   "title": "string",                 // Название мероприятия (обязательно)
   "authorName": "string",            // Имя автора в свободной форме (обязательно)
@@ -165,7 +122,6 @@
               <div>
                 <p class="text-white font-medium mb-2">Пример использования (JavaScript):</p>
                 <pre class="bg-black/50 rounded-lg p-3 text-xs overflow-x-auto"><code>const eventData = {
-  siteName: 'demo-site-1',
   title: 'Мастер-класс по кулинарии',
   authorName: 'Иван Иванов',
   location: 'Москва, ул. Примерная, 1',
@@ -534,7 +490,7 @@ const saveSiteName = () => {
 }
 
 onMounted(() => {
-  loadSiteName()
+  // Инициализация выполнена
 })
 </script>
 

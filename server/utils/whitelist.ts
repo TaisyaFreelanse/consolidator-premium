@@ -3,6 +3,30 @@ import { getPrismaClient } from './prisma'
 const prisma = getPrismaClient()
 
 /**
+ * Нормализация URL для сравнения
+ * Убирает протокол, слэши, приводит к единому формату
+ */
+export function normalizeSiteName(url: string): string {
+  if (!url || typeof url !== 'string') {
+    return ''
+  }
+  
+  // Убираем протокол (http://, https://)
+  let normalized = url.replace(/^https?:\/\//i, '')
+  
+  // Убираем слэши в конце
+  normalized = normalized.replace(/\/+$/, '')
+  
+  // Убираем www. в начале (опционально, но для единообразия)
+  // normalized = normalized.replace(/^www\./i, '')
+  
+  // Убираем пробелы и приводим к нижнему регистру
+  normalized = normalized.trim().toLowerCase()
+  
+  return normalized
+}
+
+/**
  * Интерфейс для данных создания сайта в белом списке
  */
 export interface CreateSiteData {

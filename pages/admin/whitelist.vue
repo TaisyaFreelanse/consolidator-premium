@@ -6,9 +6,8 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
-              Управление белыми списками
+              Список сайтов, имеющих доступ к API
             </h1>
-            <p class="text-white/60 text-sm">Список сайтов, имеющих доступ к API</p>
           </div>
           <button
             @click="showAddForm = true"
@@ -21,9 +20,6 @@
 
       <!-- Таблица сайтов -->
       <div class="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-        <div class="p-6 border-b border-white/10">
-          <h2 class="text-xl font-semibold">Сайты в белом списке</h2>
-        </div>
         
         <div v-if="loading" class="p-8 text-center">
           <div class="inline-flex items-center gap-2 text-white/60">

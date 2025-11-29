@@ -18,7 +18,7 @@
       <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <!-- Левая колонка: Действия с Ивентом -->
         <div class="lg:col-span-2">
-          <div v-if="siteName" class="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
             <h2 class="text-2xl font-semibold mb-4">Действия с Ивентом</h2>
         
         <!-- Предупреждение о блокировке -->
@@ -210,31 +210,6 @@ const expandedErrors = ref<Set<string>>(new Set()) // Отслеживание �
 const response = ref<any>(null)
 const error = ref<any>(null)
 
-// Загрузка имени сайта
-const loadApiKey = () => {
-  if (typeof window !== 'undefined') {
-    siteName.value = localStorage.getItem('demo_site_name') || ''
-  }
-}
-
-// Копирование имени сайта
-const copyApiKey = async () => {
-  if (siteName.value && typeof navigator !== 'undefined' && navigator.clipboard) {
-    await navigator.clipboard.writeText(siteName.value)
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
-  }
-}
-
-// Очистка имени сайта
-const clearApiKey = () => {
-  if (confirm('Вы уверены, что хотите очистить имя сайта?')) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('demo_site_name')
-      siteName.value = ''
-    }
-  }
-}
 
 // Загрузка списка Ивентов
 const getSavedEvents = (): SavedEvent[] => {
@@ -460,11 +435,6 @@ const getHeaders = () => {
 
 // Загрузка Ивента на платформу
 const uploadEventToPlatform = async () => {
-  if (!siteName.value) {
-    error.value = { message: 'Имя сайта не установлено. Перейдите в настройки и укажите имя сайта.' }
-    return
-  }
-
   if (!selectedEventId.value) {
     error.value = { message: 'Ивент не выбран' }
     return
@@ -491,7 +461,6 @@ const uploadEventToPlatform = async () => {
   try {
     const payload = {
       id: eventData.id || undefined,
-      siteName: siteName.value, // Добавляем siteName для системы белых списков
       title: eventData.title,
       authorName: eventData.authorName,
       location: eventData.location,
@@ -607,11 +576,6 @@ const refreshEventStatus = async (eventId: string) => {
     return
   }
 
-  if (!siteName.value) {
-    error.value = { message: 'Имя сайта не установлено. Перейдите в настройки и укажите имя сайта.' }
-    return
-  }
-
   isRefreshingStatus.value = eventId
   error.value = null
   response.value = null
@@ -674,18 +638,10 @@ const clearServerMessages = () => {
 }
 
 onMounted(() => {
-  loadApiKey()
   loadEventsList()
   // Восстанавливаем ранее выбранный Ивент при навигации между формами
   if (typeof window !== 'undefined') {
     const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
-    if (!siteName.value) {
-      if (lastId) {
-        localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
-      }
-      selectedEventId.value = null
-      return
-    }
     if (lastId) {
       // Устанавливаем только если такой Ивент существует в локальном списке
       const exists = savedEvents.value.some(e => e.id === lastId)
