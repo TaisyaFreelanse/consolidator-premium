@@ -17,9 +17,11 @@ const prisma = getPrismaClient()
  * Публикация происходит автоматически или через модерацию (в зависимости от настроек сайта).
  */
 export default defineEventHandler(async (event) => {
-  // CORS заголовки для внешнего API
+  // Автоматически определяем сайт по заголовкам Origin или Referer
   const origin = getRequestHeader(event, 'origin')
+  const referer = getRequestHeader(event, 'referer')
   
+  // CORS заголовки для внешнего API
   // Разрешенные origins
   const allowedOrigins = [
     'https://external-demo.onrender.com',
@@ -49,10 +51,6 @@ export default defineEventHandler(async (event) => {
     id: body.id,
     title: body.title
   })
-
-  // Автоматически определяем сайт по заголовкам Origin или Referer
-  const origin = getRequestHeader(event, 'origin')
-  const referer = getRequestHeader(event, 'referer')
   
   console.log('🌐 Request headers:', { origin, referer })
   
