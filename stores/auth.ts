@@ -62,14 +62,13 @@ export const useAuthStore = defineStore('auth', {
           }
 
           const LEGACY_NAME_MAP: Record<string, string> = {
-            producer1: 'прод1', // Будет удален при миграции
-            producer2: 'прод2', // Будет удален при миграции
             moderator: 'мод1'
           }
 
           let usersChanged = false
 
-          // Миграция: удаляем старых продюсеров и обновляем имена
+          // Миграция: удаляем старых продюсеров (если есть) и обновляем имена
+          const originalUsersCount = this.users.length
           this.users = this.users
             .filter(user => user.role !== 'producer') // Удаляем всех продюсеров
             .map((user) => {
@@ -81,7 +80,6 @@ export const useAuthStore = defineStore('auth', {
             })
           
           // Если были удалены продюсеры, помечаем как изменено
-          const originalUsersCount = stored ? JSON.parse(stored).length : 0
           if (this.users.length < originalUsersCount) {
             usersChanged = true
             console.log('🗑️ Removed legacy producer accounts during migration')

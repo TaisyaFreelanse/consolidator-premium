@@ -51,14 +51,18 @@ const goToMonitoring = (eventId: string) => {
   router.push(`/monitoring?event=${eventId}`)
 }
 
-// Переход к редактированию
-const goToEdit = (eventId: string) => {
-  router.push(`/create-event?id=${eventId}`)
-}
+// Редактирование событий удалено - события создаются только на сторонних сайтах
 
-// Переход к модерации (тот же маршрут, права определяются ролью)
-const goToModerate = (eventId: string) => {
-  router.push(`/create-event?id=${eventId}`)
+// Проверка, прошла ли Ti20 для события
+const isTi20Passed = (event: any): boolean => {
+  if (!event.endApplicationsAt) {
+    return false
+  }
+  const ti20Date = new Date(event.endApplicationsAt)
+  if (Number.isNaN(ti20Date.getTime())) {
+    return false
+  }
+  return new Date() >= ti20Date
 }
 
 // Удаление события (только для модераторов)
@@ -69,9 +73,21 @@ const deleteEvent = async (eventId: string, eventTitle: string) => {
     return
   }
 
-  const confirmed = confirm(`⚠️ ВНИМАНИЕ!\n\nВы действительно хотите ПОЛНОСТЬЮ УДАЛИТЬ событие "${eventTitle}"?\n\nЭто действие:\n• Удалит событие навсегда\n• Удалит все заявки и платежи\n• Удалит всю историю\n• НЕ МОЖЕТ БЫТЬ ОТМЕНЕНО\n\nПродолжить?`)
+  // Находим событие для проверки Ti20
+  const event = events.list.find(e => e.id === eventId)
+  const ti20Passed = event ? isTi20Passed(event) : false
+
+  // Базовое подтверждение
+  let confirmed = confirm(`⚠️ ВНИМАНИЕ!\n\nВы действительно хотите ПОЛНОСТЬЮ УДАЛИТЬ событие "${eventTitle}"?\n\nЭто действие:\n• Удалит событие навсегда\n• Удалит все заявки и платежи\n• Удалит всю историю\n• НЕ МОЖЕТ БЫТЬ ОТМЕНЕНО\n\nПродолжить?`)
   
   if (!confirmed) return
+
+  // Дополнительное подтверждение, если Ti20 прошло
+  if (ti20Passed) {
+    confirmed = confirm(`🚨 ОСОБОЕ ПОДТВЕРЖДЕНИЕ!\n\nДля события "${eventTitle}" уже наступило время Ti20 (окончание приема заявок).\n\nУдаление такого события может повлиять на:\n• Участников, которые уже подали заявки\n• Платежи, которые уже были внесены\n• Итоги мероприятия\n\nВы ТОЧНО уверены, что хотите удалить это событие?`)
+    
+    if (!confirmed) return
+  }
 
   try {
     const response = await fetch(`/api/events/${eventId}`, {
@@ -205,17 +221,6 @@ onMounted(async () => {
           
           <!-- Кнопки в углах -->
           <div class="corner-buttons">
-            <!-- Кнопка редактирования (для черновиков) -->
-            <button 
-              v-if="event.status === 'draft' && auth.isLoggedIn"
-              @click.stop="goToEdit(event.id)" 
-              class="edit-corner-btn"
-              title="Редактировать мероприятие"
-            >
-              <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
             
             <!-- Кнопка избранного -->
             <button 
@@ -226,18 +231,6 @@ onMounted(async () => {
               <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
                 <path v-if="isFavorite(event.id)" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 <path v-else d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-            </button>
-
-            <!-- Кнопка модерации (для модераторов) -->
-            <button
-              v-if="event.status === 'draft' && auth.isModerator"
-              @click.stop="goToModerate(event.id)"
-              class="moderate-corner-btn"
-              title="Просмотреть как модератор"
-            >
-              <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
 
@@ -708,34 +701,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* Кнопка редактирования */
-.edit-corner-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: 2px solid #007AFF;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  color: #007AFF;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.edit-corner-btn:hover {
-  background: #e3f2fd;
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.3);
-}
-
-.edit-corner-btn .icon {
-  width: 24px;
-  height: 24px;
-}
-
 /* Кнопка избранного */
 .favorite-corner-btn {
   display: flex;
@@ -767,34 +732,6 @@ onMounted(async () => {
 }
 
 .favorite-corner-btn .icon {
-  width: 24px;
-  height: 24px;
-}
-
-/* Кнопка модерации */
-.moderate-corner-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: 2px solid #5e5ce6;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  color: #5e5ce6;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.moderate-corner-btn:hover {
-  background: #eae8ff;
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(94, 92, 230, 0.3);
-}
-
-.moderate-corner-btn .icon {
   width: 24px;
   height: 24px;
 }
@@ -937,13 +874,11 @@ onMounted(async () => {
     gap: 6px;
   }
 
-  .edit-corner-btn,
   .favorite-corner-btn {
     width: 44px;
     height: 44px;
   }
 
-  .edit-corner-btn .icon,
   .favorite-corner-btn .icon {
     width: 22px;
     height: 22px;

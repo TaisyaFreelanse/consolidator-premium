@@ -94,8 +94,8 @@ export default defineEventHandler(async (event) => {
 
   console.log('✅ Site whitelisted:', siteName, 'alias:', siteInfo.siteAlias)
 
-  // Валидация входных данных (без producerCode, так как он заменен на siteAlias)
-  const validationErrors = validateExternalEvent(body, { skipProducerCode: true })
+  // Валидация входных данных
+  const validationErrors = validateExternalEvent(body)
   if (validationErrors.length > 0) {
     console.error('❌ Validation errors:', validationErrors)
     setResponseStatus(event, 400)
@@ -106,8 +106,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const data = body as ExternalEventData
-  // Добавляем siteAlias из белого списка
-  data.producerCode = siteInfo.siteAlias
 
   // Проверка ti20: после окончания приема заявок нельзя создавать/обновлять черновики
   if (isTi20Passed({ endApplicationsAt: data.endApplicationsAt })) {
@@ -162,7 +160,6 @@ export default defineEventHandler(async (event) => {
       startContractsAt: new Date(data.startContractsAt),
       status: eventStatus,
       requiresModeration: requiresModeration,
-      producerName: data.producerName?.trim() || siteInfo.siteAlias || null, // Используем producerName если есть, иначе siteAlias
       siteAlias: siteInfo.siteAlias,
       timezone: data.timezone.trim(),
       createdAtClient: new Date(data.createdAtClient),

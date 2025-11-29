@@ -1,4 +1,4 @@
-import { getPrismaClient } from '../../../utils/prisma'
+import { getPrismaClient } from '../../utils/prisma'
 
 const prisma = getPrismaClient()
 
@@ -98,3 +98,4 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+

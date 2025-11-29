@@ -8,12 +8,10 @@ export default defineEventHandler(async (event) => {
     
     // Получаем параметры из query
     const query = getQuery(event)
-    const producerCode = query.producerCode as string | undefined
     const allDrafts = query.allDrafts === 'true' || query.allDrafts === true // Для модератора
     
     // Фильтрация событий:
     // - Если передан allDrafts=true (модератор): показываем все события (опубликованные + все черновики)
-    // - Если передан producerCode: показываем опубликованные + черновики этого продюсера
     // - Если не передан: показываем только опубликованные (публичный доступ)
     const whereClause: any = {}
     
@@ -21,16 +19,6 @@ export default defineEventHandler(async (event) => {
       // Модератор: показываем все события (опубликованные + все черновики)
       // Не применяем фильтр по status - показываем все
       console.log('👮 Moderator access: showing all events (published + all drafts)')
-    } else if (producerCode) {
-      // Показываем опубликованные ИЛИ черновики указанного продюсера
-      whereClause.OR = [
-        { status: 'published' },
-        { 
-          status: 'draft',
-          producerCode: producerCode.trim()
-        }
-      ]
-      console.log('🔑 Producer access: showing published + own drafts for:', producerCode)
     } else {
       // Публичный доступ: только опубликованные
       whereClause.status = 'published'
@@ -102,8 +90,7 @@ export default defineEventHandler(async (event) => {
           endApplicationsAt: e.endApplicationsAt?.toISOString(),
           startContractsAt: e.startContractsAt?.toISOString(),
           status: e.status || 'draft',
-          producerName: e.producerName,
-          producerCode: e.producerCode,
+          siteAlias: e.siteAlias,
           timezone: e.timezone,
           createdAt: e.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: e.updatedAt?.toISOString() || new Date().toISOString()
@@ -130,8 +117,7 @@ export default defineEventHandler(async (event) => {
           endApplicationsAt: e.endApplicationsAt?.toISOString(),
           startContractsAt: e.startContractsAt?.toISOString(),
           status: e.status || 'draft',
-          producerName: e.producerName,
-          producerCode: e.producerCode,
+          siteAlias: e.siteAlias,
           timezone: e.timezone,
           createdAt: e.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: e.updatedAt?.toISOString() || new Date().toISOString()

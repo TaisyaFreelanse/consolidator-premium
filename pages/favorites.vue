@@ -3,11 +3,13 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventsStore } from '~/stores/events'
 import { useFavoritesStore } from '~/stores/favorites'
+import { useAuthStore } from '~/stores/auth'
 import Toast from '~/components/Toast.vue'
 
 const router = useRouter()
 const events = useEventsStore()
 const favorites = useFavoritesStore()
+const auth = useAuthStore()
 const isLoading = ref(true)
 
 // Toast для уведомлений
@@ -32,6 +34,69 @@ const toggleFavorite = (eventId: string) => {
 // Переход к мониторингу
 const goToMonitoring = (eventId: string) => {
   router.push(`/monitoring?event=${eventId}`)
+}
+
+// Проверка, прошла ли Ti20 для события
+const isTi20Passed = (event: any): boolean => {
+  if (!event.endApplicationsAt) {
+    return false
+  }
+  const ti20Date = new Date(event.endApplicationsAt)
+  if (Number.isNaN(ti20Date.getTime())) {
+    return false
+  }
+  return new Date() >= ti20Date
+}
+
+// Удаление события (только для модераторов)
+const deleteEvent = async (eventId: string, eventTitle: string) => {
+  if (!auth.isModerator) {
+    toastMessage.value = 'Недостаточно прав для удаления события'
+    showToast.value = true
+    return
+  }
+
+  // Находим событие для проверки Ti20
+  const event = events.list.find(e => e.id === eventId)
+  const ti20Passed = event ? isTi20Passed(event) : false
+
+  // Базовое подтверждение
+  let confirmed = confirm(`⚠️ ВНИМАНИЕ!\n\nВы действительно хотите ПОЛНОСТЬЮ УДАЛИТЬ событие "${eventTitle}"?\n\nЭто действие:\n• Удалит событие навсегда\n• Удалит все заявки и платежи\n• Удалит всю историю\n• НЕ МОЖЕТ БЫТЬ ОТМЕНЕНО\n\nПродолжить?`)
+  
+  if (!confirmed) return
+
+  // Дополнительное подтверждение, если Ti20 прошло
+  if (ti20Passed) {
+    confirmed = confirm(`🚨 ОСОБОЕ ПОДТВЕРЖДЕНИЕ!\n\nДля события "${eventTitle}" уже наступило время Ti20 (окончание приема заявок).\n\nУдаление такого события может повлиять на:\n• Участников, которые уже подали заявки\n• Платежи, которые уже были внесены\n• Итоги мероприятия\n\nВы ТОЧНО уверены, что хотите удалить это событие?`)
+    
+    if (!confirmed) return
+  }
+
+  try {
+    const response = await fetch(`/api/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Failed to delete event')
+    }
+
+    toastMessage.value = `✅ Событие "${eventTitle}" полностью удалено`
+    showToast.value = true
+    
+    // Обновляем список событий
+    await events.fetch()
+    
+  } catch (error: any) {
+    console.error('Error deleting event:', error)
+    toastMessage.value = `❌ Ошибка удаления: ${error.message}`
+    showToast.value = true
+  }
 }
 
 // Форматирование даты
@@ -62,6 +127,7 @@ const formatShortDate = (dateStr: string) => {
 }
 
 onMounted(async () => {
+  auth.loadUsers()
   await events.fetch()
   
   setTimeout(() => {
@@ -104,16 +170,31 @@ onMounted(async () => {
           class="event-card"
           @click="goToMonitoring(event.id)"
         >
-          <!-- Кнопка удаления из избранного -->
-          <button 
-            @click.stop="toggleFavorite(event.id)" 
-            class="favorite-corner-btn active"
-            title="Убрать из избранного"
-          >
-            <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          </button>
+          <!-- Кнопки в углах -->
+          <div class="corner-buttons">
+            <!-- Кнопка удаления из избранного -->
+            <button 
+              @click.stop="toggleFavorite(event.id)" 
+              class="favorite-corner-btn active"
+              title="Убрать из избранного"
+            >
+              <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </button>
+
+            <!-- Кнопка удаления (для модераторов) -->
+            <button
+              v-if="auth.isModerator"
+              @click.stop="deleteEvent(event.id, event.title)"
+              class="delete-corner-btn"
+              title="Полностью удалить событие"
+            >
+              <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
           
           <!-- ИНФОРМАЦИЯ "ОТ АВТОРА" -->
           <div class="event-info">
@@ -504,12 +585,19 @@ onMounted(async () => {
   font-size: 16px;
 }
 
-/* Кнопка избранного */
-.favorite-corner-btn {
+/* Кнопки в углах */
+.corner-buttons {
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Кнопка избранного */
+.favorite-corner-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -533,6 +621,34 @@ onMounted(async () => {
 }
 
 .favorite-corner-btn .icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Кнопка удаления */
+.delete-corner-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 2px solid #ff3b30;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #ff3b30;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.delete-corner-btn:hover {
+  background: #ffe8e7;
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(255, 59, 48, 0.3);
+}
+
+.delete-corner-btn .icon {
   width: 24px;
   height: 24px;
 }
@@ -593,14 +709,20 @@ onMounted(async () => {
     padding: 20px;
   }
 
-  .favorite-corner-btn {
-    width: 44px;
-    height: 44px;
+  .corner-buttons {
     top: 12px;
     right: 12px;
+    gap: 6px;
   }
 
-  .favorite-corner-btn .icon {
+  .favorite-corner-btn,
+  .delete-corner-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .favorite-corner-btn .icon,
+  .delete-corner-btn .icon {
     width: 22px;
     height: 22px;
   }

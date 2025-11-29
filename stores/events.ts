@@ -16,10 +16,7 @@ export const useEventsStore = defineStore('events', {
       console.log('🔄 Fetching events from API...')
       
       try {
-        // Получаем producerCode из auth store, если пользователь - продюсер
-        // producerCode в событиях соответствует name продюсера в auth
-        // Модератор должен видеть все черновики всех продюсеров
-        let producerCode: string | undefined = undefined
+        // Модератор должен видеть все черновики
         let isModerator: boolean = false
         if (process.client) {
           const auth = useAuthStore()
@@ -27,18 +24,14 @@ export const useEventsStore = defineStore('events', {
             isModerator = true
             console.log('👮 Fetching events for moderator (all drafts visible)')
           }
-          // Продюсеры удалены - теперь используется система белых списков сайтов
         }
         
         // Load events from backend API
-        // Если producerCode указан, API вернет опубликованные + черновики этого продюсера
         // Если isModerator=true, API вернет все события (опубликованные + все черновики)
         // Иначе - только опубликованные (публичный доступ)
         let apiUrl = '/api/events'
         if (isModerator) {
           apiUrl = '/api/events?allDrafts=true'
-        } else if (producerCode) {
-          apiUrl = `/api/events?producerCode=${encodeURIComponent(producerCode)}`
         }
         
         const res = await fetch(apiUrl)
@@ -89,8 +82,7 @@ export const useEventsStore = defineStore('events', {
                       endApplicationsAt: event.endApplicationsAt || null,
                       startContractsAt: event.startContractsAt || null,
                       status: event.status || 'draft',
-                      producerName: event.producerName || null,
-                      producerCode: event.producerCode || null,
+                      siteAlias: event.siteAlias || null,
                       createdAt: event.createdAt || null,
                       updatedAt: event.updatedAt || null
                     }
@@ -125,7 +117,7 @@ export const useEventsStore = defineStore('events', {
                   id: event.id,
                   title: event.title,
                   status: event.status,
-                  producer: event.producerName
+                  siteAlias: event.siteAlias
                 })
               })
             } else {

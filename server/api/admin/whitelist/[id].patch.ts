@@ -37,6 +37,11 @@ export default defineEventHandler(async (event) => {
     isActive?: boolean
   }>(event)
   
+  // Если siteName указан, но siteAlias нет, используем siteName как siteAlias
+  if (body.siteName !== undefined && body.siteAlias === undefined) {
+    body.siteAlias = body.siteName.trim()
+  }
+  
   try {
     // Проверяем, существует ли сайт
     const existingSite = await prisma.whitelistedSite.findUnique({
@@ -77,19 +82,22 @@ export default defineEventHandler(async (event) => {
     }
     
     if (body.siteAlias !== undefined) {
-      if (!body.siteAlias || typeof body.siteAlias !== 'string' || !body.siteAlias.trim()) {
+      const trimmedAlias = body.siteAlias.trim()
+      if (!trimmedAlias) {
         errors.push({
           field: 'siteAlias',
           message: 'Поле "siteAlias" не может быть пустым'
         })
-      } else if (body.siteAlias.trim() !== existingSite.siteAlias) {
-        // Проверяем уникальность только если псевдоним изменился
-        const isAliasUnique = await isSiteAliasUnique(body.siteAlias.trim(), siteId)
-        if (!isAliasUnique) {
-          errors.push({
-            field: 'siteAlias',
-            message: 'Сайт с таким псевдонимом уже существует в белом списке'
-          })
+      } else if (trimmedAlias !== existingSite.siteAlias) {
+        // Проверяем уникальность только если псевдоним изменился и отличается от siteName
+        if (body.siteName && trimmedAlias !== body.siteName.trim()) {
+          const isAliasUnique = await isSiteAliasUnique(trimmedAlias, siteId)
+          if (!isAliasUnique) {
+            errors.push({
+              field: 'siteAlias',
+              message: 'Сайт с таким псевдонимом уже существует в белом списке'
+            })
+          }
         }
       }
     }

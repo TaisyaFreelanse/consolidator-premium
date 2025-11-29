@@ -25,7 +25,7 @@ onMounted(async () => {
   const auth = useAuthStore()
   const events = useEventsStore()
   
-  // Загружаем пользователей СИНХРОННО (включая продюсеров)
+  // Загружаем пользователей СИНХРОННО
   // Это должно быть первым, чтобы currentUser был восстановлен до загрузки других данных
   auth.loadUsers()
   

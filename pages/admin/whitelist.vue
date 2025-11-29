@@ -8,7 +8,7 @@
             <h1 class="text-4xl font-bold mb-1 bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] bg-clip-text text-transparent">
               Управление белыми списками
             </h1>
-            <p class="text-white/60 text-sm">Управление сайтами, имеющими доступ к внешнему API</p>
+            <p class="text-white/60 text-sm">Список сайтов, имеющих доступ к API</p>
           </div>
           <button
             @click="showAddForm = true"
@@ -16,22 +16,6 @@
           >
             ➕ Добавить сайт
           </button>
-        </div>
-      </div>
-
-      <!-- Статистика -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-          <div class="text-2xl font-bold text-green-400">{{ activeSitesCount }}</div>
-          <div class="text-white/60 text-sm">Активных сайтов</div>
-        </div>
-        <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-          <div class="text-2xl font-bold text-yellow-400">{{ moderationSitesCount }}</div>
-          <div class="text-white/60 text-sm">Требуют модерации</div>
-        </div>
-        <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-          <div class="text-2xl font-bold text-red-400">{{ inactiveSitesCount }}</div>
-          <div class="text-white/60 text-sm">Деактивированных</div>
         </div>
       </div>
 
@@ -59,21 +43,20 @@
           <table class="w-full">
             <thead class="bg-white/5">
               <tr>
+                <th class="px-6 py-4 text-left text-sm font-medium text-white/80 w-16">№</th>
                 <th class="px-6 py-4 text-left text-sm font-medium text-white/80">Имя сайта</th>
-                <th class="px-6 py-4 text-left text-sm font-medium text-white/80">Псевдоним</th>
                 <th class="px-6 py-4 text-left text-sm font-medium text-white/80">Модерация</th>
-                <th class="px-6 py-4 text-left text-sm font-medium text-white/80">Статус</th>
                 <th class="px-6 py-4 text-left text-sm font-medium text-white/80">Создан</th>
-                <th class="px-6 py-4 text-left text-sm font-medium text-white/80">Действия</th>
+                <th class="px-6 py-4 text-left text-sm font-medium text-white/80"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-white/10">
-              <tr v-for="site in sites" :key="site.id" class="hover:bg-white/5 transition-colors">
+              <tr v-for="(site, index) in sites" :key="site.id" class="hover:bg-white/5 transition-colors">
                 <td class="px-6 py-4">
-                  <div class="font-mono text-sm text-white">{{ site.siteName }}</div>
+                  <div class="text-white/60 text-sm font-medium">{{ index + 1 }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-white">{{ site.siteAlias }}</div>
+                  <div class="font-mono text-sm text-white">{{ site.siteName }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <span v-if="site.requiresModeration" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300">
@@ -84,39 +67,15 @@
                   </span>
                 </td>
                 <td class="px-6 py-4">
-                  <span v-if="site.isActive" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-300">
-                    Активен
-                  </span>
-                  <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-300">
-                    Деактивирован
-                  </span>
-                </td>
-                <td class="px-6 py-4">
                   <div class="text-white/60 text-sm">{{ formatDate(site.createdAt) }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="flex items-center gap-2">
-                    <button
-                      @click="editSite(site)"
-                      class="text-blue-400 hover:text-blue-300 text-sm font-medium"
-                    >
-                      Редактировать
-                    </button>
-                    <button
-                      v-if="site.isActive"
-                      @click="deactivateSite(site)"
-                      class="text-red-400 hover:text-red-300 text-sm font-medium"
-                    >
-                      Деактивировать
-                    </button>
-                    <button
-                      v-else
-                      @click="activateSite(site)"
-                      class="text-green-400 hover:text-green-300 text-sm font-medium"
-                    >
-                      Активировать
-                    </button>
-                  </div>
+                  <button
+                    @click="editSite(site)"
+                    class="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                  >
+                    Редактировать
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -132,30 +91,16 @@
           <form @submit.prevent="addSite" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
-                Имя сайта <span class="text-red-400">*</span>
+                Имя сайта (доменное имя) <span class="text-red-400">*</span>
               </label>
               <input
                 v-model="addForm.siteName"
                 type="text"
                 required
-                placeholder="demo-site-1"
+                placeholder="example.com"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
               >
-              <p class="text-xs text-white/50 mt-1">Уникальное имя сайта для идентификации</p>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Псевдоним <span class="text-red-400">*</span>
-              </label>
-              <input
-                v-model="addForm.siteAlias"
-                type="text"
-                required
-                placeholder="Демо Сайт 1"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
-              <p class="text-xs text-white/50 mt-1">Отображаемое имя сайта</p>
+              <p class="text-xs text-white/50 mt-1">Доменное имя сайта (например: example.com или localhost:3000)</p>
             </div>
 
             <div class="flex items-center">
@@ -167,18 +112,6 @@
               >
               <label for="requiresModeration" class="ml-2 text-sm text-white/80">
                 Требует модерации событий
-              </label>
-            </div>
-
-            <div class="flex items-center">
-              <input
-                v-model="addForm.isActive"
-                type="checkbox"
-                id="isActive"
-                class="w-4 h-4 text-[#007AFF] bg-white/5 border-white/10 rounded focus:ring-[#007AFF] focus:ring-2"
-              >
-              <label for="isActive" class="ml-2 text-sm text-white/80">
-                Активен
               </label>
             </div>
 
@@ -210,7 +143,7 @@
           <form @submit.prevent="updateSite" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-white/80 mb-2">
-                Имя сайта <span class="text-red-400">*</span>
+                Имя сайта (доменное имя) <span class="text-red-400">*</span>
               </label>
               <input
                 v-model="editForm.siteName"
@@ -218,18 +151,7 @@
                 required
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
               >
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-white/80 mb-2">
-                Псевдоним <span class="text-red-400">*</span>
-              </label>
-              <input
-                v-model="editForm.siteAlias"
-                type="text"
-                required
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
-              >
+              <p class="text-xs text-white/50 mt-1">Доменное имя сайта (например: example.com или localhost:3000)</p>
             </div>
 
             <div class="flex items-center">
@@ -241,18 +163,6 @@
               >
               <label for="editRequiresModeration" class="ml-2 text-sm text-white/80">
                 Требует модерации событий
-              </label>
-            </div>
-
-            <div class="flex items-center">
-              <input
-                v-model="editForm.isActive"
-                type="checkbox"
-                id="editIsActive"
-                class="w-4 h-4 text-[#007AFF] bg-white/5 border-white/10 rounded focus:ring-[#007AFF] focus:ring-2"
-              >
-              <label for="editIsActive" class="ml-2 text-sm text-white/80">
-                Активен
               </label>
             </div>
 
@@ -290,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 
 // Проверка доступа (только для модераторов)
 definePageMeta({
@@ -309,9 +219,7 @@ interface WhitelistedSite {
 
 interface AddSiteForm {
   siteName: string
-  siteAlias: string
   requiresModeration: boolean
-  isActive: boolean
 }
 
 interface EditSiteForm extends AddSiteForm {
@@ -334,23 +242,14 @@ const notification = ref<Notification | null>(null)
 // Формы
 const addForm = ref<AddSiteForm>({
   siteName: '',
-  siteAlias: '',
-  requiresModeration: false,
-  isActive: true
+  requiresModeration: false
 })
 
 const editForm = ref<EditSiteForm>({
   id: '',
   siteName: '',
-  siteAlias: '',
-  requiresModeration: false,
-  isActive: true
+  requiresModeration: false
 })
-
-// Вычисляемые свойства
-const activeSitesCount = computed(() => sites.value.filter(s => s.isActive).length)
-const moderationSitesCount = computed(() => sites.value.filter(s => s.isActive && s.requiresModeration).length)
-const inactiveSitesCount = computed(() => sites.value.filter(s => !s.isActive).length)
 
 // Методы
 const loadSites = async () => {
@@ -360,7 +259,8 @@ const loadSites = async () => {
     const data = await response.json()
     
     if (data.success) {
-      sites.value = data.data
+      // Фильтруем только активные сайты (если сайт в таблице, значит он активен)
+      sites.value = data.data.filter((s: WhitelistedSite) => s.isActive)
     } else {
       showNotification('error', 'Ошибка загрузки сайтов')
     }
@@ -378,7 +278,12 @@ const addSite = async () => {
     const response = await fetch('/api/admin/whitelist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(addForm.value)
+      body: JSON.stringify({
+        siteName: addForm.value.siteName,
+        siteAlias: addForm.value.siteName, // Используем siteName как siteAlias
+        requiresModeration: addForm.value.requiresModeration,
+        isActive: true // Всегда активен при создании
+      })
     })
     
     const data = await response.json()
@@ -402,9 +307,7 @@ const editSite = (site: WhitelistedSite) => {
   editForm.value = {
     id: site.id,
     siteName: site.siteName,
-    siteAlias: site.siteAlias,
-    requiresModeration: site.requiresModeration,
-    isActive: site.isActive
+    requiresModeration: site.requiresModeration
   }
   showEditForm.value = true
 }
@@ -417,9 +320,9 @@ const updateSite = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         siteName: editForm.value.siteName,
-        siteAlias: editForm.value.siteAlias,
-        requiresModeration: editForm.value.requiresModeration,
-        isActive: editForm.value.isActive
+        siteAlias: editForm.value.siteName, // Используем siteName как siteAlias
+        requiresModeration: editForm.value.requiresModeration
+        // isActive не изменяем - если сайт в таблице, значит он активен
       })
     })
     
@@ -440,61 +343,11 @@ const updateSite = async () => {
   }
 }
 
-const deactivateSite = async (site: WhitelistedSite) => {
-  if (!confirm(`Вы уверены, что хотите деактивировать сайт "${site.siteAlias}"?`)) {
-    return
-  }
-  
-  try {
-    const response = await fetch(`/api/admin/whitelist/${site.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: false })
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      showNotification('success', 'Сайт деактивирован')
-      await loadSites()
-    } else {
-      showNotification('error', data.message || 'Ошибка деактивации сайта')
-    }
-  } catch (error) {
-    console.error('Error deactivating site:', error)
-    showNotification('error', 'Ошибка деактивации сайта')
-  }
-}
-
-const activateSite = async (site: WhitelistedSite) => {
-  try {
-    const response = await fetch(`/api/admin/whitelist/${site.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: true })
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      showNotification('success', 'Сайт активирован')
-      await loadSites()
-    } else {
-      showNotification('error', data.message || 'Ошибка активации сайта')
-    }
-  } catch (error) {
-    console.error('Error activating site:', error)
-    showNotification('error', 'Ошибка активации сайта')
-  }
-}
-
 const closeAddForm = () => {
   showAddForm.value = false
   addForm.value = {
     siteName: '',
-    siteAlias: '',
-    requiresModeration: false,
-    isActive: true
+    requiresModeration: false
   }
 }
 
@@ -503,9 +356,7 @@ const closeEditForm = () => {
   editForm.value = {
     id: '',
     siteName: '',
-    siteAlias: '',
-    requiresModeration: false,
-    isActive: true
+    requiresModeration: false
   }
 }
 

@@ -4,7 +4,7 @@ import { canModerateEvent, createTi20ExpiredError } from '../../../utils/moderat
 const prisma = getPrismaClient()
 
 interface PublishEventBody {
-  producerName?: string // Имя продюсера для проверки прав (опционально)
+  // Тело запроса опционально, проверка прав выполняется на уровне модератора
 }
 
 export default defineEventHandler(async (event) => {

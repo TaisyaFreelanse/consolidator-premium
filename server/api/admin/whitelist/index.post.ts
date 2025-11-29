@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   
   const body = await readBody<{
     siteName: string
-    siteAlias: string
+    siteAlias?: string
     requiresModeration?: boolean
     isActive?: boolean
   }>(event)
@@ -30,13 +30,6 @@ export default defineEventHandler(async (event) => {
     })
   }
   
-  if (!body.siteAlias || typeof body.siteAlias !== 'string' || !body.siteAlias.trim()) {
-    errors.push({
-      field: 'siteAlias',
-      message: 'Поле "siteAlias" обязательно для заполнения'
-    })
-  }
-  
   if (errors.length > 0) {
     setResponseStatus(event, 400)
     return {
@@ -47,7 +40,8 @@ export default defineEventHandler(async (event) => {
   }
   
   const siteName = body.siteName.trim()
-  const siteAlias = body.siteAlias.trim()
+  // Используем siteName как siteAlias, если siteAlias не указан
+  const siteAlias = body.siteAlias?.trim() || siteName
   
   try {
     // Проверяем уникальность имени сайта
@@ -64,17 +58,19 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-    // Проверяем уникальность псевдонима
-    const isAliasUnique = await isSiteAliasUnique(siteAlias)
-    if (!isAliasUnique) {
-      setResponseStatus(event, 409)
-      return {
-        success: false,
-        message: 'Сайт с таким псевдонимом уже существует',
-        errors: [{
-          field: 'siteAlias',
-          message: 'Сайт с таким псевдонимом уже существует в белом списке'
-        }]
+    // Проверяем уникальность псевдонима (если он отличается от siteName)
+    if (siteAlias !== siteName) {
+      const isAliasUnique = await isSiteAliasUnique(siteAlias)
+      if (!isAliasUnique) {
+        setResponseStatus(event, 409)
+        return {
+          success: false,
+          message: 'Сайт с таким псевдонимом уже существует',
+          errors: [{
+            field: 'siteAlias',
+            message: 'Сайт с таким псевдонимом уже существует в белом списке'
+          }]
+        }
       }
     }
     

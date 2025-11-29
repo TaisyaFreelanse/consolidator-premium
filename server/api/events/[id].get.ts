@@ -57,8 +57,7 @@ export default defineEventHandler(async (event) => {
         endApplicationsAt: eventData.endApplicationsAt?.toISOString(),
         startContractsAt: eventData.startContractsAt?.toISOString(),
         status: eventData.status,
-        producerName: eventData.producerName,
-        producerCode: eventData.producerCode,
+        siteAlias: eventData.siteAlias,
         timezone: eventData.timezone,
         createdAt: eventData.createdAt.toISOString(),
         updatedAt: eventData.updatedAt.toISOString()
