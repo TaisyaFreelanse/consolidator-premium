@@ -27,8 +27,8 @@ export default defineEventHandler(async (event) => {
         status: true,
         _count: {
           select: {
-            applications: true,
-            payments: true
+            payments: true,
+            statusHistory: true
           }
         }
       }
@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log(`📊 Event "${existingEvent.title}" has ${existingEvent._count.applications} applications and ${existingEvent._count.payments} payments`)
+    console.log(`📊 Event "${existingEvent.title}" has ${existingEvent._count.payments} payments and ${existingEvent._count.statusHistory} status history records`)
 
     // ПОЛНОЕ УДАЛЕНИЕ - удаляем все связанные данные
     
@@ -52,19 +52,13 @@ export default defineEventHandler(async (event) => {
     })
     console.log(`🗑️ Deleted ${deletedPayments.count} payments`)
 
-    // 2. Удаляем все заявки связанные с событием
-    const deletedApplications = await prisma.application.deleteMany({
-      where: { eventId: eventId }
-    })
-    console.log(`🗑️ Deleted ${deletedApplications.count} applications`)
-
-    // 3. Удаляем историю статусов события
+    // 2. Удаляем историю статусов события
     const deletedStatusHistory = await prisma.eventStatusHistory.deleteMany({
       where: { eventId: eventId }
     })
     console.log(`🗑️ Deleted ${deletedStatusHistory.count} status history records`)
 
-    // 4. Наконец, удаляем само событие
+    // 3. Наконец, удаляем само событие
     const deletedEvent = await prisma.event.delete({
       where: { id: eventId }
     })
@@ -79,7 +73,6 @@ export default defineEventHandler(async (event) => {
         title: deletedEvent.title,
         deletedRelatedData: {
           payments: deletedPayments.count,
-          applications: deletedApplications.count,
           statusHistory: deletedStatusHistory.count
         }
       }
