@@ -89,8 +89,14 @@ const deleteEvent = async (eventId: string, eventTitle: string) => {
     toastMessage.value = `✅ Событие "${eventTitle}" полностью удалено`
     showToast.value = true
     
-    // Обновляем список событий
-    await events.fetch()
+    // Удаляем событие из списка для мгновенного обновления UI
+    const index = events.list.findIndex(e => e.id === eventId)
+    if (index !== -1) {
+      events.list.splice(index, 1)
+    }
+    
+    // Перезагружаем список событий с сервера для синхронизации
+    await events.reload()
     
   } catch (error: any) {
     console.error('Error deleting event:', error)
