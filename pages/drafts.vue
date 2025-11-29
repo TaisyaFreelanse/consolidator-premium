@@ -68,6 +68,18 @@ const publishEvent = async (eventId: string, eventTitle: string) => {
   }
 }
 
+// Проверка, прошла ли Ti20 для события
+const isTi20Passed = (event: any): boolean => {
+  if (!event.endApplicationsAt) {
+    return false
+  }
+  const ti20Date = new Date(event.endApplicationsAt)
+  if (Number.isNaN(ti20Date.getTime())) {
+    return false
+  }
+  return new Date() >= ti20Date
+}
+
 // Удаление события
 const deleteEvent = async (eventId: string, eventTitle: string) => {
   if (!auth.isModerator) {
@@ -76,9 +88,21 @@ const deleteEvent = async (eventId: string, eventTitle: string) => {
     return
   }
 
-  const confirmed = confirm(`⚠️ ВНИМАНИЕ!\n\nВы действительно хотите ПОЛНОСТЬЮ УДАЛИТЬ событие "${eventTitle}"?\n\nЭто действие:\n• Удалит событие навсегда\n• Удалит все заявки и платежи\n• Удалит всю историю\n• НЕ МОЖЕТ БЫТЬ ОТМЕНЕНО\n\nПродолжить?`)
+  // Находим событие для проверки Ti20
+  const event = events.list.find(e => e.id === eventId)
+  const ti20Passed = event ? isTi20Passed(event) : false
+
+  // Базовое подтверждение
+  let confirmed = confirm(`⚠️ ВНИМАНИЕ!\n\nВы действительно хотите ПОЛНОСТЬЮ УДАЛИТЬ событие "${eventTitle}"?\n\nЭто действие:\n• Удалит событие навсегда\n• Удалит все платежи\n• Удалит всю историю\n• НЕ МОЖЕТ БЫТЬ ОТМЕНЕНО\n\nПродолжить?`)
   
   if (!confirmed) return
+
+  // Дополнительное подтверждение, если Ti20 прошло
+  if (ti20Passed) {
+    confirmed = confirm(`🚨 ОСОБОЕ ПОДТВЕРЖДЕНИЕ!\n\nДля события "${eventTitle}" уже наступило время Ti20 (окончание приема заявок).\n\nУдаление такого события может повлиять на:\n• Платежи, которые уже были внесены\n• Итоги мероприятия\n• Историю статусов события\n\nВы ТОЧНО уверены, что хотите удалить это событие?`)
+    
+    if (!confirmed) return
+  }
 
   isDeleting.value = eventId
 
@@ -159,8 +183,17 @@ onMounted(async () => {
         <p class="page-subtitle">События, ожидающие публикации</p>
       </div>
 
+      <!-- Проверка прав доступа -->
+      <div v-if="!auth.isModerator" class="access-denied">
+        <svg class="access-denied-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <h2>Только для модератора</h2>
+        <p>Доступ к черновикам ограничен модераторами платформы</p>
+      </div>
+
       <!-- Загрузка -->
-      <div v-if="isLoading" class="loading-state">
+      <div v-else-if="isLoading" class="loading-state">
         <div class="spinner"></div>
         <p>Загрузка черновиков...</p>
       </div>
@@ -320,6 +353,28 @@ onMounted(async () => {
 }
 
 .empty-state p {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.access-denied {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.access-denied-icon {
+  width: 80px;
+  height: 80px;
+  color: rgba(255, 59, 48, 0.5);
+  margin: 0 auto 1rem;
+}
+
+.access-denied h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.access-denied p {
   color: rgba(255, 255, 255, 0.5);
 }
 
