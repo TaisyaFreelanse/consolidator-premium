@@ -144,9 +144,26 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { DateTime } from 'luxon'
 
 const config = useRuntimeConfig()
-const apiBaseUrl = config.public.apiBaseUrl
+const configApiBaseUrl = config.public.apiBaseUrl
 
-// API Key management
+// Platform URL management - используем сохранённый URL или дефолтный из конфига
+const PLATFORM_URL_KEY = 'demo_platform_url'
+const platformUrl = ref<string>('')
+
+// Динамический apiBaseUrl - использует сохранённый URL или дефолт из конфига
+const apiBaseUrl = computed(() => {
+  return platformUrl.value || configApiBaseUrl || 'https://consolidator-premium.onrender.com'
+})
+
+// Загрузка URL платформы
+const loadPlatformUrl = () => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(PLATFORM_URL_KEY)
+    platformUrl.value = stored || ''
+  }
+}
+
+// API Key management (legacy)
 const siteName = ref<string>('')
 const copied = ref(false)
 
@@ -476,7 +493,7 @@ const uploadEventToPlatform = async () => {
       endAt: toISOString(eventData.endAtDate, eventData.endAtTime, eventData.timezone)
     }
 
-    const res = await fetch(`${apiBaseUrl}/api/external/events`, {
+    const res = await fetch(`${apiBaseUrl.value}/api/external/events`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(payload)
@@ -582,7 +599,7 @@ const refreshEventStatus = async (eventId: string) => {
   startProgress('Запрос статуса на платформе выполняется')
 
   try {
-    const res = await fetch(`${apiBaseUrl}/api/external/events/${event.serverId}`, {
+    const res = await fetch(`${apiBaseUrl.value}/api/external/events/${event.serverId}`, {
       method: 'GET',
       headers: getHeaders()
     })
@@ -638,6 +655,7 @@ const clearServerMessages = () => {
 }
 
 onMounted(() => {
+  loadPlatformUrl()
   loadEventsList()
   // Восстанавливаем ранее выбранный Ивент при навигации между формами
   if (typeof window !== 'undefined') {

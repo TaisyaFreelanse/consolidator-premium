@@ -47,15 +47,16 @@
               </div>
             </div>
 
-            <!-- Предупреждение об отсутствии имени сайта -->
-            <div v-if="!siteName" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
-              <div class="flex items-center gap-2 text-red-300 font-medium mb-1">
-                <span>🌐</span>
-                <span>Имя сайта не установлено</span>
+            <!-- Предупреждение об отсутствии URL платформы -->
+            <div v-if="!platformUrl" class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 mb-4">
+              <div class="flex items-center gap-2 text-yellow-300 font-medium mb-1">
+                <span>🔗</span>
+                <span>URL платформы не настроен</span>
               </div>
-              <div class="text-red-200/70 text-sm">
-                Для запроса данных мониторинга необходимо указать имя сайта. Настройте его на странице 
-                <NuxtLink to="/demo/settings" class="text-blue-400 hover:text-blue-300 underline">Настройки</NuxtLink>.
+              <div class="text-yellow-200/70 text-sm">
+                Рекомендуется указать URL платформы в 
+                <NuxtLink to="/demo/settings" class="text-blue-400 hover:text-blue-300 underline">Настройках</NuxtLink>.
+                Используется URL по умолчанию: <code class="bg-white/10 px-1 rounded text-xs">{{ apiBaseUrl }}</code>
               </div>
             </div>
         
@@ -280,9 +281,26 @@ import SummaryMetricsRow from '~/components/SummaryMetricsRow.vue'
 import PersonalCalculation from '~/components/PersonalCalculation.vue'
 
 const config = useRuntimeConfig()
-const apiBaseUrl = config?.public?.apiBaseUrl || ''
+const configApiBaseUrl = config?.public?.apiBaseUrl || ''
 
-// API Key management
+// Platform URL management - используем сохранённый URL или дефолтный из конфига
+const PLATFORM_URL_KEY = 'demo_platform_url'
+const platformUrl = ref<string>('')
+
+// Динамический apiBaseUrl - использует сохранённый URL или дефолт из конфига
+const apiBaseUrl = computed(() => {
+  return platformUrl.value || configApiBaseUrl || 'https://consolidator-premium.onrender.com'
+})
+
+// Загрузка URL платформы
+const loadPlatformUrl = () => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(PLATFORM_URL_KEY)
+    platformUrl.value = stored || ''
+  }
+}
+
+// API Key management (legacy - используется для проверки настроек)
 const siteName = ref<string>('')
 
 // Управление эскизами
@@ -428,7 +446,7 @@ const formatTi20DateTime = computed(() => {
 const canRequestMonitoring = computed(() => {
   return hasTi20Passed.value && 
          !!currentEvent.value?.serverId && 
-         !!siteName.value &&
+         !!apiBaseUrl.value &&
          !isLoading.value
 })
 
@@ -474,8 +492,8 @@ const requestMonitoringData = async () => {
       error.value = { message: 'Ивент не загружен на платформу' }
       return
     }
-    if (!siteName.value) {
-      error.value = { message: 'Имя сайта не установлено' }
+    if (!apiBaseUrl.value) {
+      error.value = { message: 'URL платформы не установлен. Укажите его в Настройках.' }
       return
     }
     return
@@ -492,7 +510,7 @@ const requestMonitoringData = async () => {
       throw new Error('Ивент не загружен на платформу')
     }
     
-    const res = await fetch(`${apiBaseUrl}/api/external/events/${currentEvent.value.serverId}/monitoring`, {
+    const res = await fetch(`${apiBaseUrl.value}/api/external/events/${currentEvent.value.serverId}/monitoring`, {
       method: 'GET',
       headers: getHeaders()
     })
@@ -894,25 +912,20 @@ const generateAndDownloadZip = async () => {
 }
 
 onMounted(() => {
+  loadPlatformUrl()
   loadApiKey()
   loadEventsList()
   // Восстанавливаем ранее выбранный Ивент
   if (typeof window !== 'undefined') {
     const lastId = localStorage.getItem(LAST_SELECTED_EVENT_KEY)
-    if (!siteName.value) {
-      if (lastId) {
-        localStorage.removeItem(LAST_SELECTED_EVENT_KEY)
-      }
-      selectedEventId.value = null
-      monitoringData.value = null
-      return
-    }
     if (lastId) {
       const exists = savedEvents.value.some(e => e.id === lastId)
       if (exists) {
         selectedEventId.value = lastId
       }
     }
+    // Примечание: platformUrl проверяется отдельно при запросе мониторинга,
+    // но не влияет на сохранение выбранного ивента
   }
 })
 

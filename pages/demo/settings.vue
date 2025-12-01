@@ -14,6 +14,64 @@
         </div>
       </div>
 
+      <!-- Раздел 0: Настройка URL платформы -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+        <h2 class="text-2xl font-semibold mb-4">🔗 URL Платформы</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-white/80 mb-2">
+              Базовый URL платформы для API-запросов
+            </label>
+            <div class="flex gap-3">
+              <input 
+                v-model="platformUrlForm"
+                type="text" 
+                placeholder="https://consolidator-premium.onrender.com"
+                class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 outline-none transition-all"
+              >
+              <button
+                @click="savePlatformUrl"
+                class="bg-gradient-to-r from-[#007AFF] to-[#5E5CE6] text-white font-semibold py-3 px-6 rounded-xl hover:opacity-90 transition-opacity"
+              >
+                💾 Сохранить
+              </button>
+            </div>
+            <p class="text-white/50 text-xs mt-2">
+              Этот URL используется для всех API-запросов к платформе. По умолчанию: <code class="bg-white/10 px-1 rounded">{{ defaultPlatformUrl }}</code>
+            </p>
+          </div>
+          
+          <!-- Текущий сохраненный URL -->
+          <div v-if="savedPlatformUrl" class="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-green-300 text-sm font-medium mb-1">✅ Текущий сохраненный URL:</p>
+                <code class="text-green-200 text-sm bg-green-500/20 px-2 py-1 rounded">{{ savedPlatformUrl }}</code>
+              </div>
+              <button
+                @click="clearPlatformUrl"
+                class="text-red-400 hover:text-red-300 text-sm underline"
+              >
+                Очистить
+              </button>
+            </div>
+          </div>
+          
+          <!-- Предупреждение если URL не установлен -->
+          <div v-else class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <p class="text-yellow-300 text-sm font-medium mb-1">⚠️ URL платформы не установлен</p>
+            <p class="text-yellow-200/70 text-sm">
+              Введите URL платформы выше и нажмите "Сохранить". Без этой настройки запросы к API могут не работать корректно.
+            </p>
+          </div>
+          
+          <!-- Уведомление об успешном сохранении -->
+          <div v-if="platformUrlSaveSuccess" class="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+            <p class="text-green-300 text-sm">✅ URL платформы успешно сохранен!</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Раздел 1: Информация о сайте -->
       <div class="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
         <h2 class="text-2xl font-semibold mb-4">ℹ️ Информация о сайте</h2>
@@ -439,7 +497,57 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 const config = useRuntimeConfig()
 const apiBaseUrl = config.public.apiBaseUrl
 
-// Site Name management
+// Platform URL management
+const PLATFORM_URL_KEY = 'demo_platform_url'
+const defaultPlatformUrl = 'https://consolidator-premium.onrender.com'
+const platformUrlForm = ref<string>('')
+const savedPlatformUrl = ref<string>('')
+const platformUrlSaveSuccess = ref(false)
+
+// Загрузка URL платформы
+const loadPlatformUrl = () => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(PLATFORM_URL_KEY)
+    savedPlatformUrl.value = stored || ''
+    platformUrlForm.value = stored || defaultPlatformUrl
+  }
+}
+
+// Сохранение URL платформы
+const savePlatformUrl = () => {
+  if (typeof window !== 'undefined') {
+    const url = platformUrlForm.value.trim()
+    if (url) {
+      // Убираем trailing slash если есть
+      const cleanUrl = url.replace(/\/+$/, '')
+      localStorage.setItem(PLATFORM_URL_KEY, cleanUrl)
+      savedPlatformUrl.value = cleanUrl
+      platformUrlForm.value = cleanUrl
+      
+      // Также сохраняем как demo_site_name для совместимости
+      localStorage.setItem('demo_site_name', cleanUrl)
+      siteName.value = cleanUrl
+      
+      platformUrlSaveSuccess.value = true
+      setTimeout(() => { platformUrlSaveSuccess.value = false }, 3000)
+    }
+  }
+}
+
+// Очистка URL платформы
+const clearPlatformUrl = () => {
+  if (confirm('Вы уверены, что хотите очистить URL платформы?')) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(PLATFORM_URL_KEY)
+      localStorage.removeItem('demo_site_name')
+      savedPlatformUrl.value = ''
+      platformUrlForm.value = defaultPlatformUrl
+      siteName.value = ''
+    }
+  }
+}
+
+// Site Name management (legacy, для совместимости)
 const siteName = ref<string>('')
 const copied = ref(false)
 const saveSuccess = ref(false)
@@ -490,7 +598,8 @@ const saveSiteName = () => {
 }
 
 onMounted(() => {
-  // Инициализация выполнена
+  loadPlatformUrl()
+  loadSiteName()
 })
 </script>
 
