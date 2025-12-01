@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { DateTime } from 'luxon'
 import { useEventsStore } from '~/stores/events'
 import { useMonitoringStore } from '~/stores/monitoring'
 import { useAuthStore } from '~/stores/auth'
@@ -250,7 +251,20 @@ const canSubmitApplications = computed(() => {
   if (!ev.value) return true
   const ti20 = ev.value.endApplicationsAt
   if (!ti20) return true
-  return new Date() < new Date(ti20)
+  
+  try {
+    // Используем DateTime для правильного сравнения с учетом часового пояса
+    const ti20DateTime = DateTime.fromISO(ti20)
+    if (!ti20DateTime.isValid) {
+      // Если не удалось распарсить, используем простое сравнение как fallback
+      return new Date() < new Date(ti20)
+    }
+    // Сравниваем текущее время с временем Ти20
+    return DateTime.now().toMillis() < ti20DateTime.toMillis()
+  } catch {
+    // В случае ошибки используем простое сравнение
+    return new Date() < new Date(ti20)
+  }
 })
 
 // Проверка: можно ли просматривать персональные результаты (после ti20)
@@ -258,7 +272,20 @@ const canViewPersonalResults = computed(() => {
   if (!ev.value) return false
   const ti20 = ev.value.endApplicationsAt
   if (!ti20) return false // Если нет ti20, то результаты недоступны
-  return new Date() >= new Date(ti20) // Доступны только после ti20
+  
+  try {
+    // Используем DateTime для правильного сравнения с учетом часового пояса
+    const ti20DateTime = DateTime.fromISO(ti20)
+    if (!ti20DateTime.isValid) {
+      // Если не удалось распарсить, используем простое сравнение как fallback
+      return new Date() >= new Date(ti20)
+    }
+    // Доступны только после ti20
+    return DateTime.now().toMillis() >= ti20DateTime.toMillis()
+  } catch {
+    // В случае ошибки используем простое сравнение
+    return new Date() >= new Date(ti20)
+  }
 })
 
 const applicationsStartDate = computed(() => {

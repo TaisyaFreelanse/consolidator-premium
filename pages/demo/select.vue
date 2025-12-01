@@ -162,7 +162,8 @@ interface SavedEvent {
   id: string
   title: string
   data: any
-  createdAt: string
+  createdAt: string // Дата последнего обновления
+  originalCreatedAt?: string // Дата первичного создания
   uploadStatus?: 'not_uploaded' | 'upload_success' | 'upload_failed'
   serverId?: string
   lastUploadAttempt?: string

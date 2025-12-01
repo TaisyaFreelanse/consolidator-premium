@@ -409,10 +409,10 @@
               <div class="text-lg font-semibold text-white break-words">{{ currentEvent.title }}</div>
             </div>
             
-            <!-- Дата создания/редактирования на демо-сайте -->
+            <!-- Дата создания на демо-сайте -->
             <div>
-              <div class="text-xs text-white/50 mb-1">Дата/время создания/редактирования на демо-сайте</div>
-              <div class="text-white/90">{{ formatEventDate(currentEvent.createdAt) }}</div>
+              <div class="text-xs text-white/50 mb-1">Дата/время создания на демо-сайте</div>
+              <div class="text-white/90">{{ formatEventDate(currentEvent.originalCreatedAt || currentEvent.createdAt) }}</div>
             </div>
             
             <!-- Статус на платформе -->
@@ -617,7 +617,8 @@ interface SavedEvent {
   id: string // Уникальный идентификатор
   title: string // Название для отображения в списке
   data: any // Данные формы
-  createdAt: string // Дата создания/обновления
+  createdAt: string // Дата последнего обновления (для обратной совместимости)
+  originalCreatedAt?: string // Дата первичного создания (если не указано, используется createdAt)
   uploadStatus?: 'not_uploaded' | 'upload_success' | 'upload_failed' // Статус загрузки на платформу
   lastUploadAttempt?: string // Дата/время последней попытки загрузки
   serverId?: string // ID на сервере (если успешно загружен)
@@ -689,18 +690,27 @@ const getSavedEvents = (): SavedEvent[] => {
     // Проверяем, это старый формат (один эскиз) или новый (массив)
     const parsed = JSON.parse(saved)
     if (Array.isArray(parsed)) {
-      // Убеждаемся, что у всех Ивентов есть статус
-      return parsed.map((event: SavedEvent) => ({
-        ...event,
-        uploadStatus: event.uploadStatus || 'not_uploaded'
-      }))
+      // Убеждаемся, что у всех Ивентов есть статус и originalCreatedAt
+      return parsed.map((event: SavedEvent) => {
+        const migrated = {
+          ...event,
+          uploadStatus: event.uploadStatus || 'not_uploaded'
+        }
+        // Если originalCreatedAt не установлено, используем createdAt как дату первичного создания
+        if (!migrated.originalCreatedAt && migrated.createdAt) {
+          migrated.originalCreatedAt = migrated.createdAt
+        }
+        return migrated
+      })
     } else if (parsed && typeof parsed === 'object') {
       // Миграция со старого формата - преобразуем в массив
+      const now = new Date().toISOString()
       const migrated: SavedEvent[] = [{
         id: `event-${Date.now()}`,
         title: parsed.title || 'Сохраненный Ивент',
         data: parsed,
-        createdAt: new Date().toISOString()
+        createdAt: now,
+        originalCreatedAt: now
       }]
       localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(migrated))
       return migrated
@@ -962,11 +972,13 @@ const confirmSaveEvent = () => {
     const draftData = { ...formData.value }
     
     const events = getSavedEvents()
+    const now = new Date().toISOString()
     const newEvent: SavedEvent = {
       id: `event-${Date.now()}`,
       title: eventSaveName.value.trim(),
       data: draftData,
-      createdAt: new Date().toISOString(),
+      createdAt: now, // Дата последнего обновления
+      originalCreatedAt: now, // Дата первичного создания
       uploadStatus: 'not_uploaded'
     }
     
@@ -1052,7 +1064,12 @@ const updateCurrentEvent = () => {
     if (index >= 0) {
       events[index].data = draftData
       events[index].title = formData.value.title || events[index].title // Обновляем название из формы
-      events[index].createdAt = new Date().toISOString()
+      events[index].createdAt = new Date().toISOString() // Обновляем дату последнего сохранения
+      // НЕ обновляем originalCreatedAt - сохраняем дату первичного создания
+      if (!events[index].originalCreatedAt) {
+        // Если originalCreatedAt не было установлено (старые записи), используем createdAt
+        events[index].originalCreatedAt = events[index].createdAt
+      }
       
       // Сохраняем serverId, если он есть в форме
       if (formData.value.id) {

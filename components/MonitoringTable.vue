@@ -14,6 +14,21 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ openPersonalCalc: []; requestAdditionalPayment: [] }>()
 
+// Безопасная проверка canSubmitApplications (по умолчанию false, если не передано)
+const isCanSubmitApplications = computed(() => {
+  // Если значение явно передано, используем его
+  if (props.canSubmitApplications !== undefined) {
+    return props.canSubmitApplications === true
+  }
+  // Если не передано, по умолчанию блокируем (безопаснее)
+  return false
+})
+
+// Безопасная проверка canViewPersonalResults
+const isCanViewPersonalResults = computed(() => {
+  return props.canViewPersonalResults === true
+})
+
 // Показать предупреждение о недоступности персональных результатов до Ti20
 const showTi20Warning = () => {
   alert('⏳ Персональные результаты будут доступны после окончания приема заявок (Ti20)\n\nСейчас участники еще могут делать ставки, поэтому результаты могут измениться.')
@@ -251,15 +266,15 @@ const formatMoney = (amount: number) => {
                 </div>
                 <div v-if="isCurrentUser(row)" class="action-buttons">
                   <button
-                    @click="canViewPersonalResults ? emit('openPersonalCalc') : showTi20Warning()"
+                    @click="isCanViewPersonalResults ? emit('openPersonalCalc') : showTi20Warning()"
                     :class="[
                       'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition-all',
-                      canViewPersonalResults 
+                      isCanViewPersonalResults 
                         ? 'bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 text-blue-400 hover:text-blue-300 cursor-pointer'
                         : 'bg-gray-500/10 border border-gray-500/20 text-gray-500 cursor-not-allowed'
                     ]"
-                    :title="canViewPersonalResults ? 'Персональная калькуляция' : 'Персональные результаты будут доступны после окончания приема заявок (Ti20)'"
-                    :disabled="!canViewPersonalResults"
+                    :title="isCanViewPersonalResults ? 'Персональная калькуляция' : 'Персональные результаты будут доступны после окончания приема заявок (Ti20)'"
+                    :disabled="!isCanViewPersonalResults"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -267,15 +282,15 @@ const formatMoney = (amount: number) => {
                     <span class="text-sm font-medium">Перс.результ</span>
                   </button>
                   <button
-                    @click="canSubmitApplications ? emit('requestAdditionalPayment') : showTi20FinishedWarning()"
+                    @click="isCanSubmitApplications ? emit('requestAdditionalPayment') : showTi20FinishedWarning()"
                     :class="[
                       'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition-all',
-                      canSubmitApplications
+                      isCanSubmitApplications
                         ? 'bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 hover:text-amber-200 cursor-pointer'
                         : 'bg-gray-500/10 border border-gray-500/20 text-gray-500 cursor-not-allowed'
                     ]"
-                    :title="canSubmitApplications ? 'Дополнительная оплата' : 'Дополнительная оплата недоступна после окончания приема заявок (Ti20)'"
-                    :disabled="!canSubmitApplications"
+                    :title="isCanSubmitApplications ? 'Дополнительная оплата' : 'Дополнительная оплата недоступна после окончания приема заявок (Ti20)'"
+                    :disabled="!isCanSubmitApplications"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
