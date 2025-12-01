@@ -19,6 +19,11 @@ const showTi20Warning = () => {
   alert('⏳ Персональные результаты будут доступны после окончания приема заявок (Ti20)\n\nСейчас участники еще могут делать ставки, поэтому результаты могут измениться.')
 }
 
+// Показать предупреждение о недоступности доплаты после Ti20
+const showTi20FinishedWarning = () => {
+  alert('❌ Прием заявок завершен (Ti20)\n\nДополнительная оплата больше недоступна. После окончания приема заявок можно только просматривать персональные результаты.')
+}
+
 type SnapshotApplicant = MonitoringSnapshot['applicants'][number]
 type LastPaymentInfo = {
   date: string
@@ -262,10 +267,15 @@ const formatMoney = (amount: number) => {
                     <span class="text-sm font-medium">Перс.результ</span>
                   </button>
                   <button
-                    v-if="canSubmitApplications !== false"
-                    @click="emit('requestAdditionalPayment')"
-                    class="inline-flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 rounded-xl px-3 py-2 transition-all text-amber-300 hover:text-amber-200"
-                    title="Дополнительная оплата"
+                    @click="canSubmitApplications ? emit('requestAdditionalPayment') : showTi20FinishedWarning()"
+                    :class="[
+                      'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition-all',
+                      canSubmitApplications
+                        ? 'bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 hover:text-amber-200 cursor-pointer'
+                        : 'bg-gray-500/10 border border-gray-500/20 text-gray-500 cursor-not-allowed'
+                    ]"
+                    :title="canSubmitApplications ? 'Дополнительная оплата' : 'Дополнительная оплата недоступна после окончания приема заявок (Ti20)'"
+                    :disabled="!canSubmitApplications"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
